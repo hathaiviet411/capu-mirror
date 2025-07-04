@@ -1,0 +1,155 @@
+# Capu システム シークエンス図
+
+## 概要
+このドキュメントはCapuシステムにおける主要な処理フローを時系列で示したシークエンス図です。ユーザーの初回ログインから自動ログイン、キャスト審査までの一連の流れを詳細に記載しています。
+
+## 全体フロー
+
+```mermaid
+sequenceDiagram
+    participant ユーザー
+    participant ランディングページ(Next.js/Vercel)
+    participant ログイン画面(Next.js/Vercel)
+    participant LINE
+    participant API(Cloud Run)
+    participant データベース(Supabase)
+    participant アプリ画面(Next.js/Vercel)
+
+    Note over ユーザー, アプリ画面(Next.js/Vercel): ゲスト初回ログイン
+
+    ユーザー->>ランディングページ(Next.js/Vercel): LPにアクセス
+    ランディングページ(Next.js/Vercel)->>ユーザー: サービス概要を表示(Vercel CDN配信)
+    ユーザー->>ランディングページ(Next.js/Vercel): ログイン・新規登録ボタンをクリック
+    ランディングページ(Next.js/Vercel)->>ログイン画面(Next.js/Vercel): ログイン画面にリダイレクト
+    ログイン画面(Next.js/Vercel)->>ユーザー: LINEログインボタンを表示
+
+    ユーザー->>ログイン画面(Next.js/Vercel): LINEログインボタンをクリック
+    ログイン画面(Next.js/Vercel)->>LINE: OAuth認証を要求
+    LINE->>ユーザー: LINE認証画面を表示
+    ユーザー->>LINE: 認証を許可
+    LINE->>ログイン画面(Next.js/Vercel): 認証コードを返却
+    ログイン画面(Next.js/Vercel)->>API(Cloud Run): LINEトークンを検証
+    API(Cloud Run)->>ログイン画面(Next.js/Vercel): JWTトークンを発行
+    
+    alt 新規ユーザーの場合
+        ログイン画面(Next.js/Vercel)->>API(Cloud Run): LINEプロフィール取得API呼び出し
+        API(Cloud Run)->>LINE: プロフィール情報を要求
+        LINE->>API(Cloud Run): ユーザー情報(名前、アイコン)を返却
+        API(Cloud Run)->>データベース(Supabase): usersテーブルにINSERT
+        データベース(Supabase)->>API(Cloud Run): 保存完了レスポンス
+        API(Cloud Run)->>ログイン画面(Next.js/Vercel): 作成完了を通知
+        ログイン画面(Next.js/Vercel)->>ユーザー: プロフィール補完画面を表示
+        ユーザー->>ログイン画面(Next.js/Vercel): 追加情報(年齢、趣味等)を入力
+        ログイン画面(Next.js/Vercel)->>API(Cloud Run): プロフィール更新API呼び出し
+        API(Cloud Run)->>データベース(Supabase): usersテーブルをUPDATE
+        データベース(Supabase)->>API(Cloud Run): 更新完了レスポンス
+        API(Cloud Run)->>ログイン画面(Next.js/Vercel): 更新完了を通知
+    end
+
+    ログイン画面(Next.js/Vercel)->>API(Cloud Run): JWTトークンを取得
+    API(Cloud Run)->>ログイン画面(Next.js/Vercel): トークンを返却
+    ログイン画面(Next.js/Vercel)->>ユーザー: トークンをlocalStorageに保存
+    ログイン画面(Next.js/Vercel)->>アプリ画面(Next.js/Vercel): メイン画面にリダイレクト
+    アプリ画面(Next.js/Vercel)->>API(Cloud Run): トークン有効性を確認
+    API(Cloud Run)->>アプリ画面(Next.js/Vercel): 認証状態(uid、email等)を返却
+    アプリ画面(Next.js/Vercel)->>API(Cloud Run): ユーザー情報取得API呼び出し
+    API(Cloud Run)->>データベース(Supabase): usersテーブルからSELECT
+    データベース(Supabase)->>API(Cloud Run): ユーザー情報を返却
+    API(Cloud Run)->>アプリ画面(Next.js/Vercel): ユーザー情報レスポンス
+    アプリ画面(Next.js/Vercel)->>ユーザー: メイン画面(キャスト一覧)を表示
+
+    Note over ユーザー, アプリ画面(Next.js/Vercel): 2回目以降の自動ログイン
+
+    ユーザー->>アプリ画面(Next.js/Vercel): アプリに直接アクセス
+    アプリ画面(Next.js/Vercel)->>アプリ画面(Next.js/Vercel): localStorageからトークン取得
+    
+    alt トークンが有効
+        アプリ画面(Next.js/Vercel)->>API(Cloud Run): トークン有効性を確認
+        API(Cloud Run)->>アプリ画面(Next.js/Vercel): 有効確認(uid、email等)
+        アプリ画面(Next.js/Vercel)->>API(Cloud Run): ユーザー情報取得API呼び出し
+        API(Cloud Run)->>データベース(Supabase): usersテーブルからSELECT
+        データベース(Supabase)->>API(Cloud Run): ユーザー情報を返却
+        API(Cloud Run)->>アプリ画面(Next.js/Vercel): ユーザー情報レスポンス
+        アプリ画面(Next.js/Vercel)->>ユーザー: メイン画面(キャスト一覧)を表示(Vercel CDN高速配信)
+    else トークンが無効
+        アプリ画面(Next.js/Vercel)->>ログイン画面(Next.js/Vercel): ログイン画面にリダイレクト
+        ログイン画面(Next.js/Vercel)->>ユーザー: LINEログインボタンを表示
+    end
+
+    Note over ユーザー, アプリ画面(Next.js/Vercel): キャスト審査フロー
+
+    ユーザー->>ランディングページ(Next.js/Vercel): キャスト用LPにアクセス
+    ランディングページ(Next.js/Vercel)->>ユーザー: キャスト説明を表示(Vercel CDN配信)
+    ユーザー->>ランディングページ(Next.js/Vercel): LINE友だち追加ボタンをクリック
+    ランディングページ(Next.js/Vercel)->>LINE: 友だち追加処理
+    LINE->>ユーザー: 審査案内を自動送信
+    
+    Note over ユーザー, LINE: 審査書類提出プロセス
+    
+    ユーザー->>LINE: 審査書類を提出
+    LINE->>API(Cloud Run): 審査データ登録API呼び出し
+    API(Cloud Run)->>データベース(Supabase): cast_applicationsテーブルにINSERT
+    
+    Note over API(Cloud Run), データベース(Supabase): 管理者による審査
+
+    API(Cloud Run)->>LINE: 審査結果通知API呼び出し
+    LINE->>ユーザー: 合格通知とログイン情報を送信
+    
+    ユーザー->>ログイン画面(Next.js/Vercel): 提供されたログイン情報でアクセス
+    ログイン画面(Next.js/Vercel)->>API(Cloud Run): キャスト認証を実行
+    API(Cloud Run)->>ログイン画面(Next.js/Vercel): 認証成功を返却
+    ログイン画面(Next.js/Vercel)->>アプリ画面(Next.js/Vercel): キャストダッシュボードにリダイレクト
+    アプリ画面(Next.js/Vercel)->>API(Cloud Run): キャスト情報取得API呼び出し
+    API(Cloud Run)->>データベース(Supabase): castsテーブルからSELECT
+    データベース(Supabase)->>API(Cloud Run): キャスト情報を返却
+    API(Cloud Run)->>アプリ画面(Next.js/Vercel): キャスト情報レスポンス
+    アプリ画面(Next.js/Vercel)->>ユーザー: キャストダッシュボードを表示(Vercel CDN高速配信)
+```
+
+## 主要フローの説明
+
+### 1. ゲスト初回ログイン
+- **目的**: 新規ユーザーがLINE認証を通じてアカウントを作成し、アプリにログインする
+- **ポイント**: 
+  - LINE OAuth認証の実装
+  - Cloud Run認証APIとSupabaseの連携
+  - 新規ユーザーのプロフィール補完フロー
+
+### 2. 2回目以降の自動ログイン
+- **目的**: 既存ユーザーがトークンベースで自動的にログインする
+- **ポイント**:
+  - localStorageからのトークン取得
+  - トークン有効性の確認とフォールバック処理
+  - Vercel CDNによる高速配信
+
+### 3. キャスト審査フロー
+- **目的**: キャスト志望者の審査プロセスを管理する
+- **ポイント**:
+  - LINE友だち追加による審査開始
+  - 審査書類の提出と管理
+  - 合格通知とキャストダッシュボードへの誘導
+
+## 技術要素
+
+### 認証・セキュリティ
+- **LINE OAuth**: ユーザー認証の基盤
+- **Cloud Run Auth API**: JWT管理とセキュリティ
+- **localStorageトークン**: セッション管理
+
+### データ管理
+- **Supabase**: メインデータベース
+- **テーブル構成**:
+  - `users`: ユーザー情報
+  - `casts`: キャスト情報
+  - `cast_applications`: キャスト申請情報
+
+### パフォーマンス
+- **Vercel CDN**: 静的コンテンツの高速配信
+- **Cloud Run**: コンテナベースのサーバーレス処理による効率化
+
+## 注意事項
+
+1. **セキュリティ**: 全ての認証フローでHTTPS通信を使用
+2. **可用性**: トークン無効時の適切なフォールバック処理
+3. **ユーザビリティ**: 新規ユーザー向けのスムーズなオンボーディング
+4. **審査管理**: キャスト審査の透明性とトレーサビリティ
