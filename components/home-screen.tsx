@@ -256,6 +256,16 @@ export default function HomeScreen() {
       "いい出会いになればと思います💫",
       "一緒に楽しみましょう🎯",
     ]
+    const prices = [
+      "10,000P / 30分",
+      "12,000P / 30分",
+      "15,000P / 30分",
+      "18,000P / 30分",
+      "20,000P / 30分",
+      "22,000P / 30分",
+      "25,000P / 30分",
+      "28,000P / 30分",
+    ]
     const bgColors = [
       "bg-gray-200",
       "bg-gray-200",
@@ -269,13 +279,13 @@ export default function HomeScreen() {
 
     return Array.from({ length: count }, (_, index) => ({
       id: startId + index,
-      age: Math.floor(Math.random() * 10) + 20,
-      name: names[Math.floor(Math.random() * names.length)],
-      message: messages[Math.floor(Math.random() * messages.length)],
-      price: `${Math.floor(Math.random() * 20000) + 10000}P / 30分`,
-      bgColor: bgColors[Math.floor(Math.random() * bgColors.length)],
-      image: `https://randomuser.me/api/portraits/men/${Math.floor(Math.random() * 100)}.jpg`,
-      likes: Math.floor(Math.random() * 30000) + 100,
+      age: 20 + (index % 10),
+      name: names[index % names.length],
+      message: messages[index % messages.length],
+      price: prices[index % prices.length],
+      bgColor: bgColors[index % bgColors.length],
+      image: `https://randomuser.me/api/portraits/men/${(startId + index) % 100}.jpg`,
+      likes: 100 + (index * 137) % 30000,
     }))
   }, [])
 
@@ -326,7 +336,10 @@ export default function HomeScreen() {
 
       if (tabType === "home") {
         const newCasts = generateMoreCasts(castData.length + 1)
-        setCastData((prev) => [...prev, ...newCasts])
+        // Use requestAnimationFrame to ensure smooth rendering
+        requestAnimationFrame(() => {
+          setCastData((prev) => [...prev, ...newCasts])
+        })
         setPage((prev) => ({ ...prev, home: prev.home + 1 }))
 
         // Simulate end of data after 5 pages
@@ -335,7 +348,9 @@ export default function HomeScreen() {
         }
       } else if (tabType === "footprints") {
         const newFootprints = generateMoreFootprints(footprintData.length + 1)
-        setFootprintData((prev) => [...prev, ...newFootprints])
+        requestAnimationFrame(() => {
+          setFootprintData((prev) => [...prev, ...newFootprints])
+        })
         setPage((prev) => ({ ...prev, footprints: prev.footprints + 1 }))
 
         // Simulate end of data after 5 pages
@@ -394,8 +409,11 @@ export default function HomeScreen() {
     <div className="h-full w-full bg-gray-100 flex flex-col relative">
       {/* Tab Navigation + Search icon */}
       <div className="bg-white sticky top-0 z-10 shadow-sm">
-        <div className="flex items-center justify-center border-b border-gray-200">
-          {/* Tabs */}
+        <div className="flex items-center justify-between border-b border-gray-200 px-4">
+          {/* Left spacer */}
+          <div className="w-10"></div>
+          
+          {/* Tabs - Center */}
           <div className="flex">
             <button
               onClick={() => setActiveTab("オススメ")}
@@ -422,8 +440,9 @@ export default function HomeScreen() {
               足あと
             </button>
           </div>
-          {/* Search icon */}
-          <button onClick={handleSearchClick} className="absolute right-4 p-2 relative">
+          
+          {/* Search icon - Right */}
+          <button onClick={handleSearchClick} className="p-2 relative">
             <Search className="w-6 h-6 text-gray-700" />
             {filterCount > 0 && (
               <div className="absolute -top-1 -right-1 bg-gold-pink-gradient text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
@@ -539,12 +558,12 @@ export default function HomeScreen() {
             ) : (
               /* Cast Masonry Grid Section */
               <div className="bg-white px-2 pb-4 pt-2">
-                <div className="columns-2 gap-2">
-                  {displayedCasts.map((cast) => (
+                <div className="grid grid-cols-2 gap-2">
+                  {displayedCasts.map((cast, index) => (
                     <div
                       key={cast.id}
                       onClick={() => handleCastClick(cast)}
-                      className="relative mb-2 break-inside-avoid cursor-pointer group"
+                      className="relative mb-2 cursor-pointer group"
                     >
                       {/* Cast Image */}
                       <Image
@@ -552,7 +571,7 @@ export default function HomeScreen() {
                         alt="Cast member"
                         width={320}
                         height={600}
-                        className={`w-full h-80 object-cover rounded-lg ${cast.bgColor}`}
+                        className={`w-full h-72 object-cover rounded-lg ${cast.bgColor}`}
                       />
 
                       {/* Hover dark overlay */}
@@ -564,29 +583,14 @@ export default function HomeScreen() {
                         <p className="text-sm font-semibold text-gray-900 leading-tight truncate">
                           {cast.age}歳 {cast.name}
                         </p>
-                        {/* Message (limited to 1 line) */}
-                        <p className="text-xs text-gray-600 truncate">
+                        {/* Message (limited to 2 lines) */}
+                        <p className="text-xs text-gray-600 line-clamp-2">
                           {cast.message}
                         </p>
 
-                        {/* Avatar / Likes Row */}
-                        <div className="flex items-center justify-between mt-1">
-                          <div className="flex items-center gap-1">
-                            <Image
-                              src={cast.image || "/placeholder.svg?height=24&width=24"}
-                              alt="avatar"
-                              width={20}
-                              height={20}
-                              className="rounded-full object-cover w-5 h-5"
-                            />
-                            <span className="text-xs text-gray-500 truncate max-w-[80px]">
-                              {cast.name}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Heart className="w-3 h-3 text-gray-500" />
-                            <span className="text-xs text-gray-500">{cast.likes?.toLocaleString()}</span>
-                          </div>
+                        {/* Price Row */}
+                        <div className="flex items-center justify-end mt-1">
+                          <span className="text-xs text-gray-500">{cast.price}</span>
                         </div>
                       </div>
 
