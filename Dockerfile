@@ -7,7 +7,11 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
-COPY package.json pnpm-lock.yaml* ./
+COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* ./
+COPY apps/cast/package.json ./apps/cast/package.json
+COPY apps/guest/package.json ./apps/guest/package.json
+COPY packages/shared/package.json ./packages/shared/package.json
+COPY prisma/schema.prisma ./prisma/schema.prisma
 RUN \
   if [ -f pnpm-lock.yaml ]; then \
     corepack enable pnpm && pnpm i --frozen-lockfile; \
