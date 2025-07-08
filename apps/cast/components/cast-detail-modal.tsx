@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Star } from "lucide-react"
+import { ArrowLeft, Star, MessageCircle, Heart } from "lucide-react"
 import Image from "next/image"
 
 interface CastDetailModalProps {
@@ -12,13 +12,16 @@ interface CastDetailModalProps {
     id: number
     age: number
     name: string
+    job?: string
+    location?: string
     message: string
-    price: string
+    interests?: string[]
     bgColor: string
     image?: string
-    class?: string
     tags?: string[]
     images?: string[]
+    isOnline?: boolean
+    lastLogin?: string
   }
 }
 
@@ -48,26 +51,27 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
   if (!isOpen) return null
 
   const images = cast.images || [
-    cast.image || "https://randomuser.me/api/portraits/men/32.jpg",
-    `https://randomuser.me/api/portraits/men/${Math.floor(Math.random() * 50) + 20}.jpg`,
-    `https://randomuser.me/api/portraits/men/${Math.floor(Math.random() * 50) + 50}.jpg`,
-    `https://randomuser.me/api/portraits/men/${Math.floor(Math.random() * 30) + 70}.jpg`,
+    cast.image || "https://randomuser.me/api/portraits/women/32.jpg",
+    `https://randomuser.me/api/portraits/women/${Math.floor(Math.random() * 50) + 20}.jpg`,
+    `https://randomuser.me/api/portraits/women/${Math.floor(Math.random() * 50) + 50}.jpg`,
+    `https://randomuser.me/api/portraits/women/${Math.floor(Math.random() * 30) + 70}.jpg`,
   ]
 
-  const tags = cast.tags || ["爽やか系", "スポーツ好き", "会話上手"]
+  const tags = cast.tags || ["優しい", "話しやすい", "癒し系"]
+  const interests = cast.interests || ["映画", "カフェ巡り", "読書"]
 
   return (
     <div className="fixed inset-0 z-50 bg-gray-100 w-full md:max-w-sm mx-auto flex flex-col">
       {/* Header - appears on scroll */}
       <div
-        className={`fixed top-0 left-1/2 transform -translate-x-1/2 w-full md:max-w-sm bg-white border-b shadow-sm px-4 py-3 flex items-center gap-3 transition-all duration-300 ${
+        className={`fixed top-0 left-1/2 transform -translate-x-1/2 w-full md:max-w-sm bg-main-navy-gradient border-b shadow-lg px-4 py-4 h-16 flex items-center gap-3 transition-all duration-300 ${
           showHeader ? "z-30 translate-y-0 opacity-100" : "z-30 -translate-y-full opacity-0 pointer-events-none"
         }`}
       >
         <button onClick={onClose}>
-          <ArrowLeft className="w-5 h-5 text-gray-600" />
+          <ArrowLeft className="w-5 h-5 text-white" />
         </button>
-        <span className="text-base font-medium">{cast.name}</span>
+        <span className="text-base font-medium text-white">{cast.name}</span>
       </div>
 
       {/* Scrollable Content */}
@@ -76,7 +80,7 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
         <div className="relative h-96 bg-gray-200">
           <Image
             src={images[currentImageIndex] || "/placeholder.svg"}
-            alt="Cast profile"
+            alt="Guest profile"
             fill
             className="object-cover"
           />
@@ -110,12 +114,12 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
                 key={index}
                 onClick={() => setCurrentImageIndex(index)}
                 className={`w-16 h-16 rounded-lg overflow-hidden border-2 ${
-                  currentImageIndex === index ? "border-gold-pink-gradient" : "border-gray-200"
+                  currentImageIndex === index ? "border-main-navy-gradient" : "border-gray-200"
                 }`}
               >
                 <Image
                   src={image || "/placeholder.svg"}
-                  alt={`Cast photo ${index + 1}`}
+                  alt={`Guest photo ${index + 1}`}
                   width={64}
                   height={64}
                   className="object-cover w-full h-full"
@@ -124,83 +128,99 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
             ))}
           </div>
 
-          {/* Profile Info */}
+          {/* Online Status and Profile Info */}
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-2">
-              <h1 className="text-base font-medium">
-                {cast.name} 🔗 {cast.age}歳
-              </h1>
-              <span className="bg-green-500 text-white text-xs px-2 py-1 rounded">プレミアム</span>
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span className="text-xs text-green-600">オンライン中</span>
             </div>
-            <p className="text-sm text-gray-700 mb-4">/ 仲良くしてください💪</p>
-
-            {/* Tags */}
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="bg-white text-gray-700 text-xs px-3 py-2 rounded-full border border-gray-300"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
+            <h1 className="text-base font-medium mb-1">
+              {cast.name} {cast.age}歳
+            </h1>
+            <p className="text-sm text-gray-700">
+              {cast.job} / {cast.message}
+            </p>
           </div>
         </div>
 
         {/* Gray Spacer */}
         <div className="h-2 bg-gray-100"></div>
 
-        {/* Pricing Section */}
-        <div className="bg-white p-4">
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-medium text-gray-700">30分あたりのポイント</span>
-            <span className="text-xl font-bold">6,800P</span>
-          </div>
-        </div>
-
-        {/* Gray Spacer */}
-        <div className="h-2 bg-gray-100"></div>
+        {/* Simple Profile Tags Section */}
+        {tags && tags.length > 0 && (
+          <>
+            <div className="bg-white p-4">
+              <h3 className="text-sm font-medium text-black mb-3">簡単プロフィール</h3>
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-2 py-1 text-sm bg-main-navy-gradient text-white rounded-md"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+            {/* Gray Spacer */}
+            <div className="h-2 bg-gray-100"></div>
+          </>
+        )}
 
         {/* Self Introduction Section */}
         <div className="bg-white p-4">
-          <h3 className="text-base font-medium text-gray-700 mb-3">自己紹介</h3>
-          <p className="text-sm text-gray-700 leading-relaxed">
+          <h3 className="text-sm font-medium text-black mb-3">自己紹介</h3>
+          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
             はじめまして！{cast.name}です✨
-            <br />
-            <br />
-            普段は仕事で忙しい毎日を送っていますが、休日はスポーツをしたり、映画を見たりしてリラックスしています。
-            <br />
-            <br />
-            いろんな話をするのが好きで、多くの方とお会いできるのを楽しみにしています。一緒に楽しい時間を過ごしませんか？
-            <br />
-            <br />
-            気軽にメッセージをお送りください💪
+
+            {cast.job}をしています。{cast.location}在住です。
+
+            休日はカフェでゆっくりしたり、映画を見たり、友達とショッピングを楽しんでいます。
+
+            優しくて話しやすい方とお話しできればと思っています。お気軽にメッセージをお送りください💖
           </p>
         </div>
 
         {/* Gray Spacer */}
         <div className="h-2 bg-gray-100"></div>
 
-        {/* Profile Details */}
+        {/* Basic Information Section */}
         <div className="bg-white p-4">
-          <h3 className="text-base font-medium text-gray-700 mb-3">プロフィール詳細</h3>
           <div className="space-y-3">
+            {/* Height */}
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">身長</span>
-              <span className="text-sm font-medium">175cm</span>
+              <span className="text-sm text-gray-600">身長：</span>
+              <span className="text-sm font-medium">158cm</span>
             </div>
+
+            {/* Residence */}
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">体型</span>
-              <span className="text-sm font-medium">普通</span>
+              <span className="text-sm text-gray-600">居住地：</span>
+              <span className="text-sm font-medium">{cast.location || "東京都"}</span>
             </div>
+
+            {/* Education */}
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">趣味</span>
-              <span className="text-sm font-medium">スポーツ、映画鑑賞</span>
+              <span className="text-sm text-gray-600">学歴：</span>
+              <span className="text-sm font-medium">大学卒</span>
             </div>
+
+            {/* Job */}
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-600">お仕事：</span>
+              <span className="text-sm font-medium">{cast.job || "会社員"}</span>
+            </div>
+
+            {/* Alcohol */}
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-600">お酒：</span>
+              <span className="text-sm font-medium">ときどき飲む</span>
+            </div>
+
+            {/* Siblings */}
             <div className="flex justify-between items-center py-2">
-              <span className="text-sm text-gray-600">特技</span>
-              <span className="text-sm font-medium">サッカー、ギター</span>
+              <span className="text-sm text-gray-600">兄弟姉妹：</span>
+              <span className="text-sm font-medium">長女</span>
             </div>
           </div>
         </div>
@@ -209,33 +229,23 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
         <div className="h-4 bg-gray-100"></div>
       </div>
 
-      {/* Fixed Action Button */}
-      <div className="bg-white border-t p-4">
-        {isLiked ? (
-          <Button
-            className="w-full h-12 bg-main-navy-gradient hover:bg-main-blue text-white text-base font-medium rounded-lg flex items-center justify-center gap-2"
-            onClick={() => {
-              // メッセージ送信の処理をここに追加
-              console.log("メッセージを送る")
-            }}
+      {/* Bottom Action Buttons */}
+      <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full md:max-w-sm bg-white border-t px-4 py-3 z-20">
+        {!isLiked ? (
+          <Button 
+            variant="outline"
+            onClick={() => setIsLiked(true)}
+            className="w-full h-12 border-2 border-accent-blue text-accent-blue hover:bg-main-navy-gradient hover:text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2 bg-white"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-              />
-            </svg>
-            メッセージを送る
+            <Heart className="w-4 h-4" />
+            いいね
           </Button>
         ) : (
-          <Button
-            className="w-full h-12 bg-white border-2 border-accent-blue text-accent-blue hover:bg-main-navy-gradient hover:text-white text-base font-medium rounded-lg"
-            onClick={() => setIsLiked(true)}
+          <Button 
+            className="w-full h-12 text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2 bg-main-navy-gradient hover:bg-main-blue"
           >
-            <span className="mr-2">🧡</span>
-            いいね
+            <MessageCircle className="w-4 h-4" />
+            メッセージを送る
           </Button>
         )}
       </div>

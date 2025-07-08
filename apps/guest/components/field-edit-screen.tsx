@@ -1,7 +1,7 @@
 "use client"
 
 import { ArrowLeft } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 
 interface FieldEditScreenProps {
@@ -24,11 +24,38 @@ export default function FieldEditScreen({
   multiline = false,
 }: FieldEditScreenProps) {
   const [inputValue, setInputValue] = useState(value)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const handleSave = () => {
     onSave(inputValue)
     onBack()
   }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
+    const newValue = e.target.value.slice(0, maxLength)
+    setInputValue(newValue)
+    
+    if (multiline && textareaRef.current) {
+      adjustTextareaHeight()
+    }
+  }
+
+  const adjustTextareaHeight = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      const scrollHeight = textareaRef.current.scrollHeight
+      const minHeight = 120 // 最小高さ（約3行分）
+      const maxHeight = 300 // 最大高さ制限
+      const newHeight = Math.min(Math.max(scrollHeight, minHeight), maxHeight)
+      textareaRef.current.style.height = `${newHeight}px`
+    }
+  }
+
+  useEffect(() => {
+    if (multiline && textareaRef.current) {
+      adjustTextareaHeight()
+    }
+  }, [multiline])
 
   return (
     <div className="min-h-screen w-full md:max-w-sm mx-auto bg-gray-100 flex flex-col relative">
@@ -50,7 +77,7 @@ export default function FieldEditScreen({
         <div className="bg-white p-4">
           {/* Character Counter */}
           <div className="flex justify-end mb-3">
-            <span className="text-xs text-gray-500">
+            <span className="text-sm text-gray-500">
               {inputValue.length}/{maxLength}
             </span>
           </div>
@@ -58,25 +85,29 @@ export default function FieldEditScreen({
           {/* Input Field */}
           {multiline ? (
             <textarea
+              ref={textareaRef}
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value.slice(0, maxLength))}
+              onChange={handleInputChange}
               placeholder={placeholder}
-              className="w-full h-48 p-3 border border-gray-200 rounded-lg resize-none focus:outline-none focus:border-gold-pink-gradient focus:rounded-lg active:rounded-lg text-xs bg-white transition-all duration-200"
-              style={{ borderRadius: '0.5rem' }}
+              className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:outline-none focus:border-gold-pink-gradient focus:rounded-lg active:rounded-lg text-sm bg-white transition-all duration-200 overflow-hidden"
+              style={{ 
+                borderRadius: '0.5rem',
+                minHeight: '120px'
+              }}
             />
           ) : (
             <input
               type="text"
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value.slice(0, maxLength))}
+              onChange={handleInputChange}
               placeholder={placeholder}
-              className="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:border-gold-pink-gradient focus:rounded-lg active:rounded-lg text-xs bg-white transition-all duration-200"
+              className="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:border-gold-pink-gradient focus:rounded-lg active:rounded-lg text-sm bg-white transition-all duration-200"
               style={{ borderRadius: '0.5rem' }}
             />
           )}
           
           {/* Helper text */}
-          <p className="text-xs text-gray-500 mt-3 text-center">
+          <p className="text-sm text-gray-500 mt-3 text-center">
             {multiline ? '改行して詳しく入力してください' : 'わかりやすく入力してください'}
           </p>
         </div>

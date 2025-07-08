@@ -82,7 +82,7 @@ export default function AreaSelectionModal({
   return (
     <div className="fixed inset-0 z-50 bg-white w-full md:max-w-sm mx-auto flex flex-col">
       {/* Header */}
-      <div className="bg-gold-pink-gradient px-4 py-4 flex items-center gap-3 border-b shadow-lg">
+      <div className="bg-main-navy-gradient px-4 py-4 flex items-center gap-3 border-b shadow-lg">
         <button onClick={() => {
           onSave(selectedArea)
           onClose()
@@ -105,8 +105,8 @@ export default function AreaSelectionModal({
               }}
               className={`w-full text-left px-4 py-3 rounded-lg ${
                 selectedArea === area
-                  ? "bg-gold-pink-gradient text-white"
-                  : "bg-gray-100 text-gray-600"
+                  ? "bg-main-navy-gradient text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
               {area}

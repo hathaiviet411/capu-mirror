@@ -1,54 +1,53 @@
 "use client"
 
-import type React from "react"
-
+import { useState, useRef } from "react"
 import { ArrowLeft, ChevronRight, Plus } from "lucide-react"
 import Image from "next/image"
-import FieldEditScreen from "@/components/field-edit-screen"
 import BasicInfoScreen from "@/components/basic-info-screen"
+import FieldEditScreen from "@/components/field-edit-screen"
 import ProfilePreviewScreen from "@/components/profile-preview-screen"
-import { useState, useRef } from "react"
+import SimpleProfileTagModal from "@/components/simple-profile-tag-modal"
 
 interface ProfileEditScreenProps {
   onBack: () => void
 }
 
 export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
-  const [images, setImages] = useState([
-    "/placeholder.svg?height=192&width=192",
-    "/placeholder.svg?height=192&width=192",
-    "/placeholder.svg?height=192&width=192",
-  ])
-  const [showFieldEdit, setShowFieldEdit] = useState<string | null>(null)
-  const [showBasicInfo, setShowBasicInfo] = useState(false)
-  const [showPreview, setShowPreview] = useState(false)
   const [formData, setFormData] = useState({
-    nickname: "KK",
-    todayWord: "今週・来週で飲みに行ける人探してます！",
-    simpleProfile: "わいわい,しっとり,映画鑑賞,旅行,寿司",
-    selfIntroduction:
-      "はじめまして！よろしくお願いします。普段は都内で働いています。休日は映画を見たり、美味しいものを食べに行ったりするのが好きです。",
+    nickname: "ゆうき😊",
+    todayWord: "楽しい時間を過ごしましょう✨",
+    simpleProfile: "映画鑑賞と音楽鑑賞が趣味です。優しくて話しやすい人だと言われます。一緒に楽しい時間を過ごしませんか？",
+    simpleProfileTags: ["映画鑑賞", "音楽鑑賞", "優しい", "話しやすい"],
+    selfIntroduction: "初めまして、ゆうきです😊\n\n映画と音楽が大好きで、特に邦画とJ-POPをよく観たり聴いたりしています。休日はカフェでゆっくり過ごすことが多いです。\n\n人と話すことが好きで、相手の話をじっくり聞くのが得意です。どんな話題でも楽しく会話できると思います。\n\n一緒に素敵な時間を過ごしましょう♪",
   })
+
   const [basicInfo, setBasicInfo] = useState({
-    height: "176",
+    height: "175cm",
     residence: "東京都",
-    birthplace: "未選択",
+    birthplace: "神奈川県",
     education: "大学卒",
-    income: "1000万〜1500万",
-    job: "経営者・役員",
+    job: "会社員",
     alcohol: "ときどき飲む",
-    tobacco: "非喫煙者の前では吸わない",
     siblings: "長男",
-    cohabitation: "一人暮らし",
-    birthDate: "1996年10月22日",
+    birthDate: "1994年8月15日",
   })
+
+  const [images, setImages] = useState([
+    "/placeholder.svg?height=400&width=400",
+    "/placeholder.svg?height=400&width=400",
+    "/placeholder.svg?height=400&width=400",
+  ])
+
+  const [showBasicInfo, setShowBasicInfo] = useState(false)
+  const [showFieldEdit, setShowFieldEdit] = useState<string | null>(null)
+  const [showPreview, setShowPreview] = useState(false)
+  const [showSimpleProfileTagModal, setShowSimpleProfileTagModal] = useState(false)
   const [showImageOptions, setShowImageOptions] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Handle file upload
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (file && images.length < 4) {
+    if (file) {
       const reader = new FileReader()
       reader.onload = (e) => {
         const result = e.target?.result as string
@@ -58,7 +57,6 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
     }
   }
 
-  // Handle image change
   const handleImageChange = (index: number) => {
     const input = document.createElement("input")
     input.type = "file"
@@ -67,8 +65,8 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (file) {
         const reader = new FileReader()
-        reader.onload = (event) => {
-          const result = event.target?.result as string
+        reader.onload = (e) => {
+          const result = e.target?.result as string
           const newImages = [...images]
           newImages[index] = result
           setImages(newImages)
@@ -78,6 +76,10 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
     }
     input.click()
     setShowImageOptions(null)
+  }
+
+  const handleSimpleProfileTagsSave = (selectedTags: string[]) => {
+    setFormData({ ...formData, simpleProfileTags: selectedTags })
   }
 
   if (showPreview) {
@@ -99,7 +101,6 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
     const fieldConfig = {
       nickname: { title: "ニックネーム", maxLength: 20, placeholder: "ニックネームを入力", multiline: false },
       todayWord: { title: "今日のひとこと", maxLength: 50, placeholder: "今日のひとことを入力", multiline: false },
-      simpleProfile: { title: "簡単プロフィール", maxLength: 100, placeholder: "趣味や好きなことを入力", multiline: false },
       selfIntroduction: { title: "自己紹介", maxLength: 500, placeholder: "自己紹介を入力", multiline: true },
     }
 
@@ -109,7 +110,7 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
       <FieldEditScreen
         onBack={() => setShowFieldEdit(null)}
         title={config.title}
-        value={formData[showFieldEdit as keyof typeof formData]}
+        value={formData[showFieldEdit as "nickname" | "todayWord" | "selfIntroduction"]}
         onSave={(value) => setFormData({ ...formData, [showFieldEdit]: value })}
         maxLength={config.maxLength}
         placeholder={config.placeholder}
@@ -119,160 +120,185 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
   }
 
   return (
-    <div className="h-screen w-full md:max-w-sm mx-auto bg-gray-100 flex flex-col relative">
-      {/* Header */}
-      <div className="bg-gold-pink-gradient px-4 py-4 h-16 flex items-center justify-between shrink-0 w-full z-10 shadow-lg">
-        <div className="flex items-center gap-3">
-          <button onClick={onBack}>
-            <ArrowLeft className="w-5 h-5 text-white" />
+    <>
+      <div className="h-screen w-full md:max-w-sm mx-auto bg-gray-100 flex flex-col relative">
+        {/* Header */}
+        <div className="bg-main-navy-gradient px-4 py-4 h-16 flex items-center justify-between shrink-0 w-full z-10 shadow-lg">
+          <div className="flex items-center gap-3">
+            <button onClick={onBack}>
+              <ArrowLeft className="w-5 h-5 text-white" />
+            </button>
+            <h1 className="text-base font-medium text-white">プロフィール編集</h1>
+          </div>
+          <button 
+            onClick={() => setShowPreview(true)}
+            className="text-white font-medium text-sm"
+          >
+            プレビュー
           </button>
-          <h1 className="text-base font-medium text-white">プロフィール編集</h1>
         </div>
-        <button 
-          onClick={() => setShowPreview(true)}
-          className="text-white font-medium text-sm"
-        >
-          プレビュー
-        </button>
-      </div>
 
-      {/* Main Content - Scrollable */}
-      <div className="flex-1 overflow-y-auto bg-gray-100 pb-8">
-        {/* Profile Image Section */}
-        <div className="bg-gray-100 pt-8 pb-6 flex flex-col items-center">
-          {/* Main Profile Image */}
-          <div className="relative mb-6">
-            <div className="w-48 h-48 rounded-full bg-white overflow-hidden shadow-lg">
-              <Image
-                src="/placeholder.svg?height=192&width=192"
-                alt="Profile"
-                width={192}
-                height={192}
-                className="object-cover w-full h-full"
-              />
+        {/* Main Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto bg-gray-100 pb-8">
+          {/* Profile Image Section */}
+          <div className="bg-gray-100 pt-8 pb-6 flex flex-col items-center">
+            {/* Main Profile Image */}
+            <div className="relative mb-6">
+              <div className="w-48 h-48 rounded-full bg-white overflow-hidden shadow-lg">
+                <Image
+                  src="/placeholder.svg?height=192&width=192"
+                  alt="Profile"
+                  width={192}
+                  height={192}
+                  className="object-cover w-full h-full"
+                />
+              </div>
+            </div>
+
+            {/* Thumbnail and Add Button */}
+            <div className="flex items-center gap-2 justify-center">
+              {images.map((image, index) => (
+                <div key={index} className="relative">
+                  <button
+                    onClick={() => setShowImageOptions(showImageOptions === index ? null : index)}
+                    className="w-12 h-12 rounded-full bg-white overflow-hidden shadow-md"
+                  >
+                    <Image
+                      src={image || "/placeholder.svg"}
+                      alt={`Profile ${index + 1}`}
+                      width={48}
+                      height={48}
+                      className="object-cover w-full h-full"
+                    />
+                  </button>
+                  {showImageOptions === index && (
+                    <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
+                      <div className="bg-white rounded-t-2xl w-full md:max-w-sm p-6 space-y-4">
+                        <button
+                          onClick={() => handleImageChange(index)}
+                          className="w-full py-4 text-lg font-medium text-black border-b border-gray-200"
+                        >
+                          変更する
+                        </button>
+                        <button
+                          onClick={() => {
+                            setImages(images.filter((_, i) => i !== index))
+                            setShowImageOptions(null)
+                          }}
+                          className="w-full py-4 text-lg font-medium text-black border-b border-gray-200"
+                        >
+                          削除する
+                        </button>
+                        <button
+                          onClick={() => setShowImageOptions(null)}
+                          className="w-full py-4 text-lg font-medium text-gray-500"
+                        >
+                          キャンセル
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {images.length < 4 && (
+                <>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-12 h-12 bg-main-navy-gradient rounded-full flex items-center justify-center shadow-lg"
+                  >
+                    <Plus className="w-6 h-6 text-white" />
+                  </button>
+                  <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+                </>
+              )}
             </div>
           </div>
 
-          {/* Thumbnail and Add Button */}
-          <div className="flex items-center gap-2 justify-center">
-            {images.map((image, index) => (
-              <div key={index} className="relative">
-                <button
-                  onClick={() => setShowImageOptions(showImageOptions === index ? null : index)}
-                  className="w-12 h-12 rounded-full bg-white overflow-hidden shadow-md"
-                >
-                  <Image
-                    src={image || "/placeholder.svg"}
-                    alt={`Profile ${index + 1}`}
-                    width={48}
-                    height={48}
-                    className="object-cover w-full h-full"
-                  />
-                </button>
-                {showImageOptions === index && (
-                  <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
-                    <div className="bg-white rounded-t-2xl w-full md:max-w-sm p-6 space-y-4">
-                      <button
-                        onClick={() => handleImageChange(index)}
-                        className="w-full py-4 text-lg font-medium text-black border-b border-gray-200"
-                      >
-                        変更する
-                      </button>
-                      <button
-                        onClick={() => {
-                          setImages(images.filter((_, i) => i !== index))
-                          setShowImageOptions(null)
-                        }}
-                        className="w-full py-4 text-lg font-medium text-black border-b border-gray-200"
-                      >
-                        削除する
-                      </button>
-                      <button
-                        onClick={() => setShowImageOptions(null)}
-                        className="w-full py-4 text-lg font-medium text-gray-500"
-                      >
-                        キャンセル
-                      </button>
+          {/* Form Sections */}
+          <div className="space-y-4">
+            {/* Nickname Section */}
+            <div className="bg-white px-4 py-4">
+              <h3 className="text-sm font-medium text-black mb-3">ニックネーム</h3>
+              <button
+                onClick={() => setShowFieldEdit("nickname")}
+                className="w-full flex items-center justify-between py-2"
+              >
+                <span className="text-sm text-black">{formData.nickname}</span>
+                <ChevronRight className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+
+            {/* Today's Word Section */}
+            <div className="bg-white px-4 py-4">
+              <h3 className="text-sm font-medium text-black mb-3">今日のひとこと</h3>
+              <button
+                onClick={() => setShowFieldEdit("todayWord")}
+                className="w-full flex items-center justify-between py-2"
+              >
+                <span className="text-sm text-black">{formData.todayWord}</span>
+                <ChevronRight className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+
+            {/* Simple Profile Section */}
+            <div className="bg-white px-4 py-4">
+              <h3 className="text-sm font-medium text-black mb-3">簡単プロフィール</h3>
+              <button
+                onClick={() => setShowSimpleProfileTagModal(true)}
+                className="w-full flex items-start justify-between py-2"
+              >
+                <div className="flex-1 text-left">
+                  {formData.simpleProfileTags.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {formData.simpleProfileTags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="px-2 py-1 text-xs bg-main-navy-gradient text-white rounded-md"
+                        >
+                          {tag}
+                        </span>
+                      ))}
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  ) : (
+                    <span className="text-sm text-gray-500">タグを選択してください</span>
+                  )}
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400 mt-1" />
+              </button>
+            </div>
 
-            {images.length < 4 && (
-              <>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-12 h-12 bg-gold-pink-gradient rounded-full flex items-center justify-center shadow-lg"
-                >
-                  <Plus className="w-6 h-6 text-white" />
-                </button>
-                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
-              </>
-            )}
-          </div>
-        </div>
+            {/* Self Introduction Section */}
+            <div className="bg-white px-4 py-4">
+              <h3 className="text-sm font-medium text-black mb-3">自己紹介</h3>
+              <button
+                onClick={() => setShowFieldEdit("selfIntroduction")}
+                className="w-full flex items-center justify-between py-2"
+              >
+                <span className="text-sm text-black text-left flex-1">{formData.selfIntroduction.slice(0, 30)}...</span>
+                <ChevronRight className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
 
-        {/* Form Sections */}
-        <div className="space-y-4">
-          {/* Nickname Section */}
-          <div className="bg-white px-4 py-4">
-            <h3 className="text-sm font-medium text-black mb-3">ニックネーム</h3>
-            <button
-              onClick={() => setShowFieldEdit("nickname")}
-              className="w-full flex items-center justify-between py-2"
-            >
-              <span className="text-sm text-black">{formData.nickname}</span>
-              <ChevronRight className="w-5 h-5 text-gray-400" />
-            </button>
-          </div>
-
-          {/* Today's Word Section */}
-          <div className="bg-white px-4 py-4">
-            <h3 className="text-sm font-medium text-black mb-3">今日のひとこと</h3>
-            <button
-              onClick={() => setShowFieldEdit("todayWord")}
-              className="w-full flex items-center justify-between py-2"
-            >
-              <span className="text-sm text-black">{formData.todayWord}</span>
-              <ChevronRight className="w-5 h-5 text-gray-400" />
-            </button>
-          </div>
-
-          {/* Simple Profile Section */}
-          <div className="bg-white px-4 py-4">
-            <h3 className="text-sm font-medium text-black mb-3">簡単プロフィール</h3>
-            <button
-              onClick={() => setShowFieldEdit("simpleProfile")}
-              className="w-full flex items-center justify-between py-2"
-            >
-              <span className="text-sm text-black">{formData.simpleProfile}...</span>
-              <ChevronRight className="w-5 h-5 text-gray-400" />
-            </button>
-          </div>
-
-          {/* Self Introduction Section */}
-          <div className="bg-white px-4 py-4">
-            <h3 className="text-sm font-medium text-black mb-3">自己紹介</h3>
-            <button
-              onClick={() => setShowFieldEdit("selfIntroduction")}
-              className="w-full flex items-center justify-between py-2"
-            >
-              <span className="text-sm text-black text-left flex-1">{formData.selfIntroduction.slice(0, 30)}...</span>
-              <ChevronRight className="w-5 h-5 text-gray-400" />
-            </button>
-          </div>
-
-          {/* Basic Information Section */}
-          <div className="bg-white px-4 py-4">
-            <h3 className="text-sm font-medium text-black mb-3">基本情報</h3>
-            <button onClick={() => setShowBasicInfo(true)} className="w-full flex items-center justify-between py-2">
-              <span className="text-sm text-black">8/11</span>
-              <ChevronRight className="w-5 h-5 text-gray-400" />
-            </button>
+            {/* Basic Information Section */}
+            <div className="bg-white px-4 py-4">
+              <h3 className="text-sm font-medium text-black mb-3">基本情報</h3>
+              <button onClick={() => setShowBasicInfo(true)} className="w-full flex items-center justify-between py-2">
+                <span className="text-sm text-black">8/11</span>
+                <ChevronRight className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Simple Profile Tag Modal */}
+      <SimpleProfileTagModal
+        isOpen={showSimpleProfileTagModal}
+        onClose={() => setShowSimpleProfileTagModal(false)}
+        onSave={handleSimpleProfileTagsSave}
+        initialTags={formData.simpleProfileTags}
+      />
+    </>
   )
 }

@@ -130,141 +130,176 @@ export default function HomeScreen() {
     setFilterCount(count)
   }
 
-  const [castData, setCastData] = useState([
+  const [guestData, setGuestData] = useState([
     {
       id: 1,
       age: 28,
-      name: "だいき😊",
-      message: "楽しくお話ししましょう🌟よろしくお願いします！",
-      price: "10,000P / 30分",
+      name: "田中 美咲",
+      job: "会社員",
+      location: "東京都",
+      message: "お仕事終わりにリラックスしたいです😊お話しましょう♪",
+      interests: ["映画", "カフェ巡り", "読書"],
       bgColor: "bg-gray-200",
-      image: "https://randomuser.me/api/portraits/men/32.jpg",
+      image: "https://randomuser.me/api/portraits/women/32.jpg",
       likes: 229,
+      isOnline: true,
+      lastLogin: "2時間前",
     },
     {
       id: 2,
       age: 25,
-      name: "けんじ💫",
-      message: "一緒に素敵な時間を過ごしましょう✨",
-      price: "15,000P / 30分",
+      name: "佐藤 花音",
+      job: "看護師",
+      location: "神奈川県",
+      message: "夜勤明けでちょっと疲れました💦誰かお話し相手になってください✨",
+      interests: ["音楽", "お酒", "旅行"],
       bgColor: "bg-gray-200",
-      image: "https://randomuser.me/api/portraits/men/45.jpg",
+      image: "https://randomuser.me/api/portraits/women/45.jpg",
       likes: 26500,
+      isOnline: false,
+      lastLogin: "30分前",
     },
     {
       id: 3,
       age: 23,
-      name: "ひろき🎯",
-      message: "映画や音楽の話が好きです😊",
-      price: "20,000P / 30分",
+      name: "鈴木 あやか",
+      job: "学生",
+      location: "東京都",
+      message: "大学生です📚映画やカフェ巡りが好きです😊",
+      interests: ["映画", "カフェ巡り", "アニメ"],
       bgColor: "bg-gray-200",
-      image: "https://randomuser.me/api/portraits/men/22.jpg",
+      image: "https://randomuser.me/api/portraits/women/22.jpg",
       likes: 1340,
+      isOnline: true,
+      lastLogin: "オンライン",
     },
     {
       id: 4,
       age: 26,
-      name: "たくや🎸",
-      message: "爽やか系です♪よろしくお願いします🎵",
-      price: "12,000P / 30分",
+      name: "山田 まり",
+      job: "事務員",
+      location: "千葉県",
+      message: "お仕事でストレスが溜まっています😅優しい人と話したいです🎵",
+      interests: ["お酒", "料理", "ドラマ"],
       bgColor: "bg-gray-200",
-      image: "https://randomuser.me/api/portraits/men/67.jpg",
+      image: "https://randomuser.me/api/portraits/women/67.jpg",
       likes: 8420,
+      isOnline: true,
+      lastLogin: "オンライン",
     },
     {
       id: 5,
       age: 29,
-      name: "しんいち⚽",
-      message: "スポーツと旅行が趣味です！",
-      price: "18,000P / 30分",
+      name: "渡辺 さくら",
+      job: "販売員",
+      location: "埼玉県",
+      message: "接客業をしています！趣味は旅行と美容です💄",
+      interests: ["旅行", "美容", "ショッピング"],
       bgColor: "bg-gray-200",
-      image: "https://randomuser.me/api/portraits/men/89.jpg",
+      image: "https://randomuser.me/api/portraits/women/89.jpg",
       likes: 2638,
+      isOnline: false,
+      lastLogin: "1時間前",
     },
     {
       id: 6,
       age: 24,
-      name: "ゆうた🎮",
-      message: "ゲームとアニメが大好きです🎬",
-      price: "22,000P / 30分",
+      name: "中村 ゆい",
+      job: "美容師",
+      location: "東京都",
+      message: "美容師をしています✂️ おしゃれやファッションの話が好きです🎬",
+      interests: ["ファッション", "美容", "映画"],
       bgColor: "bg-gray-200",
-      image: "https://randomuser.me/api/portraits/men/15.jpg",
+      image: "https://randomuser.me/api/portraits/women/15.jpg",
       likes: 999,
+      isOnline: true,
+      lastLogin: "オンライン",
     },
   ])
 
   const [footprintData, setFootprintData] = useState([
     {
       id: 1,
-      name: "りょうた🦁",
+      name: "高橋 みなみ",
       age: 27,
-      class: "VIP",
+      job: "会社員",
+      location: "東京都",
       timestamp: "06/19(木) 19:19",
       message:
-        "こんにちは🦁 社交的でアクティブです✨ お酒も音楽も大好きです🍻 渋谷、恵比寿、六本木あたりによくいます...",
+        "こんにちは💖 会社員をしています✨ お酒も好きですが、カフェでゆっくり話すのも好きです☕ 渋谷、恵比寿あたりによくいます...",
+      interests: ["お酒", "カフェ巡り", "読書"],
       bgColor: "bg-gray-200",
-      image: "https://randomuser.me/api/portraits/men/56.jpg",
+      image: "https://randomuser.me/api/portraits/women/56.jpg",
+      isOnline: true,
     },
     {
       id: 2,
-      name: "海外帰りのけんと",
+      name: "松本 りな",
       age: 29,
-      class: "",
+      job: "デザイナー",
+      location: "神奈川県",
       timestamp: "06/19(木) 19:13",
       message:
-        "はじめまして🙋‍♂️ 海外から帰ってきました✈️🌺 普段は仕事でしっかりモードですが、プライベートではリラックスしています...",
+        "はじめまして🙋‍♀️ デザイナーをしています🎨 クリエイティブな仕事をしていますが、プライベートではのんびりしています...",
+      interests: ["アート", "デザイン", "カフェ巡り"],
       bgColor: "bg-gray-200",
-      image: "https://randomuser.me/api/portraits/men/78.jpg",
+      image: "https://randomuser.me/api/portraits/women/78.jpg",
+      isOnline: false,
     },
     {
       id: 3,
-      name: "YUKI🤍",
+      name: "岡田 えみ",
       age: 25,
-      class: "",
+      job: "受付",
+      location: "東京都",
       timestamp: "06/19(木) 19:00",
       message:
-        "はじめまして💎 最近また始めました🙋‍♂️ 六本木、恵比寿、西麻布あたりにいることが多いです🍸 昼間も仕事してます🏢 ゴルフ、ポーカー、サウナ...",
+        "はじめまして💎 受付のお仕事をしています🙋‍♀️ 六本木、恵比寿、表参道あたりによくいます🍸 ヨガ、カフェ巡り、映画鑑賞が好きです🎬...",
+      interests: ["ヨガ", "カフェ巡り", "映画"],
       bgColor: "bg-gray-200",
-      image: "https://randomuser.me/api/portraits/men/91.jpg",
+      image: "https://randomuser.me/api/portraits/women/91.jpg",
+      isOnline: true,
     },
   ])
 
-  const toggleFavorite = (castId: number) => {
+  const toggleFavorite = (guestId: number) => {
     const newFavorites = new Set(favorites)
-    if (newFavorites.has(castId)) {
-      newFavorites.delete(castId)
+    if (newFavorites.has(guestId)) {
+      newFavorites.delete(guestId)
     } else {
-      newFavorites.add(castId)
+      newFavorites.add(guestId)
     }
     setFavorites(newFavorites)
   }
 
-  const handleCastClick = (cast: any) => {
-    navigateToCastDetail(cast)
+  const handleGuestClick = (guest: any) => {
+    navigateToCastDetail(guest)
   }
 
-  // Generate more cast data
-  const generateMoreCasts = useCallback((startId: number, count = 6) => {
-    const names = ["まさき❄️", "しょう💪", "かずき🌟", "やまと✨", "かいと🎯", "りく💫", "そうた🎮", "はやと🍀"]
+  // Generate more guest data
+  const generateMoreGuests = useCallback((startId: number, count = 6) => {
+    const names = ["小林 かな", "加藤 なお", "伊藤 みく", "吉田 あい", "斎藤 りん", "清水 まお", "森 ひな", "池田 みゆ"]
+    const jobs = ["会社員", "看護師", "販売員", "美容師", "事務員", "学生", "デザイナー", "受付"]
+    const locations = ["東京都", "神奈川県", "千葉県", "埼玉県", "大阪府", "愛知県"]
     const messages = [
-      "楽しい時間を一緒に過ごしましょう💪",
-      "スポーツやゲームの話が好きです✨",
-      "爽やか系です♪よろしくお願いします🌟",
-      "一緒に素敵な時間を過ごしませんか😊",
-      "よろしくお願いします！",
-      "楽しくお話ししましょう🎵",
-      "いい出会いになればと思います💫",
-      "一緒に楽しみましょう🎯",
+      "お仕事終わりにお話ししませんか？😊",
+      "今日は疲れました💦癒やしてください✨",
+      "楽しい時間を過ごしましょう♪",
+      "優しい人とお話ししたいです🌟",
+      "リラックスしたい気分です😌",
+      "一緒に楽しい時間を過ごしませんか？💫",
+      "お疲れ様です！お話しましょう🎵",
+      "素敵な出会いがあればいいなと思っています🎯",
     ]
-    const prices = [
-      "10,000P / 30分",
-      "12,000P / 30分",
-      "15,000P / 30分",
-      "18,000P / 30分",
-      "20,000P / 30分",
-      "22,000P / 30分",
-      "25,000P / 30分",
-      "28,000P / 30分",
+    const interestsList = [
+      ["映画", "カフェ巡り", "読書"],
+      ["音楽", "お酒", "旅行"],
+      ["アニメ", "ゲーム", "映画"],
+      ["料理", "お酒", "ドラマ"],
+      ["ファッション", "美容", "ショッピング"],
+      ["ヨガ", "健康", "カフェ巡り"],
+      ["アート", "デザイン", "美術館"],
+      ["スポーツ", "フィットネス", "旅行"],
     ]
     const bgColors = [
       "bg-gray-200",
@@ -281,25 +316,38 @@ export default function HomeScreen() {
       id: startId + index,
       age: 20 + (index % 10),
       name: names[index % names.length],
+      job: jobs[index % jobs.length],
+      location: locations[index % locations.length],
       message: messages[index % messages.length],
-      price: prices[index % prices.length],
+      interests: interestsList[index % interestsList.length],
       bgColor: bgColors[index % bgColors.length],
-      image: `https://randomuser.me/api/portraits/men/${(startId + index) % 100}.jpg`,
+      image: `https://randomuser.me/api/portraits/women/${(startId + index) % 100}.jpg`,
       likes: 100 + (index * 137) % 30000,
+      isOnline: Math.random() > 0.5,
+      lastLogin: Math.random() > 0.5 ? "オンライン" : `${Math.floor(Math.random() * 12) + 1}時間前`,
     }))
   }, [])
 
   // Generate more footprint data
   const generateMoreFootprints = useCallback((startId: number, count = 3) => {
-    const names = ["たかし💎", "こうじ🎯", "あきら✨", "じろう🎸", "さとし💪", "のぼる🌟"]
-    const classes = ["", "VIP", "プレミアム", ""]
+    const names = ["田村 あゆみ", "原 ちか", "青木 まり", "西村 ゆか", "橋本 みか", "石井 さき"]
+    const jobs = ["会社員", "看護師", "販売員", "美容師", "事務員", "デザイナー"]
+    const locations = ["東京都", "神奈川県", "千葉県", "埼玉県", "大阪府", "愛知県"]
     const messages = [
-      "はじめまして✨ よろしくお願いします💪",
-      "楽しい時間を一緒に過ごしませんか？🎯",
-      "話すのが大好きです♪",
-      "いい出会いを求めています💎",
-      "一緒に楽しみましょう🎵",
-      "爽やか系です♪よろしく🌟",
+      "はじめまして✨ よろしくお願いします💖",
+      "お仕事終わりです！お話しませんか？🎯",
+      "今日は疲れました💦癒やしてください♪",
+      "素敵な出会いを求めています💎",
+      "一緒に楽しい時間を過ごしましょう🎵",
+      "リラックスしたい気分です♪よろしく🌟",
+    ]
+    const interestsList = [
+      ["映画", "カフェ巡り", "読書"],
+      ["音楽", "お酒", "旅行"],
+      ["アニメ", "ゲーム", "映画"],
+      ["料理", "お酒", "ドラマ"],
+      ["ファッション", "美容", "ショッピング"],
+      ["ヨガ", "健康", "カフェ巡り"],
     ]
     const bgColors = [
       "bg-gray-200",
@@ -315,12 +363,15 @@ export default function HomeScreen() {
       id: startId + index,
       name: names[Math.floor(Math.random() * names.length)],
       age: Math.floor(Math.random() * 10) + 20,
-      class: classes[Math.floor(Math.random() * classes.length)],
+      job: jobs[Math.floor(Math.random() * jobs.length)],
+      location: locations[Math.floor(Math.random() * locations.length)],
       timestamp: `06/19(木) ${String(now.getHours() - index - 1).padStart(2, "0")}:${String(Math.floor(Math.random() * 60)).padStart(2, "0")}`,
       message:
         messages[Math.floor(Math.random() * messages.length)] + " ".repeat(50) + "詳細なプロフィールはこちらから...",
+      interests: interestsList[Math.floor(Math.random() * interestsList.length)],
       bgColor: bgColors[Math.floor(Math.random() * bgColors.length)],
-      image: `https://randomuser.me/api/portraits/men/${Math.floor(Math.random() * 100)}.jpg`,
+      image: `https://randomuser.me/api/portraits/women/${Math.floor(Math.random() * 100)}.jpg`,
+      isOnline: Math.random() > 0.5,
     }))
   }, [])
 
@@ -335,10 +386,10 @@ export default function HomeScreen() {
       await new Promise((resolve) => setTimeout(resolve, 1000))
 
       if (tabType === "home") {
-        const newCasts = generateMoreCasts(castData.length + 1)
+        const newGuests = generateMoreGuests(guestData.length + 1)
         // Use requestAnimationFrame to ensure smooth rendering
         requestAnimationFrame(() => {
-          setCastData((prev) => [...prev, ...newCasts])
+          setGuestData((prev) => [...prev, ...newGuests])
         })
         setPage((prev) => ({ ...prev, home: prev.home + 1 }))
 
@@ -361,7 +412,7 @@ export default function HomeScreen() {
 
       setLoading(false)
     },
-    [loading, hasMore, castData.length, footprintData.length, page, generateMoreCasts, generateMoreFootprints],
+    [loading, hasMore, guestData.length, footprintData.length, page, generateMoreGuests, generateMoreFootprints],
   )
 
   // Scroll handler
@@ -383,7 +434,7 @@ export default function HomeScreen() {
     [activeTab, loadMoreData],
   )
 
-  const displayedCasts = activeTab === "お気に入り" ? castData.filter((cast) => favorites.has(cast.id)) : castData
+  const displayedGuests = activeTab === "お気に入り" ? guestData.filter((guest) => favorites.has(guest.id)) : guestData
 
   // Handle search button click - always open search modal for filtering
   const handleSearchClick = () => {
@@ -445,7 +496,7 @@ export default function HomeScreen() {
           <button onClick={handleSearchClick} className="p-3 relative">
             <Search className="w-6 h-6 text-white" />
             {filterCount > 0 && (
-              <div className="absolute top-0 -right-1 bg-main-navy-gradient text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+              <div className="absolute top-0 -right-1 bg-accent-blue text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                 {filterCount > 9 ? "9+" : filterCount}
               </div>
             )}
@@ -484,23 +535,26 @@ export default function HomeScreen() {
                         {/* Timestamp */}
                         <p className="text-xs text-gray-500 mb-2">{footprint.timestamp} • 足あとがつきました</p>
 
-                        {/* Name and Class */}
+                        {/* Name, Age, Job and Class */}
                         <div className="flex items-center gap-2 mb-2">
                           <div className="flex items-center gap-1">
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <div className={`w-2 h-2 rounded-full ${footprint.isOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
                             <span className="text-sm font-medium text-gray-900">
                               {footprint.name} {footprint.age}歳
                             </span>
-                          </div>
-                          {footprint.class && (
-                            <span className="bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded">
-                              {footprint.class}
+                            <span className="text-xs text-gray-500">
+                              ({footprint.job})
                             </span>
-                          )}
+                          </div>
                         </div>
 
+                        {/* Location */}
+                        <p className="text-xs text-gray-500 mb-2">{footprint.location}</p>
+
                         {/* Message */}
-                        <p className="text-xs text-gray-700 leading-relaxed mb-3">{footprint.message}</p>
+                        <p className="text-xs text-gray-700 leading-relaxed mb-2">{footprint.message}</p>
+
+
 
                         {/* Message Button */}
                         <Button className="w-full h-10 bg-main-navy-gradient hover:bg-main-blue text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2">
@@ -547,31 +601,31 @@ export default function HomeScreen() {
             <div className="h-4 bg-gray-100"></div>
           </div>
         ) : (
-          /* Cast Masonry Grid Section */
+          /* Guest Masonry Grid Section */
           <div>
             {/* Top Spacer */}
             <div className="h-4 bg-gray-100"></div>
-            {displayedCasts.length === 0 && activeTab === "お気に入り" ? (
+            {displayedGuests.length === 0 && activeTab === "お気に入り" ? (
               <div className="bg-white p-8 text-center">
-                <p className="text-gray-600">お気に入りのキャストがいません</p>
+                <p className="text-gray-600">お気に入りのゲストがいません</p>
               </div>
             ) : (
-              /* Cast Masonry Grid Section */
+              /* Guest Masonry Grid Section */
               <div className="bg-white px-2 pb-4 pt-2">
                 <div className="grid grid-cols-2 gap-2">
-                  {displayedCasts.map((cast, index) => (
+                  {displayedGuests.map((guest, index) => (
                     <div
-                      key={`cast-${activeTab}-${cast.id}-${index}`}
-                      onClick={() => handleCastClick(cast)}
+                      key={`guest-${activeTab}-${guest.id}-${index}`}
+                      onClick={() => handleGuestClick(guest)}
                       className="relative mb-2 cursor-pointer group"
                     >
-                      {/* Cast Image */}
+                      {/* Guest Image */}
                       <Image
-                        src={cast.image || "/placeholder.svg?height=600&width=320"}
-                        alt="Cast member"
+                        src={guest.image || "/placeholder.svg?height=600&width=320"}
+                        alt="Guest member"
                         width={320}
                         height={600}
-                        className={`w-full h-72 object-cover rounded-lg ${cast.bgColor}`}
+                        className={`w-full h-72 object-cover rounded-lg ${guest.bgColor}`}
                       />
 
                       {/* Hover dark overlay - Desktop only */}
@@ -579,31 +633,36 @@ export default function HomeScreen() {
 
                       {/* Caption & Meta */}
                       <div className="mt-1 px-1">
-                        {/* Name and Age as title */}
+                        {/* Name, Age and Job as title */}
                         <p className="text-sm font-semibold text-gray-900 leading-tight truncate">
-                          {cast.age}歳 {cast.name}
+                          {guest.age}歳 {guest.name}
                         </p>
-                        {/* Message (limited to 2 lines) */}
-                        <p className="text-xs text-gray-600 line-clamp-2">
-                          {cast.message}
-                        </p>
-
-                        {/* Price Row */}
-                        <div className="flex items-center justify-end mt-1">
-                          <span className="text-xs text-gray-500">{cast.price}</span>
+                        <div className="flex items-center gap-1 mb-1">
+                          <span className="text-xs text-gray-500">{guest.job}</span>
+                          <span className="text-xs text-gray-400">•</span>
+                          <span className="text-xs text-gray-500">{guest.location}</span>
                         </div>
+                        {/* Message (limited to 2 lines) */}
+                        <p className="text-xs text-gray-600 line-clamp-2 mb-1">
+                          {guest.message}
+                        </p>
+                      </div>
+
+                      {/* Online Status */}
+                      <div className="absolute top-2 left-2">
+                        <div className={`w-3 h-3 rounded-full ${guest.isOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
                       </div>
 
                       {/* Favourite Star */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
-                          toggleFavorite(cast.id)
+                          toggleFavorite(guest.id)
                         }}
                         className="absolute top-2 right-2 md:hover:scale-110 transition-transform z-10"
                       >
                         <Star
-                          className={`w-5 h-5 drop-shadow ${favorites.has(cast.id) ? "text-yellow-400 fill-yellow-400" : "text-white fill-white"}`}
+                          className={`w-5 h-5 drop-shadow ${favorites.has(guest.id) ? "text-yellow-400 fill-yellow-400" : "text-white fill-white"}`}
                         />
                       </button>
                     </div>
@@ -623,11 +682,11 @@ export default function HomeScreen() {
             )}
 
             {/* End of data Section */}
-            {!hasMore.home && activeTab === "オススメ" && castData.length > 12 && (
+            {!hasMore.home && activeTab === "オススメ" && guestData.length > 12 && (
               <>
                 <div className="h-2 bg-gray-100"></div>
                 <div className="bg-white p-4 text-center">
-                  <p className="text-gray-600 text-sm">これ以上のキャストはいません</p>
+                  <p className="text-gray-600 text-sm">これ以上のゲストはいません</p>
                 </div>
               </>
             )}
@@ -655,7 +714,7 @@ export default function HomeScreen() {
         onFilterCountChange={handleFilterCountChange}
       />
 
-      {/* Cast Detail Modal */}
+      {/* Guest Detail Modal */}
       {selectedCast && (
         <CastDetailModal isOpen={showCastDetail} onClose={goBack} cast={selectedCast} />
       )}

@@ -27,7 +27,7 @@ function SelectionModal({ isOpen, onClose, title, options, selectedValue, onSele
         <button onClick={onClose}>
           <X className="w-5 h-5 text-white" />
         </button>
-        <span className="text-base font-medium text-white">基本情報</span>
+        <span className="text-base font-medium text-white">{title}</span>
       </div>
 
       {/* Scrollable Content */}
@@ -65,6 +65,8 @@ export default function BasicInfoScreen({ onBack }: BasicInfoScreenProps) {
     education: "大学卒",
     job: "会社員",
     alcohol: "ときどき飲む",
+    smoking: "吸わない",
+    roommates: "一人暮らし",
     siblings: "長女",
     birthDate: "1996年10月22日",
   })
@@ -176,6 +178,8 @@ export default function BasicInfoScreen({ onBack }: BasicInfoScreenProps) {
     education: ["中学卒", "高校卒", "専門学校卒", "短大卒", "大学卒", "大学院卒"],
     job: ["学生", "会社員", "公務員", "経営者・役員", "自営業", "自由業", "専門職", "パート・アルバイト", "その他"],
     alcohol: ["飲まない", "ときどき飲む", "よく飲む"],
+    smoking: ["吸わない", "ときどき吸う", "よく吸う"],
+    roommates: ["一人暮らし", "家族と同居", "友人・知人と同居", "恋人と同居", "その他"],
     siblings: ["一人っ子", "長女", "次女", "三女以降"],
   }
 
@@ -197,7 +201,7 @@ export default function BasicInfoScreen({ onBack }: BasicInfoScreenProps) {
             <button onClick={onBack}>
               <ArrowLeft className="w-5 h-5 text-white" />
             </button>
-            <h1 className="text-lg font-medium text-white">基本情報</h1>
+            <h1 className="text-base font-medium text-white">基本情報</h1>
           </div>
           <button onClick={handleSave} className="text-sm text-white font-medium">
             保存
@@ -281,6 +285,30 @@ export default function BasicInfoScreen({ onBack }: BasicInfoScreenProps) {
               </div>
             </button>
 
+            {/* Smoking */}
+            <button
+              onClick={() => setActiveModal("smoking")}
+              className="w-full flex items-center justify-between p-4 border-b border-gray-100"
+            >
+              <span className="text-sm text-black">タバコ</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-black">{basicInfo.smoking}</span>
+                <ChevronDown className="w-5 h-5 text-gray-400" />
+              </div>
+            </button>
+
+            {/* Roommates */}
+            <button
+              onClick={() => setActiveModal("roommates")}
+              className="w-full flex items-center justify-between p-4 border-b border-gray-100"
+            >
+              <span className="text-sm text-black">同居人</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-black">{basicInfo.roommates}</span>
+                <ChevronDown className="w-5 h-5 text-gray-400" />
+              </div>
+            </button>
+
             {/* Siblings */}
             <button
               onClick={() => setActiveModal("siblings")}
@@ -327,9 +355,13 @@ export default function BasicInfoScreen({ onBack }: BasicInfoScreenProps) {
                       ? "お仕事"
                       : field === "alcohol"
                         ? "お酒"
-                        : field === "siblings"
-                          ? "兄弟姉妹"
-                          : ""
+                        : field === "smoking"
+                          ? "タバコ"
+                          : field === "roommates"
+                            ? "同居人"
+                            : field === "siblings"
+                              ? "兄弟姉妹"
+                              : ""
           }
           options={options}
           selectedValue={basicInfo[field as keyof typeof basicInfo]}

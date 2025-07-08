@@ -10,6 +10,7 @@ interface ProfilePreviewScreenProps {
     nickname: string
     todayWord: string
     simpleProfile: string
+    simpleProfileTags: string[]
     selfIntroduction: string
   }
   basicInfo: {
@@ -120,7 +121,7 @@ export default function ProfilePreviewScreen({ onBack, formData, basicInfo, imag
             <h1 className="text-base font-medium mb-1">
               {formData.nickname} {age}歳
             </h1>
-            <p className="text-xs text-gray-700">
+            <p className="text-sm text-gray-700">
               {basicInfo.job} / {formData.todayWord}
             </p>
           </div>
@@ -129,10 +130,31 @@ export default function ProfilePreviewScreen({ onBack, formData, basicInfo, imag
         {/* Gray Spacer */}
         <div className="h-2 bg-gray-100"></div>
 
+        {/* Simple Profile Tags Section */}
+        {formData.simpleProfileTags && formData.simpleProfileTags.length > 0 && (
+          <>
+            <div className="bg-white p-4">
+              <h3 className="text-sm font-medium text-black mb-3">簡単プロフィール</h3>
+              <div className="flex flex-wrap gap-2">
+                {formData.simpleProfileTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-2 py-1 text-sm bg-gold-pink-gradient text-white rounded-md"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+            {/* Gray Spacer */}
+            <div className="h-2 bg-gray-100"></div>
+          </>
+        )}
+
         {/* Self Introduction Section */}
         <div className="bg-white p-4">
           <h3 className="text-sm font-medium text-black mb-3">自己紹介</h3>
-          <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-line">{formData.selfIntroduction}</p>
+          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{formData.selfIntroduction}</p>
         </div>
 
         {/* Gray Spacer */}
@@ -143,38 +165,60 @@ export default function ProfilePreviewScreen({ onBack, formData, basicInfo, imag
           <div className="space-y-3">
             {/* Height */}
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
-              <span className="text-xs text-gray-600">身長：</span>
-              <span className="text-xs font-medium">{basicInfo.height}</span>
+              <span className="text-sm text-gray-600">身長：</span>
+              <span className="text-sm font-medium">{basicInfo.height}</span>
             </div>
 
             {/* Residence */}
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
-              <span className="text-xs text-gray-600">居住地：</span>
-              <span className="text-xs font-medium">{basicInfo.residence}</span>
+              <span className="text-sm text-gray-600">居住地：</span>
+              <span className="text-sm font-medium">{basicInfo.residence}</span>
+            </div>
+
+            {/* Birthplace */}
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-600">出身地：</span>
+              <span className="text-sm font-medium">{basicInfo.birthplace}</span>
             </div>
 
             {/* Education */}
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
-              <span className="text-xs text-gray-600">学歴：</span>
-              <span className="text-xs font-medium">{basicInfo.education}</span>
+              <span className="text-sm text-gray-600">学歴：</span>
+              <span className="text-sm font-medium">{basicInfo.education}</span>
             </div>
 
             {/* Job */}
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
-              <span className="text-xs text-gray-600">お仕事：</span>
-              <span className="text-xs font-medium">{basicInfo.job}</span>
+              <span className="text-sm text-gray-600">お仕事：</span>
+              <span className="text-sm font-medium">{basicInfo.job}</span>
             </div>
 
             {/* Alcohol */}
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
-              <span className="text-xs text-gray-600">お酒：</span>
-              <span className="text-xs font-medium">{basicInfo.alcohol}</span>
+              <span className="text-sm text-gray-600">お酒：</span>
+              <span className="text-sm font-medium">{basicInfo.alcohol}</span>
             </div>
+
+            {/* Smoking */}
+            {(basicInfo as any).smoking && (
+              <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                <span className="text-sm text-gray-600">タバコ：</span>
+                <span className="text-sm font-medium">{(basicInfo as any).smoking}</span>
+              </div>
+            )}
+
+            {/* Roommates */}
+            {(basicInfo as any).roommates && (
+              <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                <span className="text-sm text-gray-600">同居人：</span>
+                <span className="text-sm font-medium">{(basicInfo as any).roommates}</span>
+              </div>
+            )}
 
             {/* Siblings */}
             <div className="flex justify-between items-center py-2">
-              <span className="text-xs text-gray-600">兄弟姉妹：</span>
-              <span className="text-xs font-medium">{basicInfo.siblings}</span>
+              <span className="text-sm text-gray-600">兄弟姉妹：</span>
+              <span className="text-sm font-medium">{basicInfo.siblings}</span>
             </div>
           </div>
         </div>

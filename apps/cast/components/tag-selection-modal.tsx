@@ -83,7 +83,7 @@ export default function TagSelectionModal({ isOpen, onClose, onSave, initialTags
   return (
     <div className="fixed inset-0 z-50 bg-white w-full md:max-w-sm mx-auto flex flex-col">
       {/* Header */}
-      <div className="bg-gold-pink-gradient px-4 py-4 flex items-center gap-3 border-b shadow-lg">
+      <div className="bg-main-navy-gradient px-4 py-4 flex items-center gap-3 border-b shadow-lg">
         <button onClick={handleSave}>
           <X className="w-5 h-5 text-white" />
         </button>
@@ -100,10 +100,10 @@ export default function TagSelectionModal({ isOpen, onClose, onSave, initialTags
                 <button
                   key={`${category.title}-${tag}`}
                   onClick={() => toggleTag(tag)}
-                  className={`px-3 py-2 text-sm rounded-lg ${
+                  className={`px-3 py-2 text-sm rounded-lg transition-colors ${
                     selectedTags.includes(tag)
-                      ? "bg-gold-pink-gradient text-white"
-                      : "bg-gray-100 text-gray-600"
+                      ? "bg-main-navy-gradient text-white shadow-md"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   }`}
                 >
                   {tag}

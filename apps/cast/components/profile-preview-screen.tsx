@@ -1,126 +1,208 @@
 "use client"
 
-import { ArrowLeft, Heart, Star, MessageCircle, X } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { ArrowLeft } from "lucide-react"
 import Image from "next/image"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 interface ProfilePreviewScreenProps {
   onBack: () => void
+  formData: {
+    nickname: string
+    todayWord: string
+    simpleProfile: string
+    simpleProfileTags: string[]
+    selfIntroduction: string
+  }
+  basicInfo: {
+    height: string
+    residence: string
+    birthplace: string
+    education: string
+    job: string
+    alcohol: string
+    siblings: string
+    birthDate: string
+  }
+  images: string[]
 }
 
-export default function ProfilePreviewScreen({ onBack }: ProfilePreviewScreenProps) {
-  const [showModal, setShowModal] = useState(false)
+export default function ProfilePreviewScreen({ onBack, formData, basicInfo, images }: ProfilePreviewScreenProps) {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [showHeader, setShowHeader] = useState(false)
 
-  // サンプルプロフィールデータ（実際の実装では API から取得）
-  const profileData = {
-    name: "美咲",
-    age: 28,
-    job: "会社員",
-    location: "東京都",
-    images: [
-      "https://randomuser.me/api/portraits/women/32.jpg",
-      "https://randomuser.me/api/portraits/women/33.jpg",
-      "https://randomuser.me/api/portraits/women/34.jpg",
-    ],
-    bio: "お疲れ様です！平日は忙しく働いていますが、週末は新しい出会いを求めて楽しく過ごしたいと思っています。お酒を飲みながら楽しい時間を過ごしませんか？",
-    interests: ["お酒", "映画", "旅行", "カフェ巡り", "読書"],
-    price: "8,000P / 30分",
-    availability: "週末メイン",
-    rating: 4.8,
-    reviewCount: 127,
-    favoriteCount: 342,
+  useEffect(() => {
+    const handleScroll = (e: Event) => {
+      const target = e.target as HTMLElement
+      if (target.scrollTop > 300) {
+        setShowHeader(true)
+      } else {
+        setShowHeader(false)
+      }
+    }
+
+    const scrollContainer = document.getElementById("profile-preview-scroll")
+    if (scrollContainer) {
+      scrollContainer.addEventListener("scroll", handleScroll)
+      return () => scrollContainer.removeEventListener("scroll", handleScroll)
+    }
+  }, [])
+
+  // Calculate age from birth date (simplified)
+  const calculateAge = (birthDate: string) => {
+    // For demo purposes, using fixed age. In real app, calculate from birthDate
+    return 28
   }
 
-  const openModal = () => setShowModal(true)
-  const closeModal = () => setShowModal(false)
+  const age = calculateAge(basicInfo.birthDate)
 
   return (
-    <div className="h-full w-full bg-gray-100 flex flex-col relative">
-      {/* Header */}
-      <div className="bg-main-navy-gradient px-4 py-4 h-16 flex items-center fixed top-0 left-1/2 transform -translate-x-1/2 w-full md:max-w-sm z-10 shadow-lg">
-        <button onClick={onBack} className="p-1 mr-3">
-          <ArrowLeft className="w-6 h-6 text-white" />
+    <div className="h-screen w-full md:max-w-sm mx-auto bg-gray-100 flex flex-col relative">
+      {/* Header - appears on scroll */}
+      <div
+        className={`fixed top-0 left-1/2 transform -translate-x-1/2 w-full md:max-w-sm bg-main-navy-gradient border-b shadow-lg px-4 py-4 h-16 flex items-center gap-3 transition-all duration-300 ${
+          showHeader ? "z-30 translate-y-0 opacity-100" : "z-30 -translate-y-full opacity-0 pointer-events-none"
+        }`}
+      >
+        <button onClick={onBack}>
+          <ArrowLeft className="w-5 h-5 text-white" />
         </button>
-        <h1 className="text-base font-medium text-white">プロフィールプレビュー</h1>
+        <span className="text-base font-medium text-white">{formData.nickname}</span>
       </div>
 
-      {/* Main Content - Scrollable */}
-      <div className="flex-1 overflow-y-auto pt-[64px] bg-gray-100 content-with-safe-footer">
-        {/* Information Banner */}
-        <div className="bg-blue-50 border border-blue-200 p-4 mx-4 mt-4 rounded-lg">
-          <p className="text-sm text-blue-900">
-            これはゲストに表示される実際のプロフィール画面です。
-          </p>
-        </div>
+      {/* Scrollable Content */}
+      <div id="profile-preview-scroll" className="flex-1 overflow-y-auto pb-8 relative z-10">
+        {/* Main Profile Image */}
+        <div className="relative h-96 bg-gray-200">
+          <Image
+            src={images[currentImageIndex] || "/placeholder.svg?height=400&width=400"}
+            alt="Profile preview"
+            fill
+            className="object-cover"
+          />
 
-        {/* Preview Button */}
-        <div className="px-4 mt-4">
-          <Button
-            onClick={openModal}
-            className="w-full bg-main-navy-gradient hover:bg-main-blue text-white py-3 rounded-lg font-medium"
+          {/* Back Button */}
+          <button
+            onClick={onBack}
+            className="absolute top-4 left-4 w-10 h-10 bg-black/50 rounded-full flex items-center justify-center z-10"
           >
-            プロフィールを確認する
-          </Button>
+            <ArrowLeft className="w-5 h-5 text-white" />
+          </button>
         </div>
 
-        {/* Profile Summary */}
-        <div className="bg-white p-4 mx-4 mt-4 rounded-lg shadow-sm">
-          <h3 className="text-sm font-medium text-gray-900 mb-3">現在のプロフィール情報</h3>
-          
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">名前・年齢</span>
-              <span className="text-sm text-gray-900">{profileData.name} {profileData.age}歳</span>
+        {/* Profile Info Section */}
+        <div className="bg-white p-4">
+          {/* Thumbnail Images */}
+          <div className="flex gap-2 mb-4">
+            {images.map((image, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentImageIndex(index)}
+                className={`w-16 h-16 rounded-lg overflow-hidden border-2 ${
+                  currentImageIndex === index ? "border-main-navy-gradient" : "border-gray-200"
+                }`}
+              >
+                <Image
+                  src={image || "/placeholder.svg"}
+                  alt={`Profile photo ${index + 1}`}
+                  width={64}
+                  height={64}
+                  className="object-cover w-full h-full"
+                />
+              </button>
+            ))}
+          </div>
+
+          {/* Online Status and Profile Info */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span className="text-xs text-green-600">オンライン中</span>
             </div>
-            
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">職業</span>
-              <span className="text-sm text-gray-900">{profileData.job}</span>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">居住地</span>
-              <span className="text-sm text-gray-900">{profileData.location}</span>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">料金</span>
-              <span className="text-sm text-gray-900">{profileData.price}</span>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">写真</span>
-              <span className="text-sm text-gray-900">{profileData.images.length}枚</span>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">趣味・興味</span>
-              <span className="text-sm text-gray-900">{profileData.interests.length}個</span>
-            </div>
+            <h1 className="text-base font-medium mb-1">
+              {formData.nickname} {age}歳
+            </h1>
+            <p className="text-sm text-gray-700">
+              {basicInfo.job} / {formData.todayWord}
+            </p>
           </div>
         </div>
 
-        {/* Tips Section */}
-        <div className="bg-white p-4 mx-4 mt-4 rounded-lg shadow-sm">
-          <h3 className="text-sm font-medium text-gray-900 mb-3">プロフィールを魅力的にするコツ</h3>
-          
-          <div className="space-y-2 text-xs text-gray-600">
-            <div className="flex items-start gap-2">
-              <div className="w-2 h-2 bg-main-blue rounded-full mt-1.5 flex-shrink-0"></div>
-              <span>笑顔で明るい印象の写真を使用しましょう</span>
+        {/* Gray Spacer */}
+        <div className="h-2 bg-gray-100"></div>
+
+        {/* Simple Profile Tags Section */}
+        {formData.simpleProfileTags && formData.simpleProfileTags.length > 0 && (
+          <>
+            <div className="bg-white p-4">
+              <h3 className="text-sm font-medium text-black mb-3">簡単プロフィール</h3>
+              <div className="flex flex-wrap gap-2">
+                {formData.simpleProfileTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-2 py-1 text-sm bg-main-navy-gradient text-white rounded-md"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
             </div>
-            <div className="flex items-start gap-2">
-              <div className="w-2 h-2 bg-main-blue rounded-full mt-1.5 flex-shrink-0"></div>
-              <span>自己紹介文は具体的で親しみやすい内容にしましょう</span>
+            {/* Gray Spacer */}
+            <div className="h-2 bg-gray-100"></div>
+          </>
+        )}
+
+        {/* Self Introduction Section */}
+        <div className="bg-white p-4">
+          <h3 className="text-sm font-medium text-black mb-3">自己紹介</h3>
+          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{formData.selfIntroduction}</p>
+        </div>
+
+        {/* Gray Spacer */}
+        <div className="h-2 bg-gray-100"></div>
+
+        {/* Basic Information Section */}
+        <div className="bg-white p-4">
+          <div className="space-y-3">
+            {/* Height */}
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-600">身長：</span>
+              <span className="text-sm font-medium">{basicInfo.height}</span>
             </div>
-            <div className="flex items-start gap-2">
-              <div className="w-2 h-2 bg-main-blue rounded-full mt-1.5 flex-shrink-0"></div>
-              <span>趣味や興味を多く登録して共通点を見つけやすくしましょう</span>
+
+            {/* Residence */}
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-600">居住地：</span>
+              <span className="text-sm font-medium">{basicInfo.residence}</span>
             </div>
-            <div className="flex items-start gap-2">
-              <div className="w-2 h-2 bg-main-blue rounded-full mt-1.5 flex-shrink-0"></div>
-              <span>複数の写真を登録して魅力を伝えましょう</span>
+
+            {/* Birthplace */}
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-600">出身地：</span>
+              <span className="text-sm font-medium">{basicInfo.birthplace}</span>
+            </div>
+
+            {/* Education */}
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-600">学歴：</span>
+              <span className="text-sm font-medium">{basicInfo.education}</span>
+            </div>
+
+            {/* Job */}
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-600">お仕事：</span>
+              <span className="text-sm font-medium">{basicInfo.job}</span>
+            </div>
+
+            {/* Alcohol */}
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-600">お酒：</span>
+              <span className="text-sm font-medium">{basicInfo.alcohol}</span>
+            </div>
+
+            {/* Siblings */}
+            <div className="flex justify-between items-center py-2">
+              <span className="text-sm text-gray-600">兄弟姉妹：</span>
+              <span className="text-sm font-medium">{basicInfo.siblings}</span>
             </div>
           </div>
         </div>
@@ -128,111 +210,6 @@ export default function ProfilePreviewScreen({ onBack }: ProfilePreviewScreenPro
         {/* Final Gray Spacer */}
         <div className="h-4 bg-gray-100"></div>
       </div>
-
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-sm h-[80vh] overflow-hidden">
-            {/* Modal Header */}
-            <div className="bg-main-navy-gradient px-4 py-3 flex items-center justify-between">
-              <h2 className="text-base font-medium text-white">プロフィール</h2>
-              <button onClick={closeModal} className="p-1">
-                <X className="w-5 h-5 text-white" />
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto">
-              {/* Profile Images */}
-              <div className="relative h-64 bg-gray-200">
-                <Image
-                  src={profileData.images[0]}
-                  alt="Profile"
-                  fill
-                  className="object-cover"
-                />
-                <div className="absolute bottom-4 right-4 bg-black bg-opacity-50 rounded-full px-2 py-1">
-                  <span className="text-white text-xs">1/{profileData.images.length}</span>
-                </div>
-              </div>
-
-              {/* Profile Info */}
-              <div className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">
-                      {profileData.name} {profileData.age}歳
-                    </h3>
-                    <p className="text-sm text-gray-600">{profileData.job} • {profileData.location}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button className="p-2 bg-gray-100 rounded-full">
-                      <Heart className="w-5 h-5 text-gray-600" />
-                    </button>
-                    <button className="p-2 bg-gray-100 rounded-full">
-                      <Star className="w-5 h-5 text-gray-600" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Rating */}
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                    <span className="text-sm font-medium text-gray-900">{profileData.rating}</span>
-                  </div>
-                  <span className="text-sm text-gray-600">({profileData.reviewCount}件)</span>
-                  <span className="text-sm text-gray-600">• {profileData.favoriteCount}人がお気に入り</span>
-                </div>
-
-                {/* Bio */}
-                <div className="mb-4">
-                  <p className="text-sm text-gray-700 leading-relaxed">{profileData.bio}</p>
-                </div>
-
-                {/* Interests */}
-                <div className="mb-4">
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">趣味・興味</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {profileData.interests.map((interest, index) => (
-                      <span
-                        key={index}
-                        className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full"
-                      >
-                        {interest}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Price & Availability */}
-                <div className="bg-gray-50 p-3 rounded-lg mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-600">料金</span>
-                    <span className="text-sm font-medium text-gray-900">{profileData.price}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">対応可能時間</span>
-                    <span className="text-sm font-medium text-gray-900">{profileData.availability}</span>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="space-y-2">
-                  <Button className="w-full bg-main-navy-gradient hover:bg-main-blue text-white py-3 rounded-lg font-medium flex items-center justify-center gap-2">
-                    <Heart className="w-4 h-4" />
-                    いいね！
-                  </Button>
-                  <Button variant="outline" className="w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2">
-                    <MessageCircle className="w-4 h-4" />
-                    メッセージ
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

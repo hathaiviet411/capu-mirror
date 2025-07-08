@@ -56,7 +56,7 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
               />
             </div>
             
-            <div className="space-y-2">
+            <div className="space-y-2 mb-16">
               <Label htmlFor="password" className="text-white text-sm font-medium">
                 パスワード
               </Label>
@@ -70,17 +70,20 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
               />
             </div>
 
+            {/* 明示的な余白 */}
+            <div className="h-12"></div>
+
             <Button
               onClick={handleLogin}
               disabled={!loginId || !password}
-              className="w-full h-14 bg-main-navy-gradient hover:bg-main-blue text-white text-base font-semibold rounded-full shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+              className="w-full h-14 bg-main-navy-gradient hover:bg-main-blue text-white text-base font-semibold rounded-full shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               ログイン
             </Button>
             
             <div className="text-center mt-4">
-              <a href="#" className="text-accent-blue text-sm hover:text-white">
-                パスワードを忘れた方はこちら
+              <a href="#" className="text-white text-sm hover:text-white">
+                ログインID・パスワードを忘れた場合は<br/>キャスト用公式LINEよりお問い合わせください
               </a>
             </div>
           </div>

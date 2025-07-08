@@ -25,9 +25,9 @@ interface MyPageScreenProps {
 }
 
 export default function MyPageScreen({ onBack }: MyPageScreenProps) {
-  const matchedCasts = Array.from({ length: 7 }, (_, index) => ({
+  const matchedGuests = Array.from({ length: 7 }, (_, index) => ({
     id: index + 1,
-    name: `Cast ${index + 1}`,
+    name: `Guest ${index + 1}`,
   }))
 
   const [showProfileEdit, setShowProfileEdit] = useState(false)
@@ -236,9 +236,9 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
 
   // User profile data (would come from state/API in real app)
   const userProfile = {
-    name: "田中 美咲",
-    age: 28, // Calculated from birth date 1996年10月22日
-    job: "会社員",
+    name: "佐藤 健太",
+    age: 25, // Calculated from birth date 1999年3月15日
+    job: "フィットネストレーナー",
   }
 
   // Show different screens based on state
@@ -342,7 +342,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
               className="w-32 h-32 rounded-full bg-gray-200 overflow-hidden mx-auto"
             >
               <Image
-                src="https://randomuser.me/api/portraits/women/32.jpg"
+                src="https://randomuser.me/api/portraits/men/32.jpg"
                 alt="Profile"
                 width={128}
                 height={128}
@@ -368,14 +368,6 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
             {userProfile.name} {userProfile.age}歳
           </h2>
           <p className="text-xs text-gray-600 mt-1">{userProfile.job}</p>
-          
-          {/* Profile Preview Button */}
-          <button
-            onClick={navigateToProfilePreview}
-            className="mt-3 px-4 py-2 bg-main-navy-gradient text-white text-sm font-medium rounded-lg hover:bg-main-blue transition-colors"
-          >
-            プロフィールを確認
-          </button>
         </div>
 
         {/* Gray Spacer */}
@@ -443,24 +435,24 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
         {/* Gray Spacer */}
         <div className="h-4 bg-gray-100"></div>
 
-        {/* Matched Casts Section */}
+        {/* Matched Guests Section */}
         <div className="bg-white p-4">
           <button onClick={navigateToJoinedCasts} className="w-full flex items-center justify-between mb-4">
-            <span className="text-sm font-medium text-black">合流したキャスト</span>
+            <span className="text-sm font-medium text-black">マッチングしたゲスト</span>
             <ChevronRight className="w-5 h-5 text-gray-400" />
           </button>
 
-          {/* Cast Avatars */}
+          {/* Guest Avatars */}
           <div className="flex items-center justify-center">
             <div className="flex items-center">
-              {matchedCasts.map((cast, index) => (
+              {matchedGuests.map((guest, index) => (
                 <div
-                  key={cast.id}
+                  key={guest.id}
                   className={`relative ${index > 0 ? "-ml-2" : ""}`}
-                  style={{ zIndex: matchedCasts.length - index }}
+                  style={{ zIndex: matchedGuests.length - index }}
                 >
                   <div className="w-12 h-12 rounded-full border-2 border-dotted border-gray-300 bg-white flex items-center justify-center">
-                    <div className="w-6 h-6 rounded-full bg-amber-800 flex items-center justify-center">
+                    <div className="w-6 h-6 rounded-full bg-pink-400 flex items-center justify-center">
                       <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                         <path
                           fillRule="evenodd"
@@ -537,7 +529,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
                 />
               </svg>
               <span className="text-sm text-black">本人認証</span>
-              <span className="bg-main-navy-gradient text-white text-xs px-2 py-1 rounded">本人確認書類を確認中</span>
+              <span className="bg-green-500 text-white text-xs px-2 py-1 rounded">認証完了</span>
             </div>
             <ChevronRight className="w-5 h-5 text-gray-400" />
           </button>

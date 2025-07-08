@@ -15,7 +15,6 @@ interface SearchModalProps {
 
 export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountChange }: SearchModalProps) {
   const [activeTab, setActiveTab] = useState("pato")
-  const [selectedClasses, setSelectedClasses] = useState<string[]>([])
 
   const [residence, setResidence] = useState("")
   const [birthplace, setBirthplace] = useState("")
@@ -36,7 +35,6 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
     if (birthplace) count++
     if (ageRange.min || ageRange.max) count++
     if (heightRange.min || heightRange.max) count++
-    if (selectedClasses.length > 0) count++
     if (selectedTags.length > 0) count++
     if (freeWord.trim()) count++
     
@@ -47,16 +45,9 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
   useEffect(() => {
     const count = calculateFilterCount()
     onFilterCountChange?.(count)
-  }, [residence, birthplace, ageRange, heightRange, selectedClasses, selectedTags, freeWord, onFilterCountChange])
-
-  const toggleClass = (className: string) => {
-    setSelectedClasses((prev) =>
-      prev.includes(className) ? prev.filter((c) => c !== className) : [...prev, className],
-    )
-  }
+  }, [residence, birthplace, ageRange, heightRange, selectedTags, freeWord, onFilterCountChange])
 
   const handleClear = () => {
-    setSelectedClasses([])
     setResidence("")
     setBirthplace("")
     setAgeRange({ min: "", max: "" })
@@ -73,10 +64,7 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
       conditions.push(`年齢:${ageRange.min || "18"}-${ageRange.max || "99"}歳`)
     }
     if (heightRange.min || heightRange.max) {
-      conditions.push(`身長:${heightRange.min || "150"}-${heightRange.max || "200"}cm`)
-    }
-    if (selectedClasses.length > 0) {
-      conditions.push(`クラス:${selectedClasses.join(",")}`)
+      conditions.push(`身長:${heightRange.min || "140"}-${heightRange.max || "200"}cm`)
     }
     if (selectedTags.length > 0) {
       conditions.push(`タグ:${selectedTags.slice(0, 2).join(",")}${selectedTags.length > 2 ? "..." : ""}`)
@@ -94,7 +82,7 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
     <>
       <div className="fixed inset-0 z-50 bg-white w-full md:max-w-sm mx-auto flex flex-col">
         {/* Header */}
-        <div className="bg-gold-pink-gradient px-4 py-4 flex items-center gap-3 border-b shadow-lg">
+        <div className="bg-main-navy-gradient px-4 py-4 flex items-center gap-3 border-b shadow-lg">
           <button onClick={onClose}>
             <X className="w-5 h-5 text-white" />
           </button>
@@ -153,10 +141,10 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
-                    placeholder="150"
+                    placeholder="140"
                     value={heightRange.min}
                     onChange={(e) => setHeightRange({ ...heightRange, min: e.target.value })}
-                    className="w-14 text-center text-sm border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-2 focus:ring-accent-blue focus:border-accent-blue"
+                    className="w-12 text-center text-sm border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-2 focus:ring-accent-blue focus:border-accent-blue"
                   />
                   <span className="text-sm text-gray-600">〜</span>
                   <input
@@ -164,7 +152,7 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
                     placeholder="200"
                     value={heightRange.max}
                     onChange={(e) => setHeightRange({ ...heightRange, max: e.target.value })}
-                    className="w-14 text-center text-sm border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-2 focus:ring-accent-blue focus:border-accent-blue"
+                    className="w-12 text-center text-sm border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-2 focus:ring-accent-blue focus:border-accent-blue"
                   />
                   <span className="text-sm text-gray-600">cm</span>
                 </div>
@@ -172,15 +160,15 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
             </div>
           </div>
 
-          {/* Cast Tags */}
+          {/* Guest Tags */}
           <div className="mb-6">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">キャストタグ</h3>
+            <h3 className="text-sm font-medium text-gray-700 mb-3">ゲストタグ</h3>
             <button onClick={() => setShowTagModal(true)} className="bg-gray-50 p-4 rounded-lg w-full">
               <div className="flex justify-between items-center">
                 <div className="text-left">
                   {selectedTags.length === 0 && (
                     <p className="text-sm text-gray-600 mb-1">
-                      体型、顔立ち、系統、髪型、職歴、楽しみ方、趣味、特技などキャストの詳細タグから検索できます
+                      体型、顔立ち、系統、髪型、性格、趣味、特技などゲストの詳細タグから検索できます
                     </p>
                   )}
                   {selectedTags.length > 0 && (
@@ -201,35 +189,14 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
             </button>
           </div>
 
-          {/* Cast Class */}
-          <div className="mb-6">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">キャストクラス</h3>
-            <div className="flex flex-wrap gap-2 mb-4">
-              {["VIP"].map((className) => (
-                <button
-                  key={className}
-                  onClick={() => toggleClass(className)}
-                  className={`px-4 py-2 text-sm rounded-full ${
-                    selectedClasses.includes(className)
-                      ? "bg-gold-pink-gradient text-white"
-                      : "bg-gray-100 text-gray-600"
-                  }`}
-                >
-                  {className}
-                </button>
-              ))}
-            </div>
-            <div className="space-y-2 text-xs text-gray-600">
-              <p>「VIP」… 厳選キャストの中でも更に10%しかいない特別なキャスト</p>
-            </div>
-          </div>
+
 
           {/* Free Word */}
           <div className="mb-6">
             <h3 className="text-sm font-medium text-gray-700 mb-2">フリーワード</h3>
             <p className="text-xs text-gray-500 mb-3">※2文字以上20文字未満</p>
             <p className="text-xs text-gray-500 mb-3">
-              キャストのニックネーム、プロフィール文、趣味・特技などから検索できます
+              ゲストの名前、プロフィール文、趣味・特技などから検索できます
             </p>
             <textarea
               placeholder="フリーワードを入力してください"
@@ -245,7 +212,7 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
         <div className="bg-white border-t p-4">
           <Button
             onClick={handleSearch}
-            className="w-full h-12 bg-gold-pink-gradient hover:bg-gold-pink-gradient-dark text-white text-base font-medium rounded-lg"
+            className="w-full h-12 bg-main-navy-gradient hover:bg-main-navy-gradient text-white text-base font-medium rounded-lg"
           >
             この条件で検索する
           </Button>

@@ -12,8 +12,8 @@ import CastDetailModal from "@/components/cast-detail-modal"
 interface MessageDetailScreenProps {
   onBack: () => void
   messageData: {
-    castName: string
-    castAge: number
+    guestName: string
+    guestAge: number
     profileImage: string
   }
 }
@@ -38,42 +38,42 @@ export default function MessageDetailScreen({ onBack, messageData }: MessageDeta
     {
       id: 2,
       type: "received",
-      text: "よろしくお願いします✨",
+      text: "お忙しい中ありがとうございます✨",
       timestamp: "10:24",
       profileImage: messageData.profileImage,
     },
     {
       id: 3,
       type: "sent",
-      text: "こちらこそよろしくお願いします！\nプロフィール拝見させていただきました💪",
+      text: "こちらこそよろしくお願いします！\nプロフィール拝見させていただきました😊",
       timestamp: "11:15",
       readStatus: "既読",
     },
     {
       id: 4,
       type: "received",
-      text: "ありがとうございます！\nスポーツはお好きですか？",
+      text: "ありがとうございます！\n映画はお好きですか？🎬",
       timestamp: "11:20",
       profileImage: messageData.profileImage,
     },
     {
       id: 5,
       type: "sent",
-      text: "はい！サッカーとテニスをやってます⚽\n○○さんは何かスポーツされますか？",
+      text: "はい！洋画が特に好きです✨\n○○さんはどんな映画がお好きですか？",
       timestamp: "11:25",
       readStatus: "既読",
     },
     {
       id: 6,
       type: "received",
-      text: "すごいですね！僕も最近ジムに通い始めました💪\n今度一緒にスポーツできたら楽しそうですね",
+      text: "私も洋画大好きです！最近は韓国映画にもハマってます🎭\n今度一緒に映画を見に行けたら嬉しいです😊",
       timestamp: "11:30",
       profileImage: messageData.profileImage,
     },
     {
       id: 7,
       type: "sent",
-      text: "それは素晴らしいですね！\nぜひ今度一緒にスポーツしましょう😊",
+      text: "それは素晴らしいですね！\nぜひ今度一緒に映画を見に行きましょう🎬",
       timestamp: "18:45",
       readStatus: "既読",
       date: "06月23日(月)",
@@ -81,7 +81,7 @@ export default function MessageDetailScreen({ onBack, messageData }: MessageDeta
     {
       id: 8,
       type: "received",
-      text: "今度お時間あるときに\n一緒にお食事でもいかがですか？🍽️",
+      text: "今度お時間あるときに\n一緒にカフェでお話しませんか？☕",
       timestamp: "18:49",
       profileImage: messageData.profileImage,
     },
@@ -137,21 +137,25 @@ export default function MessageDetailScreen({ onBack, messageData }: MessageDeta
     setShowCastDetail(true)
   }
 
-  // キャスト詳細用のデータを作成
-  const castDetailData = {
+  // ゲスト詳細用のデータを作成
+  const guestDetailData = {
     id: 1,
-    name: messageData.castName,
-    age: messageData.castAge,
+    name: messageData.guestName,
+    age: messageData.guestAge,
     image: messageData.profileImage,
-    price: "15,000P / 30分",
+    job: "看護師",
+    location: "東京都",
     message: "一緒に楽しい時間を過ごしましょう✨",
     bgColor: "bg-gray-200",
     images: [
       messageData.profileImage,
-      `https://randomuser.me/api/portraits/men/${Math.floor(Math.random() * 50) + 20}.jpg`,
-      `https://randomuser.me/api/portraits/men/${Math.floor(Math.random() * 50) + 50}.jpg`,
+      `https://randomuser.me/api/portraits/women/${Math.floor(Math.random() * 50) + 20}.jpg`,
+      `https://randomuser.me/api/portraits/women/${Math.floor(Math.random() * 50) + 50}.jpg`,
     ],
-    tags: ["爽やか系", "スポーツ好き", "会話上手"],
+    tags: ["優しい", "話しやすい", "癒し系"],
+    interests: ["映画", "カフェ巡り", "読書"],
+    isOnline: true,
+    lastLogin: "1時間前",
   }
 
   return (
@@ -172,7 +176,7 @@ export default function MessageDetailScreen({ onBack, messageData }: MessageDeta
             />
           </button>
           <div className="flex items-center gap-2">
-            <span className="text-base font-medium text-white">{messageData.castName}</span>
+            <span className="text-base font-medium text-white">{messageData.guestName}</span>
             {isPinned && (
               <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                 <path
@@ -275,7 +279,7 @@ export default function MessageDetailScreen({ onBack, messageData }: MessageDeta
       <CastDetailModal
         isOpen={showCastDetail}
         onClose={() => setShowCastDetail(false)}
-        cast={castDetailData}
+        cast={guestDetailData}
       />
 
       {/* Message Input */}

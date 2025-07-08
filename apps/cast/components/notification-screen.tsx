@@ -18,24 +18,24 @@ export default function NotificationScreen({ onBack, returnTo }: NotificationScr
       id: 1,
       timestamp: "07/01(火) 14:10",
       type: "favorite",
-      title: "お気に入りキャストがつぶやきました",
-      castName: "しんご⚽",
-      castAge: 23,
+      title: "お気に入りゲストがつぶやきました",
+      guestName: "まりこ📚",
+      guestAge: 24,
       message:
-        "はじめまして🌟 プロフィール見ていただきありがとうございます！📚パト歴3ヶ月📚趣味は料理/散歩/映画鑑賞/お酒🍷♡ 野球観戦も好きなので...",
-      profileImage: "https://randomuser.me/api/portraits/men/84.jpg",
+        "はじめまして🌟 プロフィール見ていただきありがとうございます！📚読書が大好きで、最近は心理学の本にハマっています💡 カフェ巡りも好きなので、おすすめのお店があったら教えてください☕",
+      profileImage: "https://randomuser.me/api/portraits/women/84.jpg",
       actionType: "message",
     },
     {
       id: 2,
       timestamp: "07/01(火) 13:44",
       type: "favorite",
-      title: "お気に入りキャストがつぶやきました",
-      castName: "あかり",
-      castAge: 20,
+      title: "お気に入りゲストがつぶやきました",
+      guestName: "あかり🌸",
+      guestAge: 22,
       message:
-        "はじめまして！見てくれてありがとうございます(´∀｀)!! 都内で学生してます！通信学生なので学校がない日は仕事をしてます💪 顔は...",
-      profileImage: "https://randomuser.me/api/portraits/men/78.jpg",
+        "はじめまして！見てくれてありがとうございます(´∀｀)!! 都内で学生してます！看護学科なので将来は看護師になる予定です💪 お仕事お疲れさまの時にお話しできれば嬉しいです😊",
+      profileImage: "https://randomuser.me/api/portraits/women/78.jpg",
       actionType: "like",
     },
     {
@@ -43,11 +43,11 @@ export default function NotificationScreen({ onBack, returnTo }: NotificationScr
       timestamp: "06/30(月) 15:54",
       type: "footprint",
       title: "「探す」から足あとがつきました",
-      castName: "みきや💪",
-      castAge: 24,
+      guestName: "みきちゃん💄",
+      guestAge: 26,
       message:
-        "東京住み、関西出身！常ににこにこしてます😊筋トレ、ごはん、甘いもの、小説、ドラマ、映画、アニメが好きです😍自炊、サウナ...",
-      profileImage: "https://randomuser.me/api/portraits/men/61.jpg",
+        "東京住み、関西出身！美容師として働いています😊ヨガ、お料理、甘いもの、映画、ドラマ、音楽が好きです😍 お仕事終わりにリラックスできる時間を一緒に過ごしませんか？✨",
+      profileImage: "https://randomuser.me/api/portraits/women/61.jpg",
       actionType: "like",
     },
     {
@@ -55,10 +55,10 @@ export default function NotificationScreen({ onBack, returnTo }: NotificationScr
       timestamp: "06/29(日) 17:30",
       type: "footprint",
       title: "足あとがつきました",
-      castName: "りゅうが🐺東京",
-      castAge: 24,
+      guestName: "ゆい🎬東京",
+      guestAge: 25,
       message: "",
-      profileImage: "https://randomuser.me/api/portraits/men/52.jpg",
+      profileImage: "https://randomuser.me/api/portraits/women/52.jpg",
       actionType: "like",
     },
   ]
@@ -150,7 +150,7 @@ export default function NotificationScreen({ onBack, returnTo }: NotificationScr
                     <div className="w-20 h-20 rounded-full overflow-hidden flex-shrink-0">
                       <Image
                         src={notification.profileImage || "/placeholder.svg"}
-                        alt="Cast profile"
+                        alt="Guest profile"
                         width={80}
                         height={80}
                         className="object-cover w-full h-full"
@@ -159,11 +159,11 @@ export default function NotificationScreen({ onBack, returnTo }: NotificationScr
 
                     {/* Content */}
                     <div className="flex-1">
-                      {/* Cast Info */}
+                      {/* Guest Info */}
                       <div className="flex items-center gap-2 mb-3">
                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                         <span className="text-sm font-medium text-black">
-                          {notification.castName} {notification.castAge}歳
+                          {notification.guestName} {notification.guestAge}歳
                         </span>
                       </div>
 

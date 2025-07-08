@@ -23,11 +23,11 @@ function SelectionModal({ isOpen, onClose, title, options, selectedValue, onSele
   return (
     <div className="fixed inset-0 z-50 bg-white w-full md:max-w-sm mx-auto flex flex-col">
       {/* Header */}
-      <div className="bg-gold-pink-gradient px-4 py-4 h-16 flex items-center gap-3 border-b shadow-lg">
+      <div className="bg-main-navy-gradient px-4 py-4 h-16 flex items-center gap-3 border-b shadow-lg">
         <button onClick={onClose}>
           <X className="w-5 h-5 text-white" />
         </button>
-        <span className="text-base font-medium text-white">基本情報</span>
+        <span className="text-base font-medium text-white">{title}</span>
       </div>
 
       {/* Scrollable Content */}
@@ -42,7 +42,7 @@ function SelectionModal({ isOpen, onClose, title, options, selectedValue, onSele
               }}
               className={`w-full text-left px-4 py-3 rounded-lg ${
                 selectedValue === option
-                  ? "bg-gold-pink-gradient text-white"
+                  ? "bg-accent-blue text-white"
                   : "bg-gray-100 text-gray-600"
               }`}
             >
@@ -197,7 +197,7 @@ export default function BasicInfoScreen({ onBack }: BasicInfoScreenProps) {
             <button onClick={onBack}>
               <ArrowLeft className="w-5 h-5 text-white" />
             </button>
-            <h1 className="text-lg font-medium text-white">基本情報</h1>
+            <h1 className="text-base font-medium text-white">基本情報</h1>
           </div>
           <button onClick={handleSave} className="text-sm text-white font-medium">
             保存
@@ -297,7 +297,7 @@ export default function BasicInfoScreen({ onBack }: BasicInfoScreenProps) {
             <div className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-black">生年月日</span>
-                <span className="text-sm text-gold-pink-gradient">{basicInfo.birthDate}</span>
+                <span className="text-sm text-accent-blue">{basicInfo.birthDate}</span>
               </div>
               <div className="text-xs text-gray-500 leading-relaxed">
                 <p>生年月日を登録すると、プロフィールに年齢が表示されます。</p>
