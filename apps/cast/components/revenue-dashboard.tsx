@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Wallet, FileText, Clock, BarChart3 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 interface RevenueDashboardProps {
@@ -42,14 +42,7 @@ export default function RevenueDashboard({
         <div className="bg-white p-6 mx-4 mt-4 rounded-lg shadow-sm">
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-2">
-              <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                />
-              </svg>
+              <Wallet className="w-6 h-6 text-gray-600" />
               <span className="text-sm text-gray-600">現在の残高</span>
             </div>
             <div className="text-3xl font-bold text-black mb-4">
@@ -67,18 +60,14 @@ export default function RevenueDashboard({
         {/* Stats Cards */}
         <div className="px-4 mt-4 space-y-3">
           {/* This Month Earnings */}
-          <div className="bg-white p-4 rounded-lg shadow-sm">
+          <button
+            onClick={onNavigateToHistory}
+            className="w-full bg-white p-4 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-                <div>
+                <FileText className="w-6 h-6 text-gray-600" />
+                <div className="text-left">
                   <p className="text-sm font-medium text-gray-900">今月獲得</p>
                   <p className="text-xs text-gray-600">2024年12月</p>
                 </div>
@@ -89,21 +78,17 @@ export default function RevenueDashboard({
                 </p>
               </div>
             </div>
-          </div>
+          </button>
 
           {/* Pending Settlement */}
-          <div className="bg-white p-4 rounded-lg shadow-sm">
+          <button
+            onClick={onNavigateToHistory}
+            className="w-full bg-white p-4 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                <div>
+                <Clock className="w-6 h-6 text-gray-600" />
+                <div className="text-left">
                   <p className="text-sm font-medium text-gray-900">未精算</p>
                   <p className="text-xs text-gray-600">処理中の報酬</p>
                 </div>
@@ -114,21 +99,17 @@ export default function RevenueDashboard({
                 </p>
               </div>
             </div>
-          </div>
+          </button>
 
           {/* Total Earnings */}
-          <div className="bg-white p-4 rounded-lg shadow-sm">
+          <button
+            onClick={onNavigateToHistory}
+            className="w-full bg-white p-4 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                  />
-                </svg>
-                <div>
+                <BarChart3 className="w-6 h-6 text-gray-600" />
+                <div className="text-left">
                   <p className="text-sm font-medium text-gray-900">累計獲得</p>
                   <p className="text-xs text-gray-600">全期間</p>
                 </div>
@@ -139,7 +120,7 @@ export default function RevenueDashboard({
                 </p>
               </div>
             </div>
-          </div>
+          </button>
         </div>
 
         {/* Action Buttons */}
