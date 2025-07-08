@@ -278,7 +278,7 @@ export default function MessageListScreen({ onBack, onNavigateToMyPage, onNaviga
           <button
             onClick={() => setActiveTab("すべて")}
             className={`px-4 py-2 rounded-full text-sm ${
-              activeTab === "すべて" ? "bg-main-navy-gradient text-white" : "bg-gray-100 text-gray-600"
+              activeTab === "すべて" ? "bg-accent-blue text-white" : "bg-gray-100 text-gray-600"
             }`}
           >
             すべて
@@ -286,7 +286,7 @@ export default function MessageListScreen({ onBack, onNavigateToMyPage, onNaviga
           <button
             onClick={() => setActiveTab("お気に入り")}
             className={`px-4 py-2 rounded-full text-sm ${
-              activeTab === "お気に入り" ? "bg-main-navy-gradient text-white" : "bg-gray-100 text-gray-600"
+              activeTab === "お気に入り" ? "bg-accent-blue text-white" : "bg-gray-100 text-gray-600"
             }`}
           >
             お気に入り

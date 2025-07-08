@@ -135,7 +135,7 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
                     placeholder="18"
                     value={ageRange.min}
                     onChange={(e) => setAgeRange({ ...ageRange, min: e.target.value })}
-                    className="w-12 text-center text-sm border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-pink-400"
+                    className="w-12 text-center text-sm border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-2 focus:ring-accent-blue focus:border-accent-blue"
                   />
                   <span className="text-sm text-gray-600">〜</span>
                   <input
@@ -143,7 +143,7 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
                     placeholder="99"
                     value={ageRange.max}
                     onChange={(e) => setAgeRange({ ...ageRange, max: e.target.value })}
-                    className="w-12 text-center text-sm border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-pink-400"
+                    className="w-12 text-center text-sm border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-2 focus:ring-accent-blue focus:border-accent-blue"
                   />
                   <span className="text-sm text-gray-600">歳</span>
                 </div>
@@ -156,7 +156,7 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
                     placeholder="150"
                     value={heightRange.min}
                     onChange={(e) => setHeightRange({ ...heightRange, min: e.target.value })}
-                    className="w-14 text-center text-sm border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-pink-400"
+                    className="w-14 text-center text-sm border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-2 focus:ring-accent-blue focus:border-accent-blue"
                   />
                   <span className="text-sm text-gray-600">〜</span>
                   <input
@@ -164,7 +164,7 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
                     placeholder="200"
                     value={heightRange.max}
                     onChange={(e) => setHeightRange({ ...heightRange, max: e.target.value })}
-                    className="w-14 text-center text-sm border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-pink-400"
+                    className="w-14 text-center text-sm border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-2 focus:ring-accent-blue focus:border-accent-blue"
                   />
                   <span className="text-sm text-gray-600">cm</span>
                 </div>
@@ -186,7 +186,7 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
                   {selectedTags.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {selectedTags.slice(0, 3).map((tag) => (
-                        <span key={tag} className="bg-pink-100 text-pink-800 text-xs px-2 py-1 rounded">
+                        <span key={tag} className="bg-main-blue/10 text-main-blue text-xs px-2 py-1 rounded">
                           {tag}
                         </span>
                       ))}
@@ -236,7 +236,7 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
               value={freeWord}
               onChange={(e) => setFreeWord(e.target.value)}
               rows={3}
-              className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-pink-400 resize-none"
+              className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue focus:border-accent-blue resize-none"
             />
           </div>
         </div>

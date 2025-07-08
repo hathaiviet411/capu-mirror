@@ -18,45 +18,33 @@ export default function Footer({
   activeButton = "search"
 }: FooterProps) {
   return (
-    <div className="bg-white border-t shadow-lg px-4 h-16 flex fixed footer-safe-bottom left-1/2 transform -translate-x-1/2 w-full md:max-w-sm z-10">
-      {/* Gradient definition for icon strokes */}
-      <svg width="0" height="0" className="absolute">
-        <defs>
-          <linearGradient id="footer-icon-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#1A1B3A" />
-            <stop offset="100%" stopColor="#2A3F5F" />
-          </linearGradient>
-        </defs>
-      </svg>
+    <div className="bg-main-navy-gradient border-t shadow-lg px-4 h-16 flex fixed footer-safe-bottom left-1/2 transform -translate-x-1/2 w-full md:max-w-sm z-10">
       <button onClick={onSearchClick} className="flex-1 flex flex-col items-center justify-center">
         <Search
-          className="w-6 h-6 text-gray-600"
-          style={activeButton === "search" ? { stroke: "url(#footer-icon-gradient)" } : {}}
+          className={`w-6 h-6 ${activeButton === "search" ? "text-accent-blue" : "text-white"}`}
         />
-        <span className={`text-xs mt-1 ${activeButton === "search" ? "text-main-navy-gradient" : "text-gray-600"}`}>
+        <span className={`text-xs mt-1 ${activeButton === "search" ? "text-accent-blue" : "text-white"}`}>
           探す
         </span>
       </button>
       <button onClick={onMessageClick} className="flex-1 flex flex-col items-center justify-center relative">
         <MessageCircle
-          className="w-6 h-6 text-gray-600"
-          style={activeButton === "message" ? { stroke: "url(#footer-icon-gradient)" } : {}}
+          className={`w-6 h-6 ${activeButton === "message" ? "text-accent-blue" : "text-white"}`}
         />
-        <span className={`text-xs mt-1 ${activeButton === "message" ? "text-main-navy-gradient" : "text-gray-600"}`}>
+        <span className={`text-xs mt-1 ${activeButton === "message" ? "text-accent-blue" : "text-white"}`}>
           メッセージ
         </span>
         {messageCount > 0 && (
-          <div className="absolute top-0 -right-[0] bg-main-navy-gradient text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+          <div className="absolute top-0 -right-[0] bg-accent-blue text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
             {messageCount > 99 ? "99+" : messageCount}
           </div>
         )}
       </button>
       <button onClick={onProfileClick} className="flex-1 flex flex-col items-center justify-center">
         <User
-          className="w-6 h-6 text-gray-600"
-          style={activeButton === "profile" ? { stroke: "url(#footer-icon-gradient)" } : {}}
+          className={`w-6 h-6 ${activeButton === "profile" ? "text-accent-blue" : "text-white"}`}
         />
-        <span className={`text-xs mt-1 ${activeButton === "profile" ? "text-main-navy-gradient" : "text-gray-600"}`}>
+        <span className={`text-xs mt-1 ${activeButton === "profile" ? "text-accent-blue" : "text-white"}`}>
           マイページ
         </span>
       </button>

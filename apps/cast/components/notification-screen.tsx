@@ -117,7 +117,7 @@ export default function NotificationScreen({ onBack, returnTo }: NotificationScr
         <button
           onClick={() => setActiveTab("お知らせ")}
           className={`px-4 py-2 rounded-full text-sm ${
-            activeTab === "お知らせ" ? "bg-main-navy-gradient text-white" : "bg-gray-100 text-gray-600"
+            activeTab === "お知らせ" ? "bg-accent-blue text-white" : "bg-gray-100 text-gray-600"
           }`}
         >
           お知らせ
@@ -125,7 +125,7 @@ export default function NotificationScreen({ onBack, returnTo }: NotificationScr
         <button
           onClick={() => setActiveTab("ニュース")}
           className={`px-4 py-2 rounded-full text-sm ${
-            activeTab === "ニュース" ? "bg-main-navy-gradient text-white" : "bg-gray-100 text-gray-600"
+            activeTab === "ニュース" ? "bg-accent-blue text-white" : "bg-gray-100 text-gray-600"
           }`}
         >
           ニュース

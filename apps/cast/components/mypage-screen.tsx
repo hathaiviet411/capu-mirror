@@ -1,6 +1,6 @@
 "use client"
 
-import { Settings, ChevronRight } from "lucide-react"
+import { Settings, ChevronRight, CreditCard } from "lucide-react"
 import Image from "next/image"
 import ProfileEditScreen from "@/components/profile-edit-screen"
 import JoinedCastsScreen from "@/components/joined-casts-screen"
@@ -9,6 +9,10 @@ import PaymentInfoScreen from "@/components/payment-info-screen"
 import HelpScreen from "@/components/help-screen"
 import IdentityVerificationScreen from "@/components/id-verification"
 import IdentityVerificationCompleteScreen from "@/components/id-verify-complete"
+import RevenueDashboard from "@/components/revenue-dashboard"
+import WithdrawalRequest from "@/components/withdrawal-request"
+import TransactionHistory from "@/components/transaction-history"
+import ProfilePreviewScreen from "@/components/profile-preview-screen"
 import { useState, useEffect } from "react"
 import NotificationScreen from "@/components/notification-screen"
 import NotificationIcon from "@/components/shared/notification-icon"
@@ -36,6 +40,10 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
   const [showNotifications, setShowNotifications] = useState(false)
   const [showMessageList, setShowMessageList] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showRevenueDashboard, setShowRevenueDashboard] = useState(false)
+  const [showWithdrawalRequest, setShowWithdrawalRequest] = useState(false)
+  const [showTransactionHistory, setShowTransactionHistory] = useState(false)
+  const [showProfilePreview, setShowProfilePreview] = useState(false)
 
   // ブラウザ履歴を使った画面遷移管理
   useEffect(() => {
@@ -60,6 +68,10 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
             setShowNotifications(false)
             setShowMessageList(false)
             setShowSettings(false)
+            setShowRevenueDashboard(false)
+            setShowWithdrawalRequest(false)
+            setShowTransactionHistory(false)
+            setShowProfilePreview(false)
             break
           case 'mypage-profile-edit':
             setShowProfileEdit(true)
@@ -90,6 +102,18 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
             break
           case 'mypage-settings':
             setShowSettings(true)
+            break
+          case 'mypage-revenue-dashboard':
+            setShowRevenueDashboard(true)
+            break
+          case 'mypage-withdrawal-request':
+            setShowWithdrawalRequest(true)
+            break
+          case 'mypage-transaction-history':
+            setShowTransactionHistory(true)
+            break
+          case 'mypage-profile-preview':
+            setShowProfilePreview(true)
             break
           default:
             // マイページから戻る場合は親のonBackを呼ぶ
@@ -136,6 +160,10 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
     setShowNotifications(false)
     setShowMessageList(false)
     setShowSettings(false)
+    setShowRevenueDashboard(false)
+    setShowWithdrawalRequest(false)
+    setShowTransactionHistory(false)
+    setShowProfilePreview(false)
     // マイページのメイン画面の状態をブラウザ履歴にプッシュ
     pushToHistory('mypage-main')
   }
@@ -186,6 +214,26 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
     pushToHistory('mypage-settings')
   }
 
+  const navigateToRevenueDashboard = () => {
+    setShowRevenueDashboard(true)
+    pushToHistory('mypage-revenue-dashboard')
+  }
+
+  const navigateToWithdrawalRequest = () => {
+    setShowWithdrawalRequest(true)
+    pushToHistory('mypage-withdrawal-request')
+  }
+
+  const navigateToTransactionHistory = () => {
+    setShowTransactionHistory(true)
+    pushToHistory('mypage-transaction-history')
+  }
+
+  const navigateToProfilePreview = () => {
+    setShowProfilePreview(true)
+    pushToHistory('mypage-profile-preview')
+  }
+
   // User profile data (would come from state/API in real app)
   const userProfile = {
     name: "田中 美咲",
@@ -221,6 +269,33 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
         }}
       />
     )
+  }
+
+  if (showRevenueDashboard) {
+    return (
+      <RevenueDashboard
+        onBack={backToMyPageMain}
+        onNavigateToWithdrawal={navigateToWithdrawalRequest}
+        onNavigateToHistory={navigateToTransactionHistory}
+      />
+    )
+  }
+
+  if (showWithdrawalRequest) {
+    return (
+      <WithdrawalRequest
+        onBack={backToMyPageMain}
+        onNavigateToHistory={navigateToTransactionHistory}
+      />
+    )
+  }
+
+  if (showTransactionHistory) {
+    return <TransactionHistory onBack={backToMyPageMain} />
+  }
+
+  if (showProfilePreview) {
+    return <ProfilePreviewScreen onBack={backToMyPageMain} />
   }
 
   if (showPointHistory) {
@@ -293,7 +368,77 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
             {userProfile.name} {userProfile.age}歳
           </h2>
           <p className="text-xs text-gray-600 mt-1">{userProfile.job}</p>
+          
+          {/* Profile Preview Button */}
+          <button
+            onClick={navigateToProfilePreview}
+            className="mt-3 px-4 py-2 bg-main-navy-gradient text-white text-sm font-medium rounded-lg hover:bg-main-blue transition-colors"
+          >
+            プロフィールを確認
+          </button>
         </div>
+
+        {/* Gray Spacer */}
+        <div className="h-4 bg-gray-100"></div>
+
+                 {/* Revenue Section */}
+         <div className="bg-white">
+           <button
+             onClick={navigateToRevenueDashboard}
+             className="w-full flex items-center justify-between p-4 border-b border-gray-100"
+           >
+             <div className="flex items-center gap-3">
+               <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 <path
+                   strokeLinecap="round"
+                   strokeLinejoin="round"
+                   strokeWidth={2}
+                   d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                 />
+               </svg>
+               <span className="text-sm text-black">収益ダッシュボード</span>
+             </div>
+             <ChevronRight className="w-5 h-5 text-gray-400" />
+           </button>
+           
+           {/* Withdrawal Request */}
+           <button
+             onClick={navigateToWithdrawalRequest}
+             className="w-full flex items-center justify-between p-4 border-b border-gray-100"
+           >
+             <div className="flex items-center gap-3">
+               <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 <path
+                   strokeLinecap="round"
+                   strokeLinejoin="round"
+                   strokeWidth={2}
+                   d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                 />
+               </svg>
+               <span className="text-sm text-black">引き出し申請</span>
+             </div>
+             <ChevronRight className="w-5 h-5 text-gray-400" />
+           </button>
+           
+           {/* Transaction History */}
+           <button
+             onClick={navigateToTransactionHistory}
+             className="w-full flex items-center justify-between p-4 border-b border-gray-100"
+           >
+             <div className="flex items-center gap-3">
+               <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 <path
+                   strokeLinecap="round"
+                   strokeLinejoin="round"
+                   strokeWidth={2}
+                   d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                 />
+               </svg>
+               <span className="text-sm text-black">取引履歴</span>
+             </div>
+             <ChevronRight className="w-5 h-5 text-gray-400" />
+           </button>
+         </div>
 
         {/* Gray Spacer */}
         <div className="h-4 bg-gray-100"></div>
@@ -373,6 +518,9 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
             </div>
             <ChevronRight className="w-5 h-5 text-gray-400" />
           </button>
+
+          {/* Account Settings */}
+
 
           {/* Identity Verification */}
           <button

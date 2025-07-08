@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Capu',
+  title: 'Capu - Cast',
   description: '最高の乾杯にCapuでつながる',
   generator: 'v0.dev',
   icons: {
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Capu',
+    title: 'Capu - Cast',
   },
   formatDetection: {
     telephone: false,
@@ -39,7 +39,7 @@ export default function RootLayout({
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Capu" />
+        <meta name="apple-mobile-web-app-title" content="Capu - Cast" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className="touch-optimized smooth-touch-scroll">{children}</body>

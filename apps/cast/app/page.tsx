@@ -48,25 +48,8 @@ export default function CapuApp() {
               <img 
                 src="/capu-logo.svg" 
                 alt="Capu Logo" 
-                className="w-72 h-72 xs:w-80 xs:h-80 iphone:w-80 iphone:h-80 sm:w-96 sm:h-96 object-contain opacity-15" 
+                className="w-36 h-36 xs:w-40 xs:h-40 iphone:w-40 iphone:h-40 sm:w-48 sm:h-48 object-contain" 
               />
-            </div>
-            
-            <div className="space-y-4 xs:space-y-6 iphone:space-y-6 sm:space-y-8 relative z-10">
-              <div>
-                <p className="text-white text-base xs:text-lg iphone:text-lg sm:text-xl leading-relaxed mb-3 xs:mb-4 iphone:mb-4 sm:mb-6 font-bold">
-                忙しい毎日に<br />ちょっと特別なご褒美を。
-                </p>
-              </div>
-
-              <div className="space-y-2 xs:space-y-3 iphone:space-y-3 sm:space-y-4">
-                <h1 className="text-gold-pink-gradient text-2xl xs:text-3xl iphone:text-3xl sm:text-4xl font-bold leading-tight">
-                「カッコイイ」が、
-                </h1>
-                <h1 className="text-gold-pink-gradient text-2xl xs:text-3xl iphone:text-3xl sm:text-4xl font-bold leading-tight">
-                もっと輝く時代へ。
-                </h1>
-              </div>
             </div>
           </div>
 

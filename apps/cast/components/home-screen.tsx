@@ -408,7 +408,7 @@ export default function HomeScreen() {
   return (
     <div className="h-full w-full bg-gray-100 flex flex-col relative">
       {/* Tab Navigation + Search icon */}
-      <div className="bg-white sticky top-0 z-10 shadow-sm">
+      <div className="bg-main-navy-gradient sticky top-0 z-10 shadow-sm">
         <div className="flex items-center justify-between border-b border-gray-200 px-4">
           {/* Left spacer */}
           <div className="w-10"></div>
@@ -418,7 +418,7 @@ export default function HomeScreen() {
             <button
               onClick={() => setActiveTab("オススメ")}
               className={`px-4 py-4 text-sm font-medium transition-colors focus:outline-none ${
-                activeTab === "オススメ" ? "border-bottom-main-navy-gradient text-main-navy-gradient" : "border-b-2 border-transparent text-gray-600"
+                activeTab === "オススメ" ? "border-b-2 border-accent-blue text-accent-blue" : "border-b-2 border-transparent text-white"
               }`}
             >
               オススメ
@@ -426,7 +426,7 @@ export default function HomeScreen() {
             <button
               onClick={() => setActiveTab("お気に入り")}
               className={`px-4 py-4 text-sm font-medium transition-colors focus:outline-none ${
-                activeTab === "お気に入り" ? "border-bottom-main-navy-gradient text-main-navy-gradient" : "border-b-2 border-transparent text-gray-600"
+                activeTab === "お気に入り" ? "border-b-2 border-accent-blue text-accent-blue" : "border-b-2 border-transparent text-white"
               }`}
             >
               お気に入り
@@ -434,7 +434,7 @@ export default function HomeScreen() {
             <button
               onClick={() => setActiveTab("足あと")}
               className={`px-4 py-4 text-sm font-medium transition-colors focus:outline-none ${
-                activeTab === "足あと" ? "border-bottom-main-navy-gradient text-main-navy-gradient" : "border-b-2 border-transparent text-gray-600"
+                activeTab === "足あと" ? "border-b-2 border-accent-blue text-accent-blue" : "border-b-2 border-transparent text-white"
               }`}
             >
               足あと
@@ -443,7 +443,7 @@ export default function HomeScreen() {
           
           {/* Search icon - Right */}
           <button onClick={handleSearchClick} className="p-3 relative">
-            <Search className="w-6 h-6 text-gray-700" />
+            <Search className="w-6 h-6 text-white" />
             {filterCount > 0 && (
               <div className="absolute top-0 -right-1 bg-main-navy-gradient text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                 {filterCount > 9 ? "9+" : filterCount}
