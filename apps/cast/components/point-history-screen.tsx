@@ -3,7 +3,6 @@
 import { ArrowLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
-import ReceiptGenerationScreen from "@/components/receipt-generator"
 import PaymentDetailScreen from "@/components/payment-detail-screen"
 import { useState } from "react"
 
@@ -12,7 +11,6 @@ interface PointHistoryScreenProps {
 }
 
 export default function PointHistoryScreen({ onBack }: PointHistoryScreenProps) {
-  const [showReceiptGeneration, setShowReceiptGeneration] = useState(false)
   const [showPaymentDetail, setShowPaymentDetail] = useState(false)
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null)
 
@@ -54,23 +52,9 @@ export default function PointHistoryScreen({ onBack }: PointHistoryScreenProps) 
     },
   ]
 
-  const handleReceiptGeneration = (transaction: any) => {
-    setSelectedTransaction(transaction)
-    setShowReceiptGeneration(true)
-  }
-
   const handlePaymentDetail = (transaction: any) => {
     setSelectedTransaction(transaction)
     setShowPaymentDetail(true)
-  }
-
-  if (showReceiptGeneration && selectedTransaction) {
-    return (
-      <ReceiptGenerationScreen
-        onClose={() => setShowReceiptGeneration(false)}
-        transactionData={selectedTransaction.transactionData}
-      />
-    )
   }
 
   if (showPaymentDetail && selectedTransaction) {
@@ -86,7 +70,7 @@ export default function PointHistoryScreen({ onBack }: PointHistoryScreenProps) 
         <button onClick={onBack}>
           <ArrowLeft className="w-5 h-5 text-white" />
         </button>
-        <h1 className="text-base font-medium text-white">ポイント履歴・領収書</h1>
+        <h1 className="text-base font-medium text-white">ポイント履歴</h1>
       </div>
 
       {/* Main Content */}
@@ -148,19 +132,6 @@ export default function PointHistoryScreen({ onBack }: PointHistoryScreenProps) 
                     {item.hasArrow && <ChevronRight className="w-5 h-5 text-gray-400" />}
                   </div>
                 </button>
-
-                {/* Receipt Button for Charge Items */}
-                {item.type === "charge" && (
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <Button
-                      variant="ghost"
-                      className="text-sm text-black hover:bg-gray-50 p-0 h-auto font-normal"
-                      onClick={() => handleReceiptGeneration(item)}
-                    >
-                      領収書を発行する
-                    </Button>
-                  </div>
-                )}
               </div>
             </div>
           ))}

@@ -10,6 +10,7 @@ interface HelpScreenProps {
 
 export default function HelpScreen({ onBack }: HelpScreenProps) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false)
 
   const helpItems = [
     {
@@ -72,7 +73,7 @@ export default function HelpScreen({ onBack }: HelpScreenProps) {
   return (
     <div className="min-h-screen w-full md:max-w-sm mx-auto bg-gray-100 flex flex-col relative">
       {/* Header */}
-      <div className="bg-gold-pink-gradient px-4 py-4 h-16 flex items-center gap-3 fixed top-0 left-1/2 transform -translate-x-1/2 w-full md:max-w-sm z-10 shadow-lg">
+      <div className="bg-main-navy-gradient px-4 py-4 h-16 flex items-center gap-3 fixed top-0 left-1/2 transform -translate-x-1/2 w-full md:max-w-sm z-10 shadow-lg">
         <button onClick={onBack}>
           <ArrowLeft className="w-5 h-5 text-white" />
         </button>
@@ -120,9 +121,10 @@ export default function HelpScreen({ onBack }: HelpScreenProps) {
         {/* Gray Spacer */}
         <div className="h-4 bg-gray-100"></div>
 
-        {/* Logout */}
+        {/* Account Actions */}
         <div className="bg-white">
-          <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 p-4">
+          {/* Logout */}
+          <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 p-4 border-b border-gray-100">
             <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
@@ -132,6 +134,19 @@ export default function HelpScreen({ onBack }: HelpScreenProps) {
               />
             </svg>
             <span className="text-sm text-black">ログアウト</span>
+          </button>
+
+          {/* Delete Account */}
+          <button onClick={() => setShowDeleteAccountConfirm(true)} className="w-full flex items-center gap-3 p-4">
+            <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+            <span className="text-sm text-red-500">退会する</span>
           </button>
         </div>
       </div>
@@ -160,6 +175,38 @@ export default function HelpScreen({ onBack }: HelpScreenProps) {
                 className="flex-1 h-12 bg-red-500 hover:bg-red-600 text-white"
               >
                 ログアウト
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteAccountConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg w-full md:max-w-sm p-6">
+            <h3 className="text-lg font-medium text-black text-center mb-4">退会しますか？</h3>
+            <p className="text-sm text-gray-600 text-center mb-6">
+              退会すると、アカウントに関連するすべての情報が削除されます。この操作は取り消すことができません。
+            </p>
+            <div className="flex gap-3">
+              <Button
+                onClick={() => setShowDeleteAccountConfirm(false)}
+                variant="outline"
+                className="flex-1 h-12 border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                キャンセル
+              </Button>
+              <Button
+                onClick={() => {
+                  // 退会処理をここに実装
+                  console.log("退会実行")
+                  setShowDeleteAccountConfirm(false)
+                  // 実際のアプリではログイン画面に戻る処理を追加
+                }}
+                className="flex-1 h-12 bg-red-500 hover:bg-red-600 text-white"
+              >
+                退会する
               </Button>
             </div>
           </div>
