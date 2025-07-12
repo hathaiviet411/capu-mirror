@@ -78,8 +78,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 200,
-    "collapsed": true
+    "width": 200
   },
   "right": {
     "id": "daf9687bd579ef82",
@@ -183,18 +182,21 @@
   },
   "active": "998faa3200da2849",
   "lastOpenFiles": [
+    "Capu-docs/Docs/API振り分け判定基準.md",
+    "Capu-docs/Docs/技術スタック.md",
+    "Capu-docs/Docs/Vercelデプロイ手順書.md",
+    "Capu-docs/Docs/本人確認書類_.md",
+    "Capu-docs/Design/システム構成図.md",
     "Capu-docs/Design/画面機能一覧/ゲスト用_画面機能一覧.md",
     "Capu-docs/Design/画面処理・影響定義書/GUE-07_メッセージ詳細画面.md",
     "Capu-docs/Design/画面処理・影響定義書/GUE-06_メッセージ一覧画面.md",
     "Capu-docs/Design/画面処理・影響定義書/GUE-08_ニュース詳細モーダル.md",
     "Capu-docs/Design/画面処理・影響定義書/GUE-10_マイページ画面.md",
     "Capu-docs/Design/シーケンス図.md",
-    "Capu-docs/Design/システム構成図.md",
     "Capu-docs/Design/業務フロー.md",
     "Capu-docs/Design/画面処理・影響定義書/GUE-03_検索モーダル.md",
     "Capu-docs/Design/画面処理・影響定義書/GUE-02_ホーム画面.md",
     "Capu-docs/Design/画面処理・影響定義書/GUE-01_ログイン画面.md",
-    "Capu-docs/Docs/技術スタック.md",
     "Capu-docs/Design/画面処理・影響定義書/テンプレート.md",
     "Capu-docs/Docs/技術スタック構成.md",
     "Capu-docs/Design/画面処理・影響定義書/CAS-13_取引履歴画面.md",
@@ -206,9 +208,6 @@
     "Capu-docs/Design/画面処理・影響定義書/CAS-04_ゲスト詳細モーダル.md",
     "Capu-docs/Design/画面処理・影響定義書/CAS-01_ログイン画面.md",
     "Capu-docs/Design/画面処理・影響定義書/CAS-02_ホーム画面.md",
-    "Capu-docs/Design/画面処理・影響定義書/CAS-06_メッセージ詳細画面.md",
-    "Capu-docs/Design/画面遷移図.md",
-    "Capu-docs/Design/画面処理・影響定義ドキュメント/CAS-06_メッセージ詳細画面.md",
     "Capu-docs/Design/画面処理・影響定義書",
     "Capu-docs/Design/画面機能一覧",
     "Capu-docs/Design/画面処理・影響定義ドキュメント/画面機能一覧"
