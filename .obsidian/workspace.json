@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Capu-docs/Design/システム構成図.md",
+                "file": "Capu-docs/Docs/タスク進捗管理.md",
                 "mode": "preview",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "システム構成図"
+              "title": "タスク進捗管理"
             }
           }
         ]
@@ -182,10 +182,22 @@
   },
   "active": "998faa3200da2849",
   "lastOpenFiles": [
-    "Capu-docs/Docs/API振り分け判定基準.md",
     "Capu-docs/Docs/技術スタック.md",
+    "Capu-docs/Docs/タスク進捗管理.md",
+    "Capu-docs/Docs/タスク進捗管理.md.tmp.11953.1752562072801",
     "Capu-docs/Docs/Vercelデプロイ手順書.md",
+    "Capu-docs/Design/画面処理・影響定義書/GUE-16_ヘルプ画面.md",
+    "Capu-docs/Docs/API振り分け判定基準.md",
+    "Capu-docs/Design/画面処理・影響定義書/CAS-01_ログイン画面.md",
     "Capu-docs/Docs/本人確認書類_.md",
+    "Capu-docs/Design/画面処理・影響定義書/CAS-10_マイページ画面.md",
+    "Capu-docs/Design/画面処理・影響定義書/CAS-08_ニュース詳細モーダル.md",
+    "Capu-docs/Design/画面処理・影響定義書/CAS-06_メッセージ詳細画面.md",
+    "Capu-docs/Design/画面処理・影響定義書/CAS-07_通知画面.md",
+    "Capu-docs/Design/画面処理・影響定義書/CAS-05_メッセージ一覧画面.md",
+    "Capu-docs/Design/画面処理・影響定義書/CAS-03_検索モーダル.md",
+    "Capu-docs/Design/画面処理・影響定義書/CAS-02_ホーム画面.md",
+    "CLAUDE.md",
     "Capu-docs/Design/システム構成図.md",
     "Capu-docs/Design/画面機能一覧/ゲスト用_画面機能一覧.md",
     "Capu-docs/Design/画面処理・影響定義書/GUE-07_メッセージ詳細画面.md",
@@ -196,18 +208,6 @@
     "Capu-docs/Design/業務フロー.md",
     "Capu-docs/Design/画面処理・影響定義書/GUE-03_検索モーダル.md",
     "Capu-docs/Design/画面処理・影響定義書/GUE-02_ホーム画面.md",
-    "Capu-docs/Design/画面処理・影響定義書/GUE-01_ログイン画面.md",
-    "Capu-docs/Design/画面処理・影響定義書/テンプレート.md",
-    "Capu-docs/Docs/技術スタック構成.md",
-    "Capu-docs/Design/画面処理・影響定義書/CAS-13_取引履歴画面.md",
-    "Capu-docs/Design/画面処理・影響定義書/GUE-04_キャスト詳細モーダル.md",
-    "Capu-docs/Design/画面処理・影響定義書/CAS-08_ニュース詳細モーダル.md",
-    "Capu-docs/Design/画面処理・影響定義書/GUE-11_プロフィール編集画面.md",
-    "Capu-docs/Design/画面処理・影響定義書/CAS-05_メッセージ一覧画面.md",
-    "Capu-docs/Design/画面処理・影響定義書/CAS-03_検索モーダル.md",
-    "Capu-docs/Design/画面処理・影響定義書/CAS-04_ゲスト詳細モーダル.md",
-    "Capu-docs/Design/画面処理・影響定義書/CAS-01_ログイン画面.md",
-    "Capu-docs/Design/画面処理・影響定義書/CAS-02_ホーム画面.md",
     "Capu-docs/Design/画面処理・影響定義書",
     "Capu-docs/Design/画面機能一覧",
     "Capu-docs/Design/画面処理・影響定義ドキュメント/画面機能一覧"
