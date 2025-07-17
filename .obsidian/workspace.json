@@ -182,6 +182,11 @@
   },
   "active": "998faa3200da2849",
   "lastOpenFiles": [
+    "apps/guest/src/server/__tests__/auth.test.ts",
+    "apps/guest/src/server/__tests__",
+    "apps/cast/src/server/__tests__/auth.test.ts",
+    "apps/cast/src/server/__tests__",
+    "apps/cast/src/env.js.tmp.66528.1752733942623",
     "Capu-docs/Docs/Issue実行手順書.md",
     "Capu-docs/Docs/Github-Issue-Context.md",
     "Capu-docs/Design/画面処理・影響定義書/CAS-01_ログイン画面.md",
@@ -208,7 +213,6 @@
     "Capu-docs/Design/画面処理・影響定義書/GUE-06_メッセージ一覧画面.md",
     "Capu-docs/Design/画面処理・影響定義書/GUE-08_ニュース詳細モーダル.md",
     "Capu-docs/Design/画面処理・影響定義書/GUE-10_マイページ画面.md",
-    "Capu-docs/Design/シーケンス図.md",
     "Capu-docs/Design/画面処理・影響定義書",
     "Capu-docs/Design/画面機能一覧",
     "Capu-docs/Design/画面処理・影響定義ドキュメント/画面機能一覧"

@@ -25,8 +25,14 @@ Capuアプリ開発プロジェクトにおけるGitHub Issue実装の標準ワ�
 git checkout main
 git pull origin main
 
-# Issue情報の確認
-gh issue view [ISSUE_NUMBER]
+# Issue情報の確認（GitHub CLI使用）
+gh issue view [ISSUE_NUMBER] --repo saikashu-kato/capu-app
+
+# リポジトリ確認（必要に応じて）
+gh repo view saikashu-kato/capu-app
+
+# 認証状態確認（トラブルシューティング用）
+gh auth status
 ```
 
 ### 🚀 フェーズ1: 準備フェーズ
@@ -261,6 +267,7 @@ pnpm db:migrate   # マイグレーションファイル生成・実行
 ```bash
 # Issue開始
 git checkout main && git pull origin main
+gh issue view [ISSUE_NUMBER] --repo saikashu-kato/capu-app
 git checkout -b feature/[TASK-ID]-[description]
 
 # 実装中
@@ -272,6 +279,24 @@ pnpm lint && pnpm build
 
 # PR作成
 gh pr create --title "[TASK-ID] タスク名" --body "PR内容"
+```
+
+### GitHub CLI操作
+```bash
+# Issue関連
+gh issue view [ISSUE_NUMBER] --repo saikashu-kato/capu-app
+gh issue list --repo saikashu-kato/capu-app
+gh issue comment [ISSUE_NUMBER] --body "コメント内容"
+
+# PR関連
+gh pr create --title "タイトル" --body "内容"
+gh pr list
+gh pr view [PR_NUMBER]
+
+# 認証関連
+gh auth status
+gh auth login
+gh repo view saikashu-kato/capu-app
 ```
 
 ### トラブルシューティング
@@ -318,6 +343,23 @@ pnpm clean && pnpm build  # (clean scriptがある場合)
 ---
 
 ## 🚨 よくある問題と対処法
+
+### GitHub CLI関連エラー
+**問題**: Issue情報の取得失敗・認証エラー
+```bash
+# 解決策
+# 1. 認証状態確認
+gh auth status
+
+# 2. 再認証（必要に応じて）
+gh auth login
+
+# 3. 正しいリポジトリ指定でIssue取得
+gh issue view [ISSUE_NUMBER] --repo saikashu-kato/capu-app
+
+# 4. リポジトリアクセス権限確認
+gh repo view saikashu-kato/capu-app
+```
 
 ### 依存関係エラー
 **問題**: パッケージインストール失敗
