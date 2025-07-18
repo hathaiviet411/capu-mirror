@@ -100,10 +100,11 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
   },
-  pages: {
-    signIn: "/auth/signin",
-    signUp: "/auth/signup",
-  },
+  // NextAuth.jsのデフォルトページを使用
+  // pages: {
+  //   signIn: "/auth/signin",
+  //   signUp: "/auth/signup",
+  // },
 };
 
 /**
