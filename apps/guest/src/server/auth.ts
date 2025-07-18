@@ -71,6 +71,10 @@ export const authOptions: NextAuthOptions = {
     },
     async jwt({ token, user, account, profile }) {
       try {
+        if (user) {
+          token.id = user.id;
+          token.userType = user.userType;
+        }
         if (account?.provider === "line") {
           token.userType = "GUEST";
           token.lineId = profile?.sub;
@@ -83,12 +87,12 @@ export const authOptions: NextAuthOptions = {
     },
     session: ({ session, user, token }) => {
       try {
-        if (token?.userType === "GUEST") {
+        if (token?.userType === "GUEST" && token?.lineId) {
           return {
             ...session,
             user: {
               ...session.user,
-              id: user?.id || token.sub,
+              id: user?.id || token.sub || token.id,
               userType: "GUEST",
               lineId: token.lineId,
             },
@@ -98,8 +102,8 @@ export const authOptions: NextAuthOptions = {
           ...session,
           user: {
             ...session.user,
-            id: user?.id || token.sub,
-            userType: user?.userType || "GUEST",
+            id: user?.id || token.sub || token.id,
+            userType: (token.userType as "GUEST" | "CAST" | "ADMIN") || user?.userType || "GUEST",
           },
         };
       } catch (error) {

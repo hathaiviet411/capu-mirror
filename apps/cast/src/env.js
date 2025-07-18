@@ -29,6 +29,8 @@ export const env = createEnv({
     // Add `.min(1) on ID and SECRET if you want to make sure they're not empty
     DISCORD_CLIENT_ID: z.string().optional(),
     DISCORD_CLIENT_SECRET: z.string().optional(),
+    LINE_CLIENT_ID: z.string().optional(),
+    LINE_CLIENT_SECRET: z.string().optional(),
     STRIPE_SECRET_KEY: z.string().optional(),
     STRIPE_WEBHOOK_SECRET: z.string().optional(),
   },
@@ -53,6 +55,8 @@ export const env = createEnv({
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     DISCORD_CLIENT_ID: process.env.DISCORD_CLIENT_ID,
     DISCORD_CLIENT_SECRET: process.env.DISCORD_CLIENT_SECRET,
+    LINE_CLIENT_ID: process.env.LINE_CLIENT_ID,
+    LINE_CLIENT_SECRET: process.env.LINE_CLIENT_SECRET,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,

@@ -182,6 +182,13 @@
   },
   "active": "7bf6222cc1acc998",
   "lastOpenFiles": [
+    "apps/guest/src/server/auth.ts.tmp.66528.1752847407343",
+    "docs/Design/認証フロー設計.md",
+    "docs/Design",
+    "apps/guest/src/server/__tests__/auth.test.ts",
+    "apps/guest/src/server/__tests__",
+    "apps/cast/src/server/__tests__/auth.test.ts",
+    "apps/cast/src/server/__tests__",
     "scripts/test-line-oauth.js",
     "scripts",
     "docs/designs/画面機能一覧/ゲスト用_画面機能一覧.md",
@@ -208,15 +215,8 @@
     "docs/designs/画面処理・影響定義書/CAS-15_ヘルプ画面.md",
     "docs/designs/画面処理・影響定義書/CAS-14_口座設定画面.md",
     "docs/designs/画面処理・影響定義書/CAS-13_取引履歴画面.md",
-    "docs/designs/画面処理・影響定義書/CAS-12_引き出し申請画面.md",
     "docs/designs/画面機能一覧",
     "docs/designs/画面処理・影響定義書",
-    "docs/documents",
-    "docs/designs",
-    "docs",
-    "Capu-docs/Design/画面機能一覧",
-    "Capu-docs/Design/画面処理・影響定義書",
-    "Capu-docs/Docs",
-    "Capu-docs/Design"
+    "docs/documents"
   ]
 }

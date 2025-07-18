@@ -6,6 +6,7 @@ import {
 } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import DiscordProvider from "next-auth/providers/discord";
+import LineProvider from "next-auth/providers/line";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 
@@ -41,14 +42,23 @@ declare module "next-auth" {
  */
 export const authOptions: NextAuthOptions = {
   callbacks: {
-    session: ({ session, user }) => ({
-      ...session,
-      user: {
-        ...session.user,
-        id: user.id,
-        userType: user.userType || "GUEST",
-      },
-    }),
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.userType = user.userType;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      return {
+        ...session,
+        user: {
+          ...session.user,
+          id: token.id as string,
+          userType: (token.userType as "GUEST" | "CAST" | "ADMIN") || "GUEST",
+        },
+      };
+    },
   },
   adapter: PrismaAdapter(db),
   providers: [
@@ -62,20 +72,38 @@ export const authOptions: NextAuthOptions = {
         ]
       : []),
     
-    // Credentials Provider (email/password)
+    // LINE Provider (for guest users)
+    ...(env.LINE_CLIENT_ID && env.LINE_CLIENT_SECRET
+      ? [
+          LineProvider({
+            clientId: env.LINE_CLIENT_ID,
+            clientSecret: env.LINE_CLIENT_SECRET,
+          }),
+        ]
+      : []),
+    
+    // Credentials Provider (for cast users)
     CredentialsProvider({
-      name: "credentials",
+      id: "cast-credentials",
+      name: "Cast Login",
       credentials: {
-        email: { label: "Email", type: "email" },
+        loginId: { label: "Login ID", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        if (!credentials?.loginId || !credentials?.password) {
           return null;
         }
 
-        const user = await db.user.findUnique({
-          where: { email: credentials.email },
+        // loginIdでユーザーを検索（emailまたはusernameなど）
+        const user = await db.user.findFirst({
+          where: {
+            OR: [
+              { email: credentials.loginId },
+              // 追加のloginId検索条件があれば追加
+            ],
+            userType: "CAST", // キャスト専用
+          },
         });
 
         if (!user || !user.hashedPassword) {
@@ -99,6 +127,10 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  jwt: {
+    secret: env.NEXTAUTH_SECRET,
   },
   // NextAuth.jsのデフォルトページを使用
   // pages: {
