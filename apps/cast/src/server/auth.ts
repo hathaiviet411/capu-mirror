@@ -132,10 +132,11 @@ export const authOptions: NextAuthOptions = {
   jwt: {
     secret: env.NEXTAUTH_SECRET,
   },
-  pages: {
-    signIn: "/auth/signin",
-    signUp: "/auth/signup",
-  },
+  // NextAuth.jsのデフォルトページを使用
+  // pages: {
+  //   signIn: "/auth/signin",
+  //   signUp: "/auth/signup",
+  // },
 };
 
 /**
