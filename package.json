@@ -16,9 +16,12 @@
     "db:seed": "turbo run db:seed",
     "db:migrate": "turbo run db:migrate",
     "db:generate": "turbo run db:generate",
-    "db:studio": "turbo run db:studio"
+    "db:studio": "turbo run db:studio",
+    "test:line-oauth": "node scripts/test-line-oauth.js"
   },
   "devDependencies": {
+    "@prisma/client": "^5.19.1",
+    "prisma": "^5.19.1",
     "turbo": "^2.0.0",
     "typescript": "^5"
   },

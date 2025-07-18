@@ -6,6 +6,7 @@ import {
 } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import DiscordProvider from "next-auth/providers/discord";
+import LineProvider from "next-auth/providers/line";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 
@@ -23,6 +24,7 @@ declare module "next-auth" {
     user: {
       id: string;
       userType: "GUEST" | "CAST" | "ADMIN";
+      lineId?: string;
       // ...other properties
     } & DefaultSession["user"];
   }
@@ -30,7 +32,15 @@ declare module "next-auth" {
   interface User {
     id: string;
     userType: "GUEST" | "CAST" | "ADMIN";
+    lineId?: string;
     // ...other properties
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    userType?: "GUEST" | "CAST" | "ADMIN";
+    lineId?: string;
   }
 }
 
@@ -41,17 +51,91 @@ declare module "next-auth" {
  */
 export const authOptions: NextAuthOptions = {
   callbacks: {
-    session: ({ session, user }) => ({
-      ...session,
-      user: {
-        ...session.user,
-        id: user.id,
-        userType: user.userType || "GUEST",
-      },
-    }),
+    async signIn({ user, account, profile }) {
+      try {
+        // Allow LINE OAuth only for guest users
+        if (account?.provider === "line") {
+          // Validate that required LINE profile data is present
+          if (!profile?.sub) {
+            console.error("LINE OAuth: Missing sub in profile");
+            return false;
+          }
+          return true;
+        }
+        // Allow other providers as before
+        return true;
+      } catch (error) {
+        console.error("SignIn error:", error);
+        return false;
+      }
+    },
+    async jwt({ token, user, account, profile }) {
+      try {
+        if (account?.provider === "line") {
+          token.userType = "GUEST";
+          token.lineId = profile?.sub;
+        }
+        return token;
+      } catch (error) {
+        console.error("JWT callback error:", error);
+        return token;
+      }
+    },
+    session: ({ session, user, token }) => {
+      try {
+        if (token?.userType === "GUEST") {
+          return {
+            ...session,
+            user: {
+              ...session.user,
+              id: user?.id || token.sub,
+              userType: "GUEST",
+              lineId: token.lineId,
+            },
+          };
+        }
+        return {
+          ...session,
+          user: {
+            ...session.user,
+            id: user?.id || token.sub,
+            userType: user?.userType || "GUEST",
+          },
+        };
+      } catch (error) {
+        console.error("Session callback error:", error);
+        return session;
+      }
+    },
   },
   adapter: PrismaAdapter(db),
   providers: [
+    // LINE Provider for guest authentication
+    ...(env.LINE_CLIENT_ID && env.LINE_CLIENT_SECRET
+      ? (() => {
+          console.log("✅ LINE OAuth環境変数が設定されています:");
+          console.log("LINE_CLIENT_ID:", env.LINE_CLIENT_ID ? "設定済み" : "未設定");
+          console.log("LINE_CLIENT_SECRET:", env.LINE_CLIENT_SECRET ? "設定済み" : "未設定");
+          return [
+            LineProvider({
+              clientId: env.LINE_CLIENT_ID,
+              clientSecret: env.LINE_CLIENT_SECRET,
+              // 環境別のコールバックURL設定
+              authorization: {
+                params: {
+                  scope: "profile openid",
+                },
+              },
+            }),
+          ];
+        })()
+      : (() => {
+          console.log("❌ LINE OAuth環境変数が未設定です:");
+          console.log("LINE_CLIENT_ID:", env.LINE_CLIENT_ID || "未設定");
+          console.log("LINE_CLIENT_SECRET:", env.LINE_CLIENT_SECRET || "未設定");
+          return [];
+        })()),
+    
     // Discord Provider (optional)
     ...(env.DISCORD_CLIENT_ID && env.DISCORD_CLIENT_SECRET
       ? [
@@ -100,10 +184,11 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
   },
-  pages: {
-    signIn: "/auth/signin",
-    signUp: "/auth/signup",
-  },
+  // NextAuth.jsのデフォルトページを使用
+  // pages: {
+  //   signIn: "/auth/signin",
+  //   error: "/auth/error",
+  // },
 };
 
 /**
