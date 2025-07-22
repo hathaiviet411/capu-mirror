@@ -71,6 +71,7 @@ export const authOptions: NextAuthOptions = {
     },
     async jwt({ token, user, account, profile }) {
       try {
+        // Initial sign in
         if (user) {
           token.id = user.id;
           token.userType = user.userType;
@@ -79,6 +80,13 @@ export const authOptions: NextAuthOptions = {
           token.userType = "GUEST";
           token.lineId = profile?.sub;
         }
+        
+        // Token refresh logic
+        if (token.exp && token.exp < Date.now() / 1000 + 60 * 60) {
+          // Refresh token if it expires within 1 hour
+          token.exp = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60); // 30 days
+        }
+        
         return token;
       } catch (error) {
         console.error("JWT callback error:", error);
@@ -103,7 +111,7 @@ export const authOptions: NextAuthOptions = {
           user: {
             ...session.user,
             id: user?.id || token.sub || token.id,
-            userType: (token.userType as "GUEST" | "CAST" | "ADMIN") || user?.userType || "GUEST",
+            userType: token.userType ?? user?.userType ?? "GUEST",
           },
         };
       } catch (error) {
@@ -187,12 +195,14 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  // NextAuth.jsのデフォルトページを使用
-  // pages: {
-  //   signIn: "/auth/signin",
-  //   error: "/auth/error",
-  // },
+  jwt: {
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  pages: {
+    error: "/auth/error",
+  },
 };
 
 /**

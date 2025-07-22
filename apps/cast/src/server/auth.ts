@@ -42,11 +42,19 @@ declare module "next-auth" {
  */
 export const authOptions: NextAuthOptions = {
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
+      // Initial sign in
       if (user) {
         token.id = user.id;
         token.userType = user.userType;
       }
+      
+      // Token refresh logic
+      if (token.exp && token.exp < Date.now() / 1000 + 60 * 60) {
+        // Refresh token if it expires within 1 hour
+        token.exp = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60); // 30 days
+      }
+      
       return token;
     },
     async session({ session, token }) {
@@ -55,7 +63,7 @@ export const authOptions: NextAuthOptions = {
         user: {
           ...session.user,
           id: token.id as string,
-          userType: (token.userType as "GUEST" | "CAST" | "ADMIN") || "GUEST",
+          userType: token.userType ?? "GUEST",
         },
       };
     },
@@ -131,12 +139,11 @@ export const authOptions: NextAuthOptions = {
   },
   jwt: {
     secret: env.NEXTAUTH_SECRET,
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  // NextAuth.jsのデフォルトページを使用
-  // pages: {
-  //   signIn: "/auth/signin",
-  //   signUp: "/auth/signup",
-  // },
+  pages: {
+    error: "/auth/error",
+  },
 };
 
 /**
