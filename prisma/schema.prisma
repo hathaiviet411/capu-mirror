@@ -58,13 +58,24 @@ model User {
   tags          String[]
   isVerified    Boolean   @default(false)
   points        Int       @default(0)
+  lastLoginAt   DateTime?
   
   // リレーション
   castProfiles  CastProfile[]
+  guestProfile  GuestProfile?
   bookings      Booking[]
   messages      Message[]
+  chatMessages  ChatMessage[]
   reviews       Review[]
   payments      Payment[]
+  notifications Notification[]
+  notificationSettings NotificationSettings?
+  favorites     Favorite[]
+  files         File[]
+  reports       Report[]
+  searchHistory SearchHistory[]
+  userDevices   UserDevice[]
+  chatRooms     ChatRoom[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -92,17 +103,42 @@ model CastProfile {
   
   displayName String
   description String @db.Text
+  bio         String? @db.Text
+  age         Int?
+  location    String?
   hourlyRate  Int
   areas       String[]
   schedule    Json?
   photos      String[]
+  pricing     Json?
+  services    String[]
+  tags        String[]
   isActive    Boolean @default(true)
   
   bookings    Booking[]
   reviews     Review[]
+  favorites   Favorite[]
+  chatRooms   ChatRoom[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model GuestProfile {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  displayName String?
+  bio         String?   @db.Text
+  location    String?
+  age         Int?
+  avatar      String?
+  preferences Json?
+  isActive    Boolean   @default(true)
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model Booking {
@@ -123,6 +159,7 @@ model Booking {
   payment   Payment?
   review    Review?
   messages  Message[]
+  chatRooms ChatRoom[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -135,16 +172,63 @@ enum BookingStatus {
   CANCELLED
 }
 
+model ChatRoom {
+  id        String    @id @default(cuid())
+  castId    String
+  guestId   String
+  bookingId String?
+  isActive  Boolean   @default(true)
+  
+  cast      CastProfile @relation(fields: [castId], references: [id])
+  guest     User        @relation(fields: [guestId], references: [id])
+  booking   Booking?    @relation(fields: [bookingId], references: [id])
+  messages  ChatMessage[]
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  @@unique([castId, guestId])
+}
+
 model Message {
-  id        String   @id @default(cuid())
-  bookingId String
-  senderId  String
-  content   String   @db.Text
+  id            String      @id @default(cuid())
+  bookingId     String
+  senderId      String
+  content       String      @db.Text
+  messageType   MessageType @default(TEXT)
+  attachmentUrl String?
+  replyToId     String?
+  isRead        Boolean     @default(false)
+  isDeleted     Boolean     @default(false)
   
-  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  sender    User     @relation(fields: [senderId], references: [id])
+  booking       Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  sender        User        @relation(fields: [senderId], references: [id])
+  replyTo       Message?    @relation("MessageReply", fields: [replyToId], references: [id])
+  replies       Message[]   @relation("MessageReply")
   
-  createdAt DateTime @default(now())
+  createdAt     DateTime    @default(now())
+}
+
+model ChatMessage {
+  id           String      @id @default(cuid())
+  chatRoomId   String
+  senderId     String
+  content      String      @db.Text
+  messageType  MessageType @default(TEXT)
+  attachmentUrl String?
+  isRead       Boolean     @default(false)
+  isDeleted    Boolean     @default(false)
+  
+  chatRoom     ChatRoom    @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  sender       User        @relation(fields: [senderId], references: [id])
+  
+  createdAt    DateTime    @default(now())
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
 }
 
 model Review {
@@ -163,23 +247,190 @@ model Review {
 }
 
 model Payment {
-  id              String        @id @default(cuid())
-  bookingId       String        @unique
-  userId          String
-  amount          Int
-  status          PaymentStatus @default(PENDING)
-  stripePaymentId String?
+  id                    String        @id @default(cuid())
+  bookingId             String        @unique
+  userId                String
+  amount                Int
+  currency              String        @default("jpy")
+  status                PaymentStatus @default(PENDING)
+  stripePaymentIntentId String?
+  applicationFee        Int           @default(0)
+  description           String?
+  confirmedAt           DateTime?
   
-  booking         Booking       @relation(fields: [bookingId], references: [id])
-  user            User          @relation(fields: [userId], references: [id])
+  booking               Booking       @relation(fields: [bookingId], references: [id])
+  user                  User          @relation(fields: [userId], references: [id])
+  refunds               Refund[]
   
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 }
 
 enum PaymentStatus {
   PENDING
-  COMPLETED
+  SUCCEEDED
   FAILED
   REFUNDED
-} 
+}
+
+model Refund {
+  id            String       @id @default(cuid())
+  paymentId     String
+  amount        Int
+  stripeRefundId String?
+  reason        String?
+  status        String?
+  
+  payment       Payment      @relation(fields: [paymentId], references: [id])
+  
+  createdAt     DateTime     @default(now())
+}
+
+model Notification {
+  id          String            @id @default(cuid())
+  userId      String
+  type        NotificationType
+  title       String
+  body        String            @db.Text
+  data        Json?
+  actionUrl   String?
+  priority    NotificationPriority @default(NORMAL)
+  isRead      Boolean           @default(false)
+  readAt      DateTime?
+  scheduledAt DateTime?
+  
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime          @default(now())
+}
+
+enum NotificationType {
+  BOOKING
+  MESSAGE
+  PAYMENT
+  REVIEW
+  SYSTEM
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+}
+
+model NotificationSettings {
+  id       String @id @default(cuid())
+  userId   String @unique
+  settings Json
+  
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserDevice {
+  id           String   @id @default(cuid())
+  userId       String
+  deviceId     String
+  fcmToken     String
+  platform     Platform
+  isActive     Boolean  @default(true)
+  lastActiveAt DateTime @default(now())
+  
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@unique([userId, deviceId])
+}
+
+enum Platform {
+  IOS
+  ANDROID
+  WEB
+}
+
+model Favorite {
+  id      String @id @default(cuid())
+  guestId String
+  castId  String
+  
+  guest   User        @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  cast    CastProfile @relation(fields: [castId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([guestId, castId])
+}
+
+model File {
+  id           String     @id @default(cuid())
+  fileName     String
+  fileType     String
+  fileSize     Int
+  fileKey      String     @unique
+  category     FileCategory
+  isPublic     Boolean    @default(false)
+  status       FileStatus @default(PENDING)
+  uploadedBy   String
+  thumbnailKey String?
+  hasThumbnail Boolean    @default(false)
+  uploadedAt   DateTime?
+  
+  user         User       @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+  
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+enum FileCategory {
+  PROFILE
+  SERVICE
+  MESSAGE
+  DOCUMENT
+}
+
+enum FileStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model SearchHistory {
+  id      String  @id @default(cuid())
+  userId  String
+  query   String?
+  filters Json?
+  name    String?
+  
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+}
+
+model Report {
+  id          String     @id @default(cuid())
+  type        ReportType
+  format      ReportFormat @default(JSON)
+  dateRange   Json
+  generatedBy String
+  data        Json
+  
+  user        User       @relation(fields: [generatedBy], references: [id])
+  
+  createdAt   DateTime   @default(now())
+}
+
+enum ReportType {
+  REVENUE
+  USER_ACTIVITY
+  BOOKING_ANALYSIS
+}
+
+enum ReportFormat {
+  JSON
+  CSV
+  PDF
+}
