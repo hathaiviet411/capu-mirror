@@ -35,39 +35,370 @@ tech_stack:
     auth: NextAuth.js (Credentials + Discord OAuth)
     payments: Stripe
     validation: Zod
-  # --- 共通開発環境 ---/
+  # --- 共通開発環境 ---
   dev_env:
     monorepo: Turbo + pnpm
     package_manager: pnpm
     linter: ESLint + TypeScript ESLint
 
 directory_structure: |
-  Capu-app_new/
-  ├── apps/
-  │   ├── cast/                     # キャストアプリケーション (port 3000)
-  │   │   ├── src/
-  │   │   │   ├── components/
-  │   │   │   │   ├── ui/          # shadcn/ui コンポーネント
-  │   │   │   │   └── shared/      # 共有コンポーネント
-  │   │   │   ├── server/
-  │   │   │   │   ├── api/routers/ # tRPC ルーター
-  │   │   │   │   ├── auth.ts      # 認証設定
-  │   │   │   │   └── api/trpc.ts  # tRPC セットアップ
-  │   │   │   └── utils/
-  │   │   │       └── api.ts       # API ユーティリティ
-  │   │   └── env.js               # 環境設定
-  │   └── guest/                   # ゲストアプリケーション (port 3001)
-  │       └── [同様の構造]
-  ├── prisma/
-  │   ├── schema.prisma            # データベーススキーマ
-  │   └── migrations/              # マイグレーション
-  ├── Capu-docs/                   # プロジェクトドキュメント
-  │   ├── Design/
+  .
+  ├── apps
+  │   ├── cast
+  │   │   ├── app
+  │   │   │   ├── globals.css
+  │   │   │   ├── layout.tsx
+  │   │   │   └── page.tsx
+  │   │   ├── components
+  │   │   │   ├── account-settings.tsx
+  │   │   │   ├── area-selection-modal.tsx
+  │   │   │   ├── basic-info-screen.tsx
+  │   │   │   ├── card-registration.tsx
+  │   │   │   ├── cast-detail-modal.tsx
+  │   │   │   ├── chat-options-modal.tsx
+  │   │   │   ├── field-edit-screen.tsx
+  │   │   │   ├── help-screen.tsx
+  │   │   │   ├── home-screen.tsx
+  │   │   │   ├── id-verification.tsx
+  │   │   │   ├── id-verify-complete.tsx
+  │   │   │   ├── joined-casts-screen.tsx
+  │   │   │   ├── login-modal.tsx
+  │   │   │   ├── message-detail-screen.tsx
+  │   │   │   ├── message-list-screen.tsx
+  │   │   │   ├── mypage-screen.tsx
+  │   │   │   ├── notification-screen.tsx
+  │   │   │   ├── payment-detail-screen.tsx
+  │   │   │   ├── payment-info-screen.tsx
+  │   │   │   ├── point-history-screen.tsx
+  │   │   │   ├── profile-edit-screen.tsx
+  │   │   │   ├── profile-preview-screen.tsx
+  │   │   │   ├── receipt-generator.tsx
+  │   │   │   ├── revenue-dashboard.tsx
+  │   │   │   ├── schedule-modal.tsx
+  │   │   │   ├── search-modal.tsx
+  │   │   │   ├── settings-screen.tsx
+  │   │   │   ├── shared
+  │   │   │   │   ├── footer.tsx
+  │   │   │   │   └── notification-icon.tsx
+  │   │   │   ├── signup-modal.tsx
+  │   │   │   ├── simple-profile-tag-modal.tsx
+  │   │   │   ├── tag-selection-modal.tsx
+  │   │   │   ├── theme-provider.tsx
+  │   │   │   ├── transaction-history.tsx
+  │   │   │   ├── ui
+  │   │   │   │   ├── accordion.tsx
+  │   │   │   │   ├── alert-dialog.tsx
+  │   │   │   │   ├── alert.tsx
+  │   │   │   │   ├── aspect-ratio.tsx
+  │   │   │   │   ├── avatar.tsx
+  │   │   │   │   ├── badge.tsx
+  │   │   │   │   ├── breadcrumb.tsx
+  │   │   │   │   ├── button.tsx
+  │   │   │   │   ├── calendar.tsx
+  │   │   │   │   ├── card.tsx
+  │   │   │   │   ├── carousel.tsx
+  │   │   │   │   ├── chart.tsx
+  │   │   │   │   ├── checkbox.tsx
+  │   │   │   │   ├── collapsible.tsx
+  │   │   │   │   ├── command.tsx
+  │   │   │   │   ├── context-menu.tsx
+  │   │   │   │   ├── dialog.tsx
+  │   │   │   │   ├── drawer.tsx
+  │   │   │   │   ├── dropdown-menu.tsx
+  │   │   │   │   ├── form.tsx
+  │   │   │   │   ├── hover-card.tsx
+  │   │   │   │   ├── input-otp.tsx
+  │   │   │   │   ├── input.tsx
+  │   │   │   │   ├── label.tsx
+  │   │   │   │   ├── menubar.tsx
+  │   │   │   │   ├── navigation-menu.tsx
+  │   │   │   │   ├── pagination.tsx
+  │   │   │   │   ├── popover.tsx
+  │   │   │   │   ├── progress.tsx
+  │   │   │   │   ├── radio-group.tsx
+  │   │   │   │   ├── resizable.tsx
+  │   │   │   │   ├── scroll-area.tsx
+  │   │   │   │   ├── select.tsx
+  │   │   │   │   ├── separator.tsx
+  │   │   │   │   ├── sheet.tsx
+  │   │   │   │   ├── sidebar.tsx
+  │   │   │   │   ├── skeleton.tsx
+  │   │   │   │   ├── slider.tsx
+  │   │   │   │   ├── sonner.tsx
+  │   │   │   │   ├── switch.tsx
+  │   │   │   │   ├── table.tsx
+  │   │   │   │   ├── tabs.tsx
+  │   │   │   │   ├── textarea.tsx
+  │   │   │   │   ├── toast.tsx
+  │   │   │   │   ├── toaster.tsx
+  │   │   │   │   ├── toggle-group.tsx
+  │   │   │   │   ├── toggle.tsx
+  │   │   │   │   ├── tooltip.tsx
+  │   │   │   │   ├── use-mobile.tsx
+  │   │   │   │   └── use-toast.ts
+  │   │   │   └── withdrawal-request.tsx
+  │   │   ├── components.json
+  │   │   ├── hooks
+  │   │   │   ├── use-mobile.tsx
+  │   │   │   └── use-toast.ts
+  │   │   ├── lib
+  │   │   │   └── utils.ts
+  │   │   ├── next.config.mjs
+  │   │   ├── package.json
+  │   │   ├── pnpm-lock.yaml
+  │   │   ├── postcss.config.mjs
+  │   │   ├── public
+  │   │   │   ├── capu-logo.png
+  │   │   │   ├── capu-logo.svg
+  │   │   │   ├── placeholder-logo.png
+  │   │   │   ├── placeholder-logo.svg
+  │   │   │   ├── placeholder-user.jpg
+  │   │   │   ├── placeholder.jpg
+  │   │   │   └── placeholder.svg
+  │   │   ├── src
+  │   │   │   ├── env.js
+  │   │   │   ├── pages
+  │   │   │   │   └── api
+  │   │   │   │       ├── auth
+  │   │   │   │       │   └── [...nextauth].ts
+  │   │   │   │       └── trpc
+  │   │   │   │           └── [trpc].ts
+  │   │   │   ├── server
+  │   │   │   │   ├── __tests__
+  │   │   │   │   │   └── auth.test.ts
+  │   │   │   │   ├── api
+  │   │   │   │   │   ├── root.ts
+  │   │   │   │   │   ├── routers
+  │   │   │   │   │   │   ├── booking.ts
+  │   │   │   │   │   │   ├── cast.ts
+  │   │   │   │   │   │   ├── post.ts
+  │   │   │   │   │   │   └── user.ts
+  │   │   │   │   │   └── trpc.ts
+  │   │   │   │   ├── auth.ts
+  │   │   │   │   └── db.ts
+  │   │   │   └── utils
+  │   │   │       └── api.ts
+  │   │   ├── styles
+  │   │   │   └── globals.css
+  │   │   ├── tailwind.config.ts
+  │   │   ├── tsconfig.json
+  │   │   └── vercel.json
+  │   └── guest
+  │       ├── app
+  │       │   ├── globals.css
+  │       │   ├── layout.tsx
+  │       │   └── page.tsx
+  │       ├── components
+  │       │   ├── area-selection-modal.tsx
+  │       │   ├── basic-info-screen.tsx
+  │       │   ├── card-registration.tsx
+  │       │   ├── cast-detail-modal.tsx
+  │       │   ├── chat-options-modal.tsx
+  │       │   ├── field-edit-screen.tsx
+  │       │   ├── help-screen.tsx
+  │       │   ├── home-screen.tsx
+  │       │   ├── id-verification.tsx
+  │       │   ├── id-verify-complete.tsx
+  │       │   ├── joined-casts-screen.tsx
+  │       │   ├── login-modal.tsx
+  │       │   ├── message-detail-screen.tsx
+  │       │   ├── message-list-screen.tsx
+  │       │   ├── mypage-screen.tsx
+  │       │   ├── notification-screen.tsx
+  │       │   ├── payment-detail-screen.tsx
+  │       │   ├── payment-info-screen.tsx
+  │       │   ├── point-history-screen.tsx
+  │       │   ├── profile-edit-screen.tsx
+  │       │   ├── profile-preview-screen.tsx
+  │       │   ├── receipt-generator.tsx
+  │       │   ├── schedule-modal.tsx
+  │       │   ├── search-modal.tsx
+  │       │   ├── settings-screen.tsx
+  │       │   ├── shared
+  │       │   │   ├── footer.tsx
+  │       │   │   └── notification-icon.tsx
+  │       │   ├── signup-modal.tsx
+  │       │   ├── simple-profile-tag-modal.tsx
+  │       │   ├── tag-selection-modal.tsx
+  │       │   ├── theme-provider.tsx
+  │       │   └── ui
+  │       │       ├── accordion.tsx
+  │       │       ├── alert-dialog.tsx
+  │       │       ├── alert.tsx
+  │       │       ├── aspect-ratio.tsx
+  │       │       ├── avatar.tsx
+  │       │       ├── badge.tsx
+  │       │       ├── breadcrumb.tsx
+  │       │       ├── button.tsx
+  │       │       ├── calendar.tsx
+  │       │       ├── card.tsx
+  │       │       ├── carousel.tsx
+  │       │       ├── chart.tsx
+  │       │       ├── checkbox.tsx
+  │       │       ├── collapsible.tsx
+  │       │       ├── command.tsx
+  │       │       ├── context-menu.tsx
+  │       │       ├── dialog.tsx
+  │       │       ├── drawer.tsx
+  │       │       ├── dropdown-menu.tsx
+  │       │       ├── form.tsx
+  │       │       ├── hover-card.tsx
+  │       │       ├── input-otp.tsx
+  │       │       ├── input.tsx
+  │       │       ├── label.tsx
+  │       │       ├── menubar.tsx
+  │       │       ├── navigation-menu.tsx
+  │       │       ├── pagination.tsx
+  │       │       ├── popover.tsx
+  │       │       ├── progress.tsx
+  │       │       ├── radio-group.tsx
+  │       │       ├── resizable.tsx
+  │       │       ├── scroll-area.tsx
+  │       │       ├── select.tsx
+  │       │       ├── separator.tsx
+  │       │       ├── sheet.tsx
+  │       │       ├── sidebar.tsx
+  │       │       ├── skeleton.tsx
+  │       │       ├── slider.tsx
+  │       │       ├── sonner.tsx
+  │       │       ├── switch.tsx
+  │       │       ├── table.tsx
+  │       │       ├── tabs.tsx
+  │       │       ├── textarea.tsx
+  │       │       ├── toast.tsx
+  │       │       ├── toaster.tsx
+  │       │       ├── toggle-group.tsx
+  │       │       ├── toggle.tsx
+  │       │       ├── tooltip.tsx
+  │       │       ├── use-mobile.tsx
+  │       │       └── use-toast.ts
+  │       ├── components.json
+  │       ├── hooks
+  │       │   ├── use-mobile.tsx
+  │       │   └── use-toast.ts
+  │       ├── lib
+  │       │   └── utils.ts
+  │       ├── next.config.mjs
+  │       ├── package.json
+  │       ├── postcss.config.mjs
+  │       ├── public
+  │       │   ├── capu-logo.png
+  │       │   ├── capu-logo.svg
+  │       │   ├── placeholder-logo.png
+  │       │   ├── placeholder-logo.svg
+  │       │   ├── placeholder-user.jpg
+  │       │   ├── placeholder.jpg
+  │       │   └── placeholder.svg
+  │       ├── src
+  │       │   ├── env.js
+  │       │   ├── pages
+  │       │   │   └── api
+  │       │   │       ├── auth
+  │       │   │       │   └── [...nextauth].ts
+  │       │   │       └── trpc
+  │       │   │           └── [trpc].ts
+  │       │   ├── server
+  │       │   │   ├── __tests__
+  │       │   │   │   └── auth.test.ts
+  │       │   │   ├── api
+  │       │   │   │   ├── root.ts
+  │       │   │   │   ├── routers
+  │       │   │   │   │   ├── booking.ts
+  │       │   │   │   │   ├── cast.ts
+  │       │   │   │   │   ├── post.ts
+  │       │   │   │   │   └── user.ts
+  │       │   │   │   └── trpc.ts
+  │       │   │   ├── auth.ts
+  │       │   │   └── db.ts
+  │       │   └── utils
+  │       │       └── api.ts
+  │       ├── styles
+  │       │   └── globals.css
+  │       ├── tailwind.config.ts
+  │       ├── tsconfig.json
+  │       └── vercel.json
+  ├── CLAUDE.md
+  ├── docker-compose.yml
+  ├── Dockerfile
+  ├── docs
+  │   ├── Design
+  │   │   └── 認証フロー設計.md
+  │   ├── designs
+  │   │   ├── シーケンス図.md
   │   │   ├── システム構成図.md
-  │   │   └── 画面処理・影響定義書/
-  │   └── Docs/
-  │       └── 技術スタック.md
-  └── packages/                    # 共有パッケージ（もしあれば）
+  │   │   ├── 業務フロー.md
+  │   │   └── 画面処理・影響定義書
+  │   │       ├── CAS-01_ログイン画面.md
+  │   │       ├── CAS-02_ホーム画面.md
+  │   │       ├── CAS-03_検索モーダル.md
+  │   │       ├── CAS-04_ゲスト詳細モーダル.md
+  │   │       ├── CAS-05_メッセージ一覧画面.md
+  │   │       ├── CAS-06_メッセージ詳細画面.md
+  │   │       ├── CAS-07_通知画面.md
+  │   │       ├── CAS-08_ニュース詳細モーダル.md
+  │   │       ├── CAS-09_収益ダッシュボード画面.md
+  │   │       ├── CAS-10_マイページ画面.md
+  │   │       ├── CAS-11_プロフィール編集画面.md
+  │   │       ├── CAS-12_引き出し申請画面.md
+  │   │       ├── CAS-13_取引履歴画面.md
+  │   │       ├── CAS-14_口座設定画面.md
+  │   │       ├── CAS-15_ヘルプ画面.md
+  │   │       ├── CAS-16_設定画面.md
+  │   │       ├── GUE-01_ログイン画面.md
+  │   │       ├── GUE-02_ホーム画面.md
+  │   │       ├── GUE-03_検索モーダル.md
+  │   │       ├── GUE-04_キャスト詳細モーダル.md
+  │   │       ├── GUE-05_通知画面.md
+  │   │       ├── GUE-06_メッセージ一覧画面.md
+  │   │       ├── GUE-07_メッセージ詳細画面.md
+  │   │       ├── GUE-08_ニュース詳細モーダル.md
+  │   │       ├── GUE-09_合流キャスト画面.md
+  │   │       ├── GUE-10_マイページ画面.md
+  │   │       ├── GUE-11_プロフィール編集画面.md
+  │   │       ├── GUE-12_設定画面.md
+  │   │       ├── GUE-13_ポイント履歴画面.md
+  │   │       ├── GUE-14_支払い情報画面.md
+  │   │       ├── GUE-15_本人確認画面.md
+  │   │       ├── GUE-16_ヘルプ画面.md
+  │   │       ├── テンプレート.md
+  │   │       └── ドキュメント作成手順.md
+  │   └── documents
+  │       ├── API振り分け判定基準.md
+  │       ├── Github-Issue-Context.md
+  │       ├── Github-Issue-Samples.md
+  │       ├── Github-Issue-Templates.md
+  │       ├── Issue実行手順書.md
+  │       ├── LINE_OAUTH_SETUP.md
+  │       ├── PR作成手順書.md
+  │       ├── Vercelデプロイ手順書.md
+  │       ├── タスク進捗管理.md
+  │       ├── 技術スタック.md
+  │       └── 本人確認書類_.md
+  ├── init.sql
+  ├── package.json
+  ├── packages
+  │   └── shared
+  │       ├── components
+  │       │   ├── common
+  │       │   │   └── index.ts
+  │       │   └── index.ts
+  │       ├── lib
+  │       │   ├── index.ts
+  │       │   └── utils.ts
+  │       ├── package.json
+  │       ├── styles
+  │       │   ├── globals.css
+  │       │   └── index.ts
+  │       └── tsconfig.json
+  ├── pnpm-lock.yaml
+  ├── pnpm-workspace.yaml
+  ├── prisma
+  │   └── schema.prisma
+  ├── README.md
+  ├── scripts
+  │   └── test-line-oauth.js
+  ├── setup.sh
+  └── turbo.json
 
 database_design:
   models:
