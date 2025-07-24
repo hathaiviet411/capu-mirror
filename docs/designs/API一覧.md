@@ -39,25 +39,25 @@ NextAuth.jsのコールバックやセッション管理と連携します。
 
 ユーザープロファイルの管理、設定、通知など、両アプリに共通する機能です。
 
-| エンドポイント | HTTPメソッド | 説明 | 関連機能ID |
-|:---|:---|:---|:---|
-| `user.getProfile` | `Query` | ログインユーザーのプロフィール情報を取得 | CAS-10-1, GUE-10-3 |
-| `user.updateProfile` | `Mutation` | ユーザープロフィール（基本情報、自己紹介など）を更新 | CAS-11, GUE-11 |
-| `user.updateProfileImage` | `Mutation` | プロフィール画像を変更・アップロード | CAS-10-2, GUE-11-3 |
-| `user.deleteProfileImage` | `Mutation` | プロフィール画像を削除 | GUE-11-6 |
-| `user.getNotifications` | `Query` | 通知一覧を取得（ページネーション対応） | CAS-07-1, GUE-05-2 |
-| `user.getUnreadNotificationCount` | `Query` | 未読通知数を取得 | CAS-07-3 |
-| `user.markNotificationsAsRead` | `Mutation` | 通知を既読にする（一括も含む） | CAS-07-4, CAS-07-6 |
-| `user.updateNotificationSettings` | `Mutation` | プッシュ通知やメール通知の設定を更新 | CAS-16-1, GUE-12-6 |
-| `user.getAccountSettings` | `Query` | アカウント設定情報を取得 | GUE-12-2 |
-| `user.deleteAccount` | `Mutation` | ユーザーアカウントを削除申請 | CAS-16-6 |
-| `user.getFavorites` | `Query` | お気に入り登録したユーザーの一覧を取得 | GUE-02-2 |
-| `user.addFavorite` | `Mutation` | ユーザーをお気に入りに追加 | CAS-02-4, GUE-02-6, GUE-04-4 |
-| `user.removeFavorite` | `Mutation` | ユーザーをお気に入りから削除 | CAS-02-4, GUE-02-6, GUE-04-4 |
-| `user.getFootprints` | `Query` | 自分のプロフィールを閲覧したユーザー（足あと）を取得 | GUE-02-3 |
-| `user.reportUser` | `Mutation` | 他ユーザーを運営に通報 | CAS-06-7, GUE-07-12 |
-| `user.blockUser` | `Mutation` | 他ユーザーをブロック | CAS-06-7, GUE-07-13 |
-| `user.submitIdVerification` | `Mutation` | 本人確認書類を提出 | GUE-15-7 |
+| エンドポイント                           | HTTPメソッド   | 説明                         | 関連機能ID                       |
+| :-------------------------------- | :--------- | :------------------------- | :--------------------------- |
+| `user.getProfile`                 | `Query`    | ログインユーザーのプロフィール情報を取得       | CAS-10-1, GUE-10-3           |
+| `user.updateProfile`              | `Mutation` | ユーザープロフィール（基本情報、自己紹介など）を更新 | CAS-11, GUE-11               |
+| `user.updateProfileImage`         | `Mutation` | プロフィール画像を変更・アップロード         | CAS-10-2, GUE-11-3           |
+| `user.deleteProfileImage`         | `Mutation` | プロフィール画像を削除                | GUE-11-6                     |
+| `user.getNotifications`           | `Query`    | 通知一覧を取得（ページネーション対応）        | CAS-07-1, GUE-05-2           |
+| `user.getUnreadNotificationCount` | `Query`    | 未読通知数を取得                   | CAS-07-3                     |
+| `user.markNotificationsAsRead`    | `Mutation` | 通知を既読にする（一括も含む）            | CAS-07-4, CAS-07-6           |
+| `user.updateNotificationSettings` | `Mutation` | プッシュ通知やメール通知の設定を更新         | CAS-16-1, GUE-12-6           |
+| `user.getAccountSettings`         | `Query`    | アカウント設定情報を取得               | GUE-12-2                     |
+| `user.deleteAccount`              | `Mutation` | ユーザーアカウントを削除申請             | CAS-16-6                     |
+| `user.getFavorites`               | `Query`    | お気に入り登録したユーザーの一覧を取得        | GUE-02-2                     |
+| `user.addFavorite`                | `Mutation` | ユーザーをお気に入りに追加              | CAS-02-4, GUE-02-6, GUE-04-4 |
+| `user.removeFavorite`             | `Mutation` | ユーザーをお気に入りから削除             | CAS-02-4, GUE-02-6, GUE-04-4 |
+| `user.getFootprints`              | `Query`    | 自分のプロフィールを閲覧したユーザー（足あと）を取得 | GUE-02-3                     |
+| `user.reportUser`                 | `Mutation` | 他ユーザーを運営に通報                | CAS-06-7, GUE-07-12          |
+| `user.blockUser`                  | `Mutation` | 他ユーザーをブロック                 | CAS-06-7, GUE-07-13          |
+| `user.submitIdVerification`       | `Mutation` | 本人確認書類を提出                  | GUE-15-7                     |
 
 ---
 
