@@ -45,6 +45,18 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Basic profile information
+  name        String?
+  phoneNumber String?
+  birthDate   DateTime?
+  prefecture  String?
+  city        String?
+  selfIntro   String?   @db.Text
+  tags        String[]
+  image       String?
+  isVerified  Boolean   @default(false)
+  points      Int       @default(0)
+
   // NextAuth.js relations
   accounts Account[]
   sessions Session[]
@@ -79,6 +91,9 @@ model User {
   reports       Report[]
   searchHistory SearchHistory[]
 
+  // Performance indexes
+  @@index([email])
+  @@index([userType])
   @@map("users")
 }
 
@@ -269,6 +284,7 @@ model Message {
   @@index([conversationId, createdAt])
   @@index([senderId])
   @@index([isRead])
+  @@index([messageType])
   @@map("messages")
 }
 
@@ -524,6 +540,8 @@ model Payment {
   @@index([payerId, status])
   @@index([status, createdAt])
   @@index([paidAt])
+  @@index([stripeCustomerId])
+  @@index([stripePaymentIntentId])
   @@map("payments")
 }
 
@@ -649,6 +667,8 @@ model Notification {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Performance indexes
+  @@index([userId, isRead])
   @@map("notifications")
 }
 
