@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,22 +7,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// NextAuth.js Models
 model Account {
   id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -39,59 +34,42 @@ model Session {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  userType  UserType @default(GUEST)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Basic profile information
-  name        String?
-  phoneNumber String?
-  birthDate   DateTime?
-  prefecture  String?
-  city        String?
-  selfIntro   String?   @db.Text
-  tags        String[]
-  image       String?
-  isVerified  Boolean   @default(false)
-  points      Int       @default(0)
-
-  // NextAuth.js relations
-  accounts Account[]
-  sessions Session[]
-
-  // Profile relations
-  castProfile  CastProfile?
-  guestProfile GuestProfile?
-
-  // Activity relations
-  sentMessages      Message[]           @relation("MessageSender")
-  conversations     Conversation[]
-  messageReadStatus MessageReadStatus[]
-
-  // Booking relations
-  guestBookings Booking[] @relation("BookingGuest")
-  castBookings  Booking[] @relation("BookingCast")
-
-  // Payment relations
-  payments Payment[] @relation("PaymentPayer")
-  payouts  Payout[]  @relation("PayoutCast")
-
-  // Notification relations
-  notifications        Notification[]
-  notificationSettings NotificationSetting[]
+  id                   String                @id @default(cuid())
+  email                String                @unique
+  userType             UserType              @default(GUEST)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  birthDate            DateTime?
+  city                 String?
+  image                String?
+  isVerified           Boolean               @default(false)
+  name                 String?
+  phoneNumber          String?
+  points               Int                   @default(0)
+  prefecture           String?
+  selfIntro            String?
+  tags                 String[]
+  accounts             Account[]
+  sessions             Session[]
   activityLogs         ActivityLog[]
+  castBookings         Booking[]             @relation("BookingCast")
+  guestBookings        Booking[]             @relation("BookingGuest")
+  castProfile          CastProfile?
   deviceTokens         DeviceToken[]
+  favorites            Favorite[]
+  files                File[]
+  guestProfile         GuestProfile?
+  messageReadStatus    MessageReadStatus[]
+  sentMessages         Message[]             @relation("MessageSender")
+  notificationSettings NotificationSetting[]
+  notifications        Notification[]
+  payments             Payment[]             @relation("PaymentPayer")
+  payouts              Payout[]              @relation("PayoutCast")
+  reports              Report[]
+  reviews              Review[]
+  searchHistory        SearchHistory[]
+  conversations        Conversation[]        @relation("ConversationToUser")
 
-  // Other relations
-  reviews       Review[]
-  favorites     Favorite[]
-  files         File[]
-  reports       Report[]
-  searchHistory SearchHistory[]
-
-  // Performance indexes
   @@index([email])
   @@index([userType])
   @@map("users")
@@ -105,49 +83,31 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-enum UserType {
-  GUEST
-  CAST
-  ADMIN
-}
-
 model CastProfile {
-  id     String @id @default(cuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Basic information
-  displayName String
-  bio         String? @db.Text
-  avatar      String?
-  coverImage  String?
-
-  // Cast-specific information
+  id           String     @id @default(cuid())
+  userId       String     @unique
+  displayName  String
+  bio          String?
+  avatar       String?
+  coverImage   String?
   hourlyRate   Int
-  availability Json // Schedule information
-  specialties  String[] // Skills/specialties
-  experience   String? // Experience description
-  portfolio    Json? // Portfolio data
+  availability Json
+  specialties  String[]
+  experience   String?
+  portfolio    Json?
+  isActive     Boolean    @default(true)
+  isVerified   Boolean    @default(false)
+  areaId       String?
+  categoryId   String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  area         Area?      @relation(fields: [areaId], references: [id])
+  category     Category?  @relation(fields: [categoryId], references: [id])
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  favorites    Favorite[]
+  reviews      Review[]   @relation("ReviewCast")
+  tags         Tag[]      @relation("CastProfileToTag")
 
-  // Status
-  isActive   Boolean @default(true)
-  isVerified Boolean @default(false)
-
-  // Master data relations
-  areaId     String?
-  area       Area?     @relation(fields: [areaId], references: [id])
-  categoryId String?
-  category   Category? @relation(fields: [categoryId], references: [id])
-  tags       Tag[]
-
-  // Activity relations
-  reviews   Review[]   @relation("ReviewCast")
-  favorites Favorite[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Indexes for search optimization
   @@index([isActive, isVerified])
   @@index([hourlyRate])
   @@index([areaId, categoryId])
@@ -157,68 +117,402 @@ model CastProfile {
 }
 
 model GuestProfile {
-  id     String @id @default(cuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Basic information
+  id          String   @id @default(cuid())
+  userId      String   @unique
   displayName String?
   avatar      String?
-  bio         String? @db.Text
-
-  // Guest-specific information
-  preferences Json? // Preference settings
+  bio         String?
+  preferences Json?
   location    String?
-
-  // Activity relations
-  reviews Review[] @relation("ReviewGuest")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviews     Review[] @relation("ReviewGuest")
 
   @@map("guest_profiles")
 }
 
 model Booking {
-  id String @id @default(cuid())
-
-  // Related users
-  guestId String
-  guest   User   @relation("BookingGuest", fields: [guestId], references: [id])
-
-  castId String
-  cast   User   @relation("BookingCast", fields: [castId], references: [id])
-
-  // Booking details
-  title       String
-  description String?
-  serviceType String
-
-  // Schedule and pricing
+  id              String        @id @default(cuid())
+  guestId         String
+  castId          String
+  title           String
+  description     String?
+  serviceType     String
   startDateTime   DateTime
   endDateTime     DateTime
   durationMinutes Int
   hourlyRate      Int
   totalAmount     Int
+  status          BookingStatus @default(PENDING)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  cast            User          @relation("BookingCast", fields: [castId], references: [id])
+  guest           User          @relation("BookingGuest", fields: [guestId], references: [id])
+  conversation    Conversation?
+  payment         Payment?
+  review          Review?
 
-  // Status
-  status BookingStatus @default(PENDING)
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  payment      Payment?
-  conversation Conversation?
-  review       Review?
-
-  // Indexes
   @@index([guestId, status])
   @@index([castId, status])
   @@index([startDateTime, endDateTime])
   @@index([status, createdAt])
   @@map("bookings")
+}
+
+model Conversation {
+  id           String    @id @default(cuid())
+  bookingId    String?   @unique
+  title        String?
+  isGroup      Boolean   @default(false)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  booking      Booking?  @relation(fields: [bookingId], references: [id])
+  messages     Message[]
+  participants User[]    @relation("ConversationToUser")
+
+  @@map("conversations")
+}
+
+model Message {
+  id                String              @id @default(cuid())
+  conversationId    String
+  senderId          String
+  content           String?
+  messageType       MessageType         @default(TEXT)
+  isRead            Boolean             @default(false)
+  isDeleted         Boolean             @default(false)
+  readAt            DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  attachments       MessageAttachment[]
+  messageReadStatus MessageReadStatus[]
+  conversation      Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender            User                @relation("MessageSender", fields: [senderId], references: [id])
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@index([isRead])
+  @@index([messageType])
+  @@map("messages")
+}
+
+model MessageAttachment {
+  id           String   @id @default(cuid())
+  messageId    String
+  fileName     String
+  fileUrl      String
+  fileType     String
+  fileSize     Int
+  thumbnailUrl String?
+  createdAt    DateTime @default(now())
+  message      Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@map("message_attachments")
+}
+
+model MessageReadStatus {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([messageId, userId])
+  @@map("message_read_status")
+}
+
+model Area {
+  id           String        @id @default(cuid())
+  name         String
+  nameEn       String?
+  code         String        @unique
+  parentId     String?
+  latitude     Float?
+  longitude    Float?
+  sortOrder    Int           @default(0)
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  parent       Area?         @relation("AreaHierarchy", fields: [parentId], references: [id])
+  children     Area[]        @relation("AreaHierarchy")
+  castProfiles CastProfile[]
+
+  @@map("areas")
+}
+
+model Category {
+  id           String        @id @default(cuid())
+  name         String
+  nameEn       String?
+  code         String        @unique
+  parentId     String?
+  icon         String?
+  color        String?
+  description  String?
+  sortOrder    Int           @default(0)
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  castProfiles CastProfile[]
+  parent       Category?     @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children     Category[]    @relation("CategoryHierarchy")
+
+  @@map("categories")
+}
+
+model Tag {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  nameEn       String?
+  type         TagType       @default(GENERAL)
+  color        String?
+  description  String?
+  usageCount   Int           @default(0)
+  sortOrder    Int           @default(0)
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  castProfiles CastProfile[] @relation("CastProfileToTag")
+
+  @@map("tags")
+}
+
+model Configuration {
+  id          String     @id @default(cuid())
+  key         String     @unique
+  value       String
+  type        ConfigType @default(STRING)
+  category    String?
+  description String?
+  isRequired  Boolean    @default(false)
+  isSecret    Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("configurations")
+}
+
+model Review {
+  id         String       @id @default(cuid())
+  castId     String
+  guestId    String
+  authorId   String
+  bookingId  String       @unique
+  rating     Int
+  comment    String?
+  isPublic   Boolean      @default(true)
+  isReported Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  author     User         @relation(fields: [authorId], references: [id])
+  booking    Booking      @relation(fields: [bookingId], references: [id])
+  cast       CastProfile  @relation("ReviewCast", fields: [castId], references: [id])
+  guest      GuestProfile @relation("ReviewGuest", fields: [guestId], references: [id])
+
+  @@map("reviews")
+}
+
+model Payment {
+  id                    String           @id @default(cuid())
+  bookingId             String           @unique
+  payerId               String
+  amount                Int
+  platformFeeRate       Float            @default(0.05)
+  platformFee           Int
+  castAmount            Int
+  stripePaymentIntentId String?
+  stripeCustomerId      String?
+  stripeChargeId        String?
+  status                PaymentStatus    @default(PENDING)
+  paidAt                DateTime?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  booking               Booking          @relation(fields: [bookingId], references: [id])
+  payer                 User             @relation("PaymentPayer", fields: [payerId], references: [id])
+  payout                Payout?
+  transactionLogs       TransactionLog[]
+
+  @@index([payerId, status])
+  @@index([status, createdAt])
+  @@index([paidAt])
+  @@index([stripeCustomerId])
+  @@index([stripePaymentIntentId])
+  @@map("payments")
+}
+
+model Payout {
+  id               String           @id @default(cuid())
+  paymentId        String           @unique
+  castId           String
+  amount           Int
+  stripeTransferId String?
+  stripeAccountId  String?
+  status           PayoutStatus     @default(PENDING)
+  paidAt           DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  cast             User             @relation("PayoutCast", fields: [castId], references: [id])
+  payment          Payment          @relation(fields: [paymentId], references: [id])
+  transactionLogs  TransactionLog[]
+
+  @@map("payouts")
+}
+
+model TransactionLog {
+  id           String            @id @default(cuid())
+  paymentId    String?
+  payoutId     String?
+  action       TransactionAction
+  status       String
+  amount       Int?
+  description  String?
+  externalId   String?
+  externalData Json?
+  errorCode    String?
+  errorMessage String?
+  createdAt    DateTime          @default(now())
+  payment      Payment?          @relation(fields: [paymentId], references: [id])
+  payout       Payout?           @relation(fields: [payoutId], references: [id])
+
+  @@map("transaction_logs")
+}
+
+model Notification {
+  id          String               @id @default(cuid())
+  userId      String
+  title       String
+  body        String
+  data        Json?
+  type        NotificationType
+  channel     NotificationChannel
+  priority    NotificationPriority @default(MEDIUM)
+  isRead      Boolean              @default(false)
+  readAt      DateTime?
+  isDelivered Boolean              @default(false)
+  deliveredAt DateTime?
+  relatedId   String?
+  relatedType String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+model NotificationSetting {
+  id               String           @id @default(cuid())
+  userId           String
+  notificationType NotificationType
+  pushEnabled      Boolean          @default(true)
+  emailEnabled     Boolean          @default(true)
+  smsEnabled       Boolean          @default(false)
+  quietHoursStart  String?
+  quietHoursEnd    String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, notificationType])
+  @@map("notification_settings")
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  action      String
+  entity      String
+  entityId    String?
+  description String?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  level       LogLevel @default(INFO)
+  createdAt   DateTime @default(now())
+  user        User?    @relation(fields: [userId], references: [id])
+
+  @@map("activity_logs")
+}
+
+model DeviceToken {
+  id         String         @id @default(cuid())
+  userId     String
+  token      String         @unique
+  platform   DevicePlatform
+  appVersion String?
+  deviceInfo Json?
+  isActive   Boolean        @default(true)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("device_tokens")
+}
+
+model Favorite {
+  id        String      @id @default(cuid())
+  guestId   String
+  castId    String
+  createdAt DateTime    @default(now())
+  cast      CastProfile @relation(fields: [castId], references: [id], onDelete: Cascade)
+  guest     User        @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  @@unique([guestId, castId])
+  @@map("favorites")
+}
+
+model File {
+  id           String       @id @default(cuid())
+  fileName     String
+  fileType     String
+  fileSize     Int
+  fileKey      String       @unique
+  category     FileCategory
+  isPublic     Boolean      @default(false)
+  status       FileStatus   @default(PENDING)
+  uploadedBy   String
+  thumbnailKey String?
+  hasThumbnail Boolean      @default(false)
+  uploadedAt   DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  user         User         @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+
+  @@map("files")
+}
+
+model SearchHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  query     String?
+  filters   Json?
+  name      String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("search_histories")
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  type        ReportType
+  format      ReportFormat @default(JSON)
+  dateRange   Json
+  generatedBy String
+  data        Json
+  createdAt   DateTime     @default(now())
+  user        User         @relation(fields: [generatedBy], references: [id])
+
+  @@map("reports")
+}
+
+enum UserType {
+  GUEST
+  CAST
+  ADMIN
 }
 
 enum BookingStatus {
@@ -228,228 +522,11 @@ enum BookingStatus {
   CANCELLED
 }
 
-model Conversation {
-  id String @id @default(cuid())
-
-  // Participants
-  participants User[]
-
-  // Booking relation (optional)
-  bookingId String?  @unique
-  booking   Booking? @relation(fields: [bookingId], references: [id])
-
-  // Metadata
-  title    String?
-  isGroup  Boolean @default(false)
-  isActive Boolean @default(true)
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  messages Message[]
-
-  @@map("conversations")
-}
-
-model Message {
-  id String @id @default(cuid())
-
-  // Conversation and sender
-  conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-
-  senderId String
-  sender   User   @relation("MessageSender", fields: [senderId], references: [id])
-
-  // Message content
-  content     String?
-  messageType MessageType @default(TEXT)
-
-  // Status
-  isRead    Boolean   @default(false)
-  isDeleted Boolean   @default(false)
-  readAt    DateTime?
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  attachments       MessageAttachment[]
-  messageReadStatus MessageReadStatus[]
-
-  // Indexes
-  @@index([conversationId, createdAt])
-  @@index([senderId])
-  @@index([isRead])
-  @@index([messageType])
-  @@map("messages")
-}
-
-model MessageAttachment {
-  id String @id @default(cuid())
-
-  // Message relation
-  messageId String
-  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
-
-  // File information
-  fileName     String
-  fileUrl      String
-  fileType     String
-  fileSize     Int
-  thumbnailUrl String?
-
-  // Timestamps
-  createdAt DateTime @default(now())
-
-  @@map("message_attachments")
-}
-
-model MessageReadStatus {
-  id String @id @default(cuid())
-
-  // Message and user
-  messageId String
-  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
-
-  // Read information
-  readAt DateTime @default(now())
-
-  @@unique([messageId, userId])
-  @@map("message_read_status")
-}
-
 enum MessageType {
   TEXT
   IMAGE
   FILE
   SYSTEM
-}
-
-// Master Data Models
-model Area {
-  id String @id @default(cuid())
-
-  // Basic information
-  name   String
-  nameEn String?
-  code   String  @unique
-
-  // Hierarchy
-  parentId String?
-  parent   Area?   @relation("AreaHierarchy", fields: [parentId], references: [id])
-  children Area[]  @relation("AreaHierarchy")
-
-  // Geographic information
-  latitude  Float?
-  longitude Float?
-
-  // Display order and status
-  sortOrder Int     @default(0)
-  isActive  Boolean @default(true)
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  castProfiles CastProfile[]
-
-  @@map("areas")
-}
-
-model Category {
-  id String @id @default(cuid())
-
-  // Basic information
-  name   String
-  nameEn String?
-  code   String  @unique
-
-  // Hierarchy
-  parentId String?
-  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children Category[] @relation("CategoryHierarchy")
-
-  // Display settings
-  icon        String?
-  color       String?
-  description String?
-
-  // Display order and status
-  sortOrder Int     @default(0)
-  isActive  Boolean @default(true)
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  castProfiles CastProfile[]
-
-  @@map("categories")
-}
-
-model Tag {
-  id String @id @default(cuid())
-
-  // Basic information
-  name   String  @unique
-  nameEn String?
-
-  // Tag type
-  type TagType @default(GENERAL)
-
-  // Display settings
-  color       String?
-  description String?
-
-  // Usage statistics
-  usageCount Int @default(0)
-
-  // Display order and status
-  sortOrder Int     @default(0)
-  isActive  Boolean @default(true)
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  castProfiles CastProfile[]
-
-  @@map("tags")
-}
-
-model Configuration {
-  id String @id @default(cuid())
-
-  // Configuration item
-  key   String @unique
-  value String
-
-  // Configuration information
-  type     ConfigType @default(STRING)
-  category String?
-
-  // Description
-  description String?
-
-  // Constraints
-  isRequired Boolean @default(false)
-  isSecret   Boolean @default(false)
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("configurations")
 }
 
 enum TagType {
@@ -467,153 +544,12 @@ enum ConfigType {
   JSON
 }
 
-model Review {
-  id String @id @default(cuid())
-
-  // Review target
-  castId String
-  cast   CastProfile @relation("ReviewCast", fields: [castId], references: [id])
-
-  // Reviewer
-  guestId String
-  guest   GuestProfile @relation("ReviewGuest", fields: [guestId], references: [id])
-
-  // User relation for the review author
-  authorId String
-  author   User   @relation(fields: [authorId], references: [id])
-
-  // Booking relation
-  bookingId String  @unique
-  booking   Booking @relation(fields: [bookingId], references: [id])
-
-  // Review content
-  rating  Int // 1-5
-  comment String?
-
-  // Status
-  isPublic   Boolean @default(true)
-  isReported Boolean @default(false)
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("reviews")
-}
-
-model Payment {
-  id String @id @default(cuid())
-
-  // Booking and user relations
-  bookingId String  @unique
-  booking   Booking @relation(fields: [bookingId], references: [id])
-
-  payerId String
-  payer   User   @relation("PaymentPayer", fields: [payerId], references: [id])
-
-  // Payment amounts
-  amount          Int
-  platformFeeRate Float @default(0.05) // 5%
-  platformFee     Int
-  castAmount      Int
-
-  // Stripe relations
-  stripePaymentIntentId String?
-  stripeCustomerId      String?
-  stripeChargeId        String?
-
-  // Status
-  status PaymentStatus @default(PENDING)
-
-  // Payment date
-  paidAt DateTime?
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  payout          Payout?
-  transactionLogs TransactionLog[]
-
-  // Indexes
-  @@index([payerId, status])
-  @@index([status, createdAt])
-  @@index([paidAt])
-  @@index([stripeCustomerId])
-  @@index([stripePaymentIntentId])
-  @@map("payments")
-}
-
 enum PaymentStatus {
   PENDING
   PROCESSING
   COMPLETED
   FAILED
   REFUNDED
-}
-
-model Payout {
-  id String @id @default(cuid())
-
-  // Payment and cast relations
-  paymentId String  @unique
-  payment   Payment @relation(fields: [paymentId], references: [id])
-
-  castId String
-  cast   User   @relation("PayoutCast", fields: [castId], references: [id])
-
-  // Payout amount
-  amount Int
-
-  // Stripe relations
-  stripeTransferId String?
-  stripeAccountId  String?
-
-  // Status
-  status PayoutStatus @default(PENDING)
-
-  // Payout date
-  paidAt DateTime?
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  transactionLogs TransactionLog[]
-
-  @@map("payouts")
-}
-
-model TransactionLog {
-  id String @id @default(cuid())
-
-  // Related entities
-  paymentId String?
-  payment   Payment? @relation(fields: [paymentId], references: [id])
-
-  payoutId String?
-  payout   Payout? @relation(fields: [payoutId], references: [id])
-
-  // Log information
-  action      TransactionAction
-  status      String
-  amount      Int?
-  description String?
-
-  // External service information
-  externalId   String?
-  externalData Json?
-
-  // Error information
-  errorCode    String?
-  errorMessage String?
-
-  // Timestamp
-  createdAt DateTime @default(now())
-
-  @@map("transaction_logs")
 }
 
 enum PayoutStatus {
@@ -632,44 +568,6 @@ enum TransactionAction {
   PAYOUT_FAILED
   REFUND_CREATED
   REFUND_COMPLETED
-}
-
-model Notification {
-  id String @id @default(cuid())
-
-  // Recipient
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Notification content
-  title String
-  body  String
-  data  Json? // Additional data
-
-  // Notification type and channel
-  type     NotificationType
-  channel  NotificationChannel
-  priority NotificationPriority @default(MEDIUM)
-
-  // Delivery status
-  isRead Boolean   @default(false)
-  readAt DateTime?
-
-  // Delivery settings
-  isDelivered Boolean   @default(false)
-  deliveredAt DateTime?
-
-  // Related entity
-  relatedId   String?
-  relatedType String?
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Performance indexes
-  @@index([userId, isRead])
-  @@map("notifications")
 }
 
 enum NotificationType {
@@ -698,62 +596,6 @@ enum NotificationChannel {
   IN_APP
 }
 
-model NotificationSetting {
-  id String @id @default(cuid())
-
-  // User
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Notification settings
-  notificationType NotificationType
-
-  // Channel settings
-  pushEnabled  Boolean @default(true)
-  emailEnabled Boolean @default(true)
-  smsEnabled   Boolean @default(false)
-
-  // Time settings
-  quietHoursStart String? // "22:00" format
-  quietHoursEnd   String? // "08:00" format
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([userId, notificationType])
-  @@map("notification_settings")
-}
-
-model ActivityLog {
-  id String @id @default(cuid())
-
-  // User (optional)
-  userId String?
-  user   User?   @relation(fields: [userId], references: [id])
-
-  // Activity information
-  action   String
-  entity   String
-  entityId String?
-
-  // Details
-  description String?
-  metadata    Json?
-
-  // IP and user agent
-  ipAddress String?
-  userAgent String?
-
-  // Level
-  level LogLevel @default(INFO)
-
-  // Timestamp
-  createdAt DateTime @default(now())
-
-  @@map("activity_logs")
-}
-
 enum LogLevel {
   DEBUG
   INFO
@@ -761,71 +603,10 @@ enum LogLevel {
   ERROR
 }
 
-model DeviceToken {
-  id String @id @default(cuid())
-
-  // User
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Device information
-  token    String         @unique
-  platform DevicePlatform
-
-  // Metadata
-  appVersion String?
-  deviceInfo Json?
-
-  // Status
-  isActive Boolean @default(true)
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("device_tokens")
-}
-
 enum DevicePlatform {
   IOS
   ANDROID
   WEB
-}
-
-model Favorite {
-  id      String @id @default(cuid())
-  guestId String
-  castId  String
-
-  guest User        @relation(fields: [guestId], references: [id], onDelete: Cascade)
-  cast  CastProfile @relation(fields: [castId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@unique([guestId, castId])
-  @@map("favorites")
-}
-
-model File {
-  id           String       @id @default(cuid())
-  fileName     String
-  fileType     String
-  fileSize     Int
-  fileKey      String       @unique
-  category     FileCategory
-  isPublic     Boolean      @default(false)
-  status       FileStatus   @default(PENDING)
-  uploadedBy   String
-  thumbnailKey String?
-  hasThumbnail Boolean      @default(false)
-  uploadedAt   DateTime?
-
-  user User @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("files")
 }
 
 enum FileCategory {
@@ -839,35 +620,6 @@ enum FileStatus {
   PENDING
   COMPLETED
   FAILED
-}
-
-model SearchHistory {
-  id      String  @id @default(cuid())
-  userId  String
-  query   String?
-  filters Json?
-  name    String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@map("search_histories")
-}
-
-model Report {
-  id          String       @id @default(cuid())
-  type        ReportType
-  format      ReportFormat @default(JSON)
-  dateRange   Json
-  generatedBy String
-  data        Json
-
-  user User @relation(fields: [generatedBy], references: [id])
-
-  createdAt DateTime @default(now())
-
-  @@map("reports")
 }
 
 enum ReportType {

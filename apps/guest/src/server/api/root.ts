@@ -7,6 +7,7 @@ import { bookingRouter } from "~/server/api/routers/booking";
 import { messageRouter } from "~/server/api/routers/message";
 import { contentRouter } from "~/server/api/routers/content";
 import { guestRouter } from "~/server/api/routers/guest";
+import { fileRouter } from "~/server/api/routers/file";
 
 /**
  * This is the primary router for your server.
@@ -22,6 +23,7 @@ export const appRouter = createTRPCRouter({
   message: messageRouter,
   content: contentRouter,
   guest: guestRouter,
+  file: fileRouter,
 });
 
 // export type definition of API

@@ -18,18 +18,18 @@ import { contentRouter } from "~/server/api/routers/content";
  * All routers added in /api/routers should be manually added here.
  */
 export const appRouter = createTRPCRouter({
+  analytics: analyticsRouter,
   auth: authRouter,
-  user: userRouter,
+  booking: bookingRouter,
   cast: castRouter,
+  content: contentRouter,
+  file: fileRouter,
   guest: guestRouter,
   message: messageRouter,
-  booking: bookingRouter,
-  payment: paymentRouter,
   notification: notificationRouter,
-  file: fileRouter,
+  payment: paymentRouter,
   search: searchRouter,
-  analytics: analyticsRouter,
-  content: contentRouter,
+  user: userRouter,
 });
 
 // export type definition of API
