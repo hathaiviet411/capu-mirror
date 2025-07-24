@@ -1,4 +1,5 @@
 import { createTRPCRouter } from "~/server/api/trpc";
+import { authRouter } from "~/server/api/routers/auth";
 import { userRouter } from "~/server/api/routers/user";
 import { castRouter } from "~/server/api/routers/cast";
 import { guestRouter } from "~/server/api/routers/guest";
@@ -9,6 +10,7 @@ import { notificationRouter } from "~/server/api/routers/notification";
 import { fileRouter } from "~/server/api/routers/file";
 import { searchRouter } from "~/server/api/routers/search";
 import { analyticsRouter } from "~/server/api/routers/analytics";
+import { contentRouter } from "~/server/api/routers/content";
 
 /**
  * This is the primary router for your server.
@@ -16,6 +18,7 @@ import { analyticsRouter } from "~/server/api/routers/analytics";
  * All routers added in /api/routers should be manually added here.
  */
 export const appRouter = createTRPCRouter({
+  auth: authRouter,
   user: userRouter,
   cast: castRouter,
   guest: guestRouter,
@@ -26,6 +29,7 @@ export const appRouter = createTRPCRouter({
   file: fileRouter,
   search: searchRouter,
   analytics: analyticsRouter,
+  content: contentRouter,
 });
 
 // export type definition of API
