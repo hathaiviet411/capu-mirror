@@ -1,10 +1,10 @@
 "use client"
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Button } from '~/components/ui/button'
-import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { useEffect, useState, Suspense } from 'react'
 
-export default function AuthErrorPage() {
+function AuthErrorContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [errorType, setErrorType] = useState<string>('')
@@ -97,5 +97,13 @@ export default function AuthErrorPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function AuthErrorPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><div>Loading...</div></div>}>
+      <AuthErrorContent />
+    </Suspense>
   )
 }

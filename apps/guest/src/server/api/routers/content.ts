@@ -13,35 +13,128 @@ export const contentRouter = createTRPCRouter({
       z.object({
         limit: z.number().min(1).max(100).default(20),
         offset: z.number().min(0).default(0),
-        category: z.string().optional(),
+        category: z.enum(["ANNOUNCEMENT", "UPDATE", "MAINTENANCE", "PROMOTION", "EVENT"]).optional(),
+        importance: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).optional(),
       })
     )
     .query(({ ctx, input }) => {
-      // TODO: News テーブルが必要
-      // 現在のスキーマでは実装不可のため、代替でダミーデータを返す
-      const dummyNews = [
-        {
-          id: "news1",
-          title: "システムメンテナンスのお知らせ",
-          body: "2024年2月1日（木）午前2:00～午前4:00の間、システムメンテナンスを実施いたします。",
-          category: "SYSTEM",
-          isImportant: true,
-          publishedAt: new Date("2024-01-25T10:00:00Z"),
-          createdAt: new Date("2024-01-25T10:00:00Z"),
-        },
-        {
-          id: "news2", 
-          title: "新機能のリリースについて",
-          body: "メッセージ機能が強化されました。画像の送信が可能になりました。",
-          category: "UPDATE",
-          isImportant: false,
-          publishedAt: new Date("2024-01-20T15:00:00Z"),
-          createdAt: new Date("2024-01-20T15:00:00Z"),
-        },
-      ].filter(news => !input.category || news.category === input.category)
-       .slice(input.offset, input.offset + input.limit);
+      const whereConditions: any = {
+        isPublished: true,
+        publishedAt: { lte: new Date() },
+      };
 
-      return dummyNews;
+      if (input.category) {
+        whereConditions.category = input.category;
+      }
+
+      if (input.importance) {
+        whereConditions.importance = input.importance;
+      }
+
+      return ctx.db.news.findMany({
+        where: whereConditions,
+        select: {
+          id: true,
+          title: true,
+          content: true,
+          category: true,
+          importance: true,
+          imageUrl: true,
+          viewCount: true,
+          publishedAt: true,
+          createdAt: true,
+        },
+        orderBy: [
+          { importance: "desc" },
+          { publishedAt: "desc" },
+        ],
+        take: input.limit,
+        skip: input.offset,
+      });
+    }),
+
+  // ニュース詳細取得
+  getNewsDetail: protectedProcedure
+    .input(z.object({ newsId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const news = await ctx.db.news.findUnique({
+        where: {
+          id: input.newsId,
+          isPublished: true,
+        },
+        select: {
+          id: true,
+          title: true,
+          content: true,
+          category: true,
+          importance: true,
+          imageUrl: true,
+          viewCount: true,
+          publishedAt: true,
+          createdAt: true,
+          readStatus: {
+            where: { userId: ctx.session.user.id },
+            select: { readAt: true },
+          },
+        },
+      });
+
+      if (!news) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "ニュースが見つかりません",
+        });
+      }
+
+      // ビューカウントを増加（既読でない場合のみ）
+      if (news.readStatus.length === 0) {
+        await ctx.db.news.update({
+          where: { id: input.newsId },
+          data: { viewCount: { increment: 1 } },
+        });
+      }
+
+      return {
+        ...news,
+        isRead: news.readStatus.length > 0,
+        readAt: news.readStatus[0]?.readAt || null,
+      };
+    }),
+
+  // ニュース既読マーク
+  markNewsAsRead: protectedProcedure
+    .input(z.object({ newsId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const news = await ctx.db.news.findUnique({
+        where: {
+          id: input.newsId,
+          isPublished: true,
+        },
+      });
+
+      if (!news) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "ニュースが見つかりません",
+        });
+      }
+
+      // 既読状態を作成または更新
+      return ctx.db.newsReadStatus.upsert({
+        where: {
+          newsId_userId: {
+            newsId: input.newsId,
+            userId: ctx.session.user.id,
+          },
+        },
+        create: {
+          newsId: input.newsId,
+          userId: ctx.session.user.id,
+        },
+        update: {
+          readAt: new Date(),
+        },
+      });
     }),
 
   // ヘルプ記事やFAQの一覧を取得
@@ -50,64 +143,170 @@ export const contentRouter = createTRPCRouter({
       z.object({
         limit: z.number().min(1).max(100).default(20),
         offset: z.number().min(0).default(0),
-        category: z.string().optional(),
+        category: z.enum(["GETTING_STARTED", "ACCOUNT", "BOOKING", "PAYMENT", "CAST_GUIDE", "GUEST_GUIDE", "TROUBLESHOOTING", "SAFETY"]).optional(),
         searchQuery: z.string().optional(),
       })
     )
     .query(({ ctx, input }) => {
-      // TODO: HelpArticle テーブルが必要
-      // 現在のスキーマでは実装不可のため、代替でダミーデータを返す
-      const dummyArticles = [
-        {
-          id: "help1",
-          title: "アカウント登録の方法",
-          body: "アカウント登録は以下の手順で行ってください...",
-          category: "ACCOUNT",
-          tags: ["登録", "アカウント", "初回"],
-          isPublished: true,
-          viewCount: 1250,
-          updatedAt: new Date("2024-01-15T10:00:00Z"),
-          createdAt: new Date("2024-01-10T10:00:00Z"),
-        },
-        {
-          id: "help2",
-          title: "決済方法について",
-          body: "利用可能な決済方法は以下の通りです...",
-          category: "PAYMENT",
-          tags: ["決済", "クレジットカード", "支払い"],
-          isPublished: true,
-          viewCount: 890,
-          updatedAt: new Date("2024-01-18T14:00:00Z"),
-          createdAt: new Date("2024-01-12T14:00:00Z"),
-        },
-        {
-          id: "help3",
-          title: "メッセージの送信方法",
-          body: "キャストとのメッセージのやり取りについて説明します...",
-          category: "MESSAGING",
-          tags: ["メッセージ", "チャット", "連絡"],
-          isPublished: true,
-          viewCount: 670,
-          updatedAt: new Date("2024-01-20T16:00:00Z"),
-          createdAt: new Date("2024-01-14T16:00:00Z"),
-        },
-      ].filter(article => {
-        let matches = true;
-        if (input.category) {
-          matches = matches && article.category === input.category;
-        }
-        if (input.searchQuery) {
-          const query = input.searchQuery.toLowerCase();
-          matches = matches && (
-            article.title.toLowerCase().includes(query) ||
-            article.body.toLowerCase().includes(query) ||
-            article.tags.some(tag => tag.toLowerCase().includes(query))
-          );
-        }
-        return matches;
-      }).slice(input.offset, input.offset + input.limit);
+      const whereConditions: any = {
+        isPublished: true,
+      };
 
-      return dummyArticles;
+      if (input.category) {
+        whereConditions.category = input.category;
+      }
+
+      if (input.searchQuery) {
+        whereConditions.OR = [
+          { title: { contains: input.searchQuery, mode: "insensitive" } },
+          { content: { contains: input.searchQuery, mode: "insensitive" } },
+          { tags: { has: input.searchQuery } },
+        ];
+      }
+
+      return ctx.db.helpArticle.findMany({
+        where: whereConditions,
+        select: {
+          id: true,
+          title: true,
+          content: true,
+          category: true,
+          tags: true,
+          viewCount: true,
+          helpfulCount: true,
+          sortOrder: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        orderBy: [
+          { sortOrder: "asc" },
+          { helpfulCount: "desc" },
+          { viewCount: "desc" },
+        ],
+        take: input.limit,
+        skip: input.offset,
+      });
+    }),
+
+  // ヘルプ記事詳細取得
+  getHelpArticleDetail: publicProcedure
+    .input(z.object({ articleId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const article = await ctx.db.helpArticle.findUnique({
+        where: {
+          id: input.articleId,
+          isPublished: true,
+        },
+        select: {
+          id: true,
+          title: true,
+          content: true,
+          category: true,
+          tags: true,
+          viewCount: true,
+          helpfulCount: true,
+          sortOrder: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      if (!article) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "ヘルプ記事が見つかりません",
+        });
+      }
+
+      // ビューカウントを増加
+      await ctx.db.helpArticle.update({
+        where: { id: input.articleId },
+        data: { viewCount: { increment: 1 } },
+      });
+
+      return article;
+    }),
+
+  // ヘルプ記事評価
+  rateHelpArticle: protectedProcedure
+    .input(
+      z.object({
+        articleId: z.string(),
+        isHelpful: z.boolean(),
+        comment: z.string().max(500, "コメントは500文字以下で入力してください").optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const article = await ctx.db.helpArticle.findUnique({
+        where: {
+          id: input.articleId,
+          isPublished: true,
+        },
+      });
+
+      if (!article) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "ヘルプ記事が見つかりません",
+        });
+      }
+
+      // 既存の評価を確認
+      const existingRating = await ctx.db.helpArticleRating.findUnique({
+        where: {
+          articleId_userId: {
+            articleId: input.articleId,
+            userId: ctx.session.user.id,
+          },
+        },
+      });
+
+      if (existingRating) {
+        // 評価を更新
+        const updatedRating = await ctx.db.helpArticleRating.update({
+          where: {
+            articleId_userId: {
+              articleId: input.articleId,
+              userId: ctx.session.user.id,
+            },
+          },
+          data: {
+            isHelpful: input.isHelpful,
+            comment: input.comment,
+          },
+        });
+
+        // 評価が変わった場合、ヘルプフルカウントを更新
+        if (existingRating.isHelpful !== input.isHelpful) {
+          const increment = input.isHelpful ? 1 : -1;
+          await ctx.db.helpArticle.update({
+            where: { id: input.articleId },
+            data: { helpfulCount: { increment } },
+          });
+        }
+
+        return updatedRating;
+      } else {
+        // 新しい評価を作成
+        const newRating = await ctx.db.helpArticleRating.create({
+          data: {
+            articleId: input.articleId,
+            userId: ctx.session.user.id,
+            isHelpful: input.isHelpful,
+            comment: input.comment,
+          },
+        });
+
+        // ヘルプフルだった場合、カウントを増加
+        if (input.isHelpful) {
+          await ctx.db.helpArticle.update({
+            where: { id: input.articleId },
+            data: { helpfulCount: { increment: 1 } },
+          });
+        }
+
+        return newRating;
+      }
     }),
 
   // 問い合わせフォームから送信
@@ -117,38 +316,46 @@ export const contentRouter = createTRPCRouter({
         subject: z.string().min(1, "件名を入力してください").max(200, "件名は200文字以下で入力してください"),
         message: z.string().min(10, "メッセージは10文字以上で入力してください").max(2000, "メッセージは2000文字以下で入力してください"),
         category: z.enum([
-          "TECHNICAL",
-          "BILLING",
-          "ACCOUNT", 
           "GENERAL",
-          "REPORT",
+          "ACCOUNT",
+          "PAYMENT",
+          "BOOKING",
+          "TECHNICAL",
+          "COMPLAINT",
           "OTHER"
         ]),
-        priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).default("MEDIUM"),
-        attachmentUrls: z.array(z.string().url()).max(5, "添付ファイルは5つまでです").optional(),
+        priority: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).default("NORMAL"),
+        attachments: z.array(z.object({
+          fileName: z.string(),
+          fileUrl: z.string().url(),
+          fileType: z.string(),
+        })).max(5, "添付ファイルは5つまでです").optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // TODO: Inquiry テーブルが必要
-      // 現在のスキーマでは実装不可のため、Activity Log で代替
-      
-      const inquiryId = `INQ-${Date.now()}`;
-      
+      const inquiry = await ctx.db.inquiry.create({
+        data: {
+          userId: ctx.session.user.id,
+          category: input.category,
+          subject: input.subject,
+          message: input.message,
+          priority: input.priority,
+          attachments: input.attachments ? JSON.stringify(input.attachments) : null,
+        },
+      });
+
+      // アクティビティログも記録
       await ctx.db.activityLog.create({
         data: {
           userId: ctx.session.user.id,
           action: "INQUIRY_SUBMIT",
           entity: "INQUIRY",
-          entityId: inquiryId,
+          entityId: inquiry.id,
           description: `問い合わせ送信: ${input.subject}`,
           metadata: {
-            inquiryId,
-            subject: input.subject,
-            message: input.message,
+            inquiryId: inquiry.id,
             category: input.category,
             priority: input.priority,
-            attachmentUrls: input.attachmentUrls,
-            submittedAt: new Date().toISOString(),
           },
           level: input.priority === "URGENT" ? "ERROR" : 
                  input.priority === "HIGH" ? "WARN" : "INFO",
@@ -157,7 +364,7 @@ export const contentRouter = createTRPCRouter({
 
       return {
         success: true,
-        inquiryId,
+        inquiryId: inquiry.id,
         message: "お問い合わせを受け付けました。回答までしばらくお待ちください。",
         estimatedResponseTime: input.priority === "URGENT" ? "1営業日以内" :
                               input.priority === "HIGH" ? "2-3営業日以内" :
@@ -264,67 +471,60 @@ export const contentRouter = createTRPCRouter({
       });
     }),
 
-  // 銀行マスターを取得
+  // 銀行マスターを取得（支店情報付き）
   getBanks: publicProcedure
     .input(
       z.object({
         limit: z.number().min(1).max(200).default(100),
         searchQuery: z.string().optional(),
+        includeBranches: z.boolean().default(false),
       })
     )
     .query(({ ctx, input }) => {
-      // TODO: Bank テーブルが必要
-      // 現在のスキーマでは実装不可のため、代替でダミーデータを返す
-      const dummyBanks = [
-        {
-          id: "bank1",
-          name: "みずほ銀行",
-          nameKana: "ミズホギンコウ",
-          code: "0001",
-          sortOrder: 1,
-          isActive: true,
-        },
-        {
-          id: "bank2",
-          name: "三菱UFJ銀行",
-          nameKana: "ミツビシユーエフジェーギンコウ",
-          code: "0005",
-          sortOrder: 2,
-          isActive: true,
-        },
-        {
-          id: "bank3",
-          name: "三井住友銀行",
-          nameKana: "ミツイスミトモギンコウ",
-          code: "0009",
-          sortOrder: 3,
-          isActive: true,
-        },
-        {
-          id: "bank4",
-          name: "りそな銀行",
-          nameKana: "リソナギンコウ",
-          code: "0010",
-          sortOrder: 4,
-          isActive: true,
-        },
-        {
-          id: "bank5",
-          name: "ゆうちょ銀行",
-          nameKana: "ユウチョギンコウ",
-          code: "9900",
-          sortOrder: 5,
-          isActive: true,
-        },
-      ].filter(bank => {
-        if (!input.searchQuery) return true;
-        const query = input.searchQuery.toLowerCase();
-        return bank.name.toLowerCase().includes(query) ||
-               bank.nameKana.toLowerCase().includes(query) ||
-               bank.code.includes(query);
-      }).slice(0, input.limit);
+      const whereConditions: any = {
+        isActive: true,
+      };
 
-      return dummyBanks;
+      if (input.searchQuery) {
+        whereConditions.OR = [
+          { name: { contains: input.searchQuery, mode: "insensitive" } },
+          { nameKana: { contains: input.searchQuery, mode: "insensitive" } },
+          { nameEn: { contains: input.searchQuery, mode: "insensitive" } },
+          { code: { contains: input.searchQuery } },
+        ];
+      }
+
+      return ctx.db.bank.findMany({
+        where: whereConditions,
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          nameKana: true,
+          nameEn: true,
+          sortOrder: true,
+          isActive: true,
+          branches: input.includeBranches ? {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              nameKana: true,
+              nameEn: true,
+              address: true,
+              phone: true,
+              isActive: true,
+            },
+            where: { isActive: true },
+            orderBy: { code: "asc" },
+          } : false,
+        },
+        orderBy: [
+          { sortOrder: "asc" },
+          { code: "asc" },
+        ],
+        take: input.limit,
+      });
     }),
 
   // カテゴリマスターを取得
@@ -459,5 +659,161 @@ export const contentRouter = createTRPCRouter({
           type: true,
         },
       });
+    }),
+
+  // スキルマスターを取得
+  getSkills: publicProcedure
+    .input(
+      z.object({
+        category: z.enum(["LANGUAGE", "TECHNICAL", "CREATIVE", "BUSINESS", "LIFESTYLE", "OTHER"]).optional(),
+        limit: z.number().min(1).max(200).default(100),
+        searchQuery: z.string().optional(),
+      })
+    )
+    .query(({ ctx, input }) => {
+      const whereConditions: any = {
+        isActive: true,
+      };
+
+      if (input.category) {
+        whereConditions.category = input.category;
+      }
+
+      if (input.searchQuery) {
+        whereConditions.OR = [
+          { name: { contains: input.searchQuery, mode: "insensitive" } },
+          { nameEn: { contains: input.searchQuery, mode: "insensitive" } },
+          { description: { contains: input.searchQuery, mode: "insensitive" } },
+        ];
+      }
+
+      return ctx.db.skill.findMany({
+        where: whereConditions,
+        select: {
+          id: true,
+          name: true,
+          nameEn: true,
+          category: true,
+          description: true,
+          iconUrl: true,
+          sortOrder: true,
+        },
+        orderBy: [
+          { sortOrder: "asc" },
+          { name: "asc" },
+        ],
+        take: input.limit,
+      });
+    }),
+
+  // 問い合わせ履歴取得（ユーザー自身の履歴）
+  getMyInquiries: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(20),
+        offset: z.number().min(0).default(0),
+        status: z.enum(["PENDING", "IN_PROGRESS", "RESOLVED", "CLOSED"]).optional(),
+      })
+    )
+    .query(({ ctx, input }) => {
+      const whereConditions: any = {
+        userId: ctx.session.user.id,
+      };
+
+      if (input.status) {
+        whereConditions.status = input.status;
+      }
+
+      return ctx.db.inquiry.findMany({
+        where: whereConditions,
+        select: {
+          id: true,
+          category: true,
+          subject: true,
+          message: true,
+          status: true,
+          priority: true,
+          createdAt: true,
+          resolvedAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: input.limit,
+        skip: input.offset,
+      });
+    }),
+
+  // CSV/PDF出力用のトランザクション履歴取得
+  exportTransactions: protectedProcedure
+    .input(
+      z.object({
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+        format: z.enum(["CSV", "PDF"]).default("CSV"),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      if (ctx.session.user.userType !== "CAST") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "キャストユーザーのみアクセス可能です",
+        });
+      }
+
+      const whereConditions: any = {
+        booking: {
+          castId: ctx.session.user.id,
+        },
+        status: "COMPLETED",
+      };
+
+      if (input.startDate || input.endDate) {
+        whereConditions.paidAt = {};
+        if (input.startDate) {
+          whereConditions.paidAt.gte = new Date(input.startDate);
+        }
+        if (input.endDate) {
+          whereConditions.paidAt.lte = new Date(input.endDate);
+        }
+      }
+
+      const transactions = await ctx.db.payment.findMany({
+        where: whereConditions,
+        include: {
+          booking: {
+            select: {
+              id: true,
+              title: true,
+              serviceType: true,
+              startDateTime: true,
+              endDateTime: true,
+              guest: {
+                select: {
+                  guestProfile: {
+                    select: {
+                      displayName: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { paidAt: "desc" },
+      });
+
+      return {
+        transactions,
+        summary: {
+          totalTransactions: transactions.length,
+          totalAmount: transactions.reduce((sum, t) => sum + t.amount, 0),
+          totalCastAmount: transactions.reduce((sum, t) => sum + t.castAmount, 0),
+          totalPlatformFee: transactions.reduce((sum, t) => sum + t.platformFee, 0),
+          period: {
+            startDate: input.startDate || transactions[transactions.length - 1]?.paidAt?.toISOString(),
+            endDate: input.endDate || transactions[0]?.paidAt?.toISOString(),
+          },
+        },
+        downloadUrl: `/api/export/transactions?format=${input.format}&start=${input.startDate}&end=${input.endDate}`,
+      };
     }),
 });

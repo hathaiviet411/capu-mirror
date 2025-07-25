@@ -1,10 +1,15 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import Stripe from "stripe";
 import {
   createTRPCRouter,
   publicProcedure,
   protectedProcedure,
 } from "~/server/api/trpc";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2024-06-20",
+});
 
 const castProfileSchema = z.object({
   displayName: z.string().min(1, "表示名を入力してください").max(100, "表示名は100文字以下で入力してください"),
@@ -533,4 +538,709 @@ export const castRouter = createTRPCRouter({
         },
       });
     }),
+
+  // 収益ダッシュボード情報取得
+  getRevenueDashboard: protectedProcedure
+    .input(
+      z.object({
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+        period: z.enum(["day", "week", "month", "year"]).default("month"),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      if (ctx.session.user.userType !== "CAST") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "キャストユーザーのみアクセス可能です",
+        });
+      }
+
+      const cast = await ctx.db.castProfile.findUnique({
+        where: { userId: ctx.session.user.id },
+      });
+
+      if (!cast) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "キャストプロフィールが見つかりません",
+        });
+      }
+
+      const now = new Date();
+      const startDate = input.startDate ? new Date(input.startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
+      const endDate = input.endDate ? new Date(input.endDate) : new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+      // 期間中の収益統計を取得
+      const bookings = await ctx.db.booking.findMany({
+        where: {
+          castId: ctx.session.user.id,
+          status: { in: ["CONFIRMED", "COMPLETED"] },
+          startDateTime: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
+        include: {
+          payment: true,
+        },
+      });
+
+      // 統計データを計算
+      const totalRevenue = bookings.reduce((sum, booking) => sum + booking.totalAmount, 0);
+      const completedBookings = bookings.filter(b => b.status === "COMPLETED").length;
+      const totalBookings = bookings.length;
+      const averageBookingValue = totalBookings > 0 ? totalRevenue / totalBookings : 0;
+
+      // 期間別収益データ（グラフ用）
+      const revenueByPeriod = bookings.reduce((acc, booking) => {
+        const key = booking.startDateTime.toISOString().split('T')[0]; // YYYY-MM-DD
+        acc[key] = (acc[key] || 0) + booking.totalAmount;
+        return acc;
+      }, {} as Record<string, number>);
+
+      return {
+        totalRevenue,
+        completedBookings,
+        totalBookings,
+        averageBookingValue,
+        period: {
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+        },
+        revenueByPeriod,
+        growth: {
+          // TODO: 前期間との比較計算
+          percentage: 0,
+          trend: "stable" as const,
+        },
+      };
+    }),
+
+  // 収益統計情報取得
+  getRevenueStats: protectedProcedure
+    .input(
+      z.object({
+        period: z.enum(["daily", "weekly", "monthly"]).default("monthly"),
+        limit: z.number().min(1).max(365).default(30),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      if (ctx.session.user.userType !== "CAST") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "キャストユーザーのみアクセス可能です",
+        });
+      }
+
+      const cast = await ctx.db.castProfile.findUnique({
+        where: { userId: ctx.session.user.id },
+      });
+
+      if (!cast) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "キャストプロフィールが見つかりません",
+        });
+      }
+
+      // 指定期間のデータを取得
+      const endDate = new Date();
+      const startDate = new Date();
+      
+      switch (input.period) {
+        case "daily":
+          startDate.setDate(endDate.getDate() - input.limit);
+          break;
+        case "weekly":
+          startDate.setDate(endDate.getDate() - (input.limit * 7));
+          break;
+        case "monthly":
+          startDate.setMonth(endDate.getMonth() - input.limit);
+          break;
+      }
+
+      const payments = await ctx.db.payment.findMany({
+        where: {
+          booking: {
+            castId: ctx.session.user.id,
+            status: { in: ["CONFIRMED", "COMPLETED"] },
+          },
+          status: "COMPLETED",
+          paidAt: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
+        include: {
+          booking: {
+            select: {
+              startDateTime: true,
+              endDateTime: true,
+              serviceType: true,
+            },
+          },
+        },
+        orderBy: {
+          paidAt: "desc",
+        },
+      });
+
+      return payments.map(payment => ({
+        id: payment.id,
+        amount: payment.amount,
+        castAmount: payment.castAmount,
+        platformFee: payment.platformFee,
+        paidAt: payment.paidAt,
+        serviceType: payment.booking?.serviceType,
+        bookingDate: payment.booking?.startDateTime,
+      }));
+    }),
+
+  // 人気時間帯分析
+  getPopularTimeSlots: protectedProcedure
+    .input(
+      z.object({
+        days: z.number().min(7).max(90).default(30),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      if (ctx.session.user.userType !== "CAST") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "キャストユーザーのみアクセス可能です",
+        });
+      }
+
+      const cast = await ctx.db.castProfile.findUnique({
+        where: { userId: ctx.session.user.id },
+      });
+
+      if (!cast) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "キャストプロフィールが見つかりません",
+        });
+      }
+
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - input.days);
+
+      const bookings = await ctx.db.booking.findMany({
+        where: {
+          castId: ctx.session.user.id,
+          status: { in: ["CONFIRMED", "COMPLETED"] },
+          startDateTime: {
+            gte: startDate,
+          },
+        },
+        select: {
+          startDateTime: true,
+          endDateTime: true,
+          totalAmount: true,
+        },
+      });
+
+      // 時間帯別集計
+      const timeSlots = bookings.reduce((acc, booking) => {
+        const hour = booking.startDateTime.getHours();
+        const dayOfWeek = booking.startDateTime.getDay();
+        
+        const key = `${dayOfWeek}-${hour}`;
+        if (!acc[key]) {
+          acc[key] = {
+            dayOfWeek,
+            hour,
+            count: 0,
+            totalRevenue: 0,
+          };
+        }
+        
+        acc[key].count++;
+        acc[key].totalRevenue += booking.totalAmount;
+        
+        return acc;
+      }, {} as Record<string, { dayOfWeek: number; hour: number; count: number; totalRevenue: number }>);
+
+      // 人気順にソート
+      const popularSlots = Object.values(timeSlots)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 20);
+
+      return {
+        timeSlots: popularSlots,
+        dayNames: ["日", "月", "火", "水", "木", "金", "土"],
+        totalBookingsAnalyzed: bookings.length,
+        periodDays: input.days,
+      };
+    }),
+
+  // 取引履歴取得
+  getTransactions: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(20),
+        offset: z.number().min(0).default(0),
+        status: z.enum(["PENDING", "PROCESSING", "COMPLETED", "FAILED", "REFUNDED"]).optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      if (ctx.session.user.userType !== "CAST") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "キャストユーザーのみアクセス可能です",
+        });
+      }
+
+      const whereConditions: any = {
+        booking: {
+          castId: ctx.session.user.id,
+        },
+      };
+
+      if (input.status) {
+        whereConditions.status = input.status;
+      }
+
+      if (input.startDate || input.endDate) {
+        whereConditions.paidAt = {};
+        if (input.startDate) {
+          whereConditions.paidAt.gte = new Date(input.startDate);
+        }
+        if (input.endDate) {
+          whereConditions.paidAt.lte = new Date(input.endDate);
+        }
+      }
+
+      return ctx.db.payment.findMany({
+        where: whereConditions,
+        include: {
+          booking: {
+            select: {
+              id: true,
+              title: true,
+              serviceType: true,
+              startDateTime: true,
+              endDateTime: true,
+              guest: {
+                select: {
+                  guestProfile: {
+                    select: {
+                      displayName: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: input.limit,
+        skip: input.offset,
+      });
+    }),
+
+  // 取引詳細取得
+  getTransactionDetail: protectedProcedure
+    .input(z.object({ transactionId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      if (ctx.session.user.userType !== "CAST") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "キャストユーザーのみアクセス可能です",
+        });
+      }
+
+      const payment = await ctx.db.payment.findUnique({
+        where: {
+          id: input.transactionId,
+          booking: {
+            castId: ctx.session.user.id,
+          },
+        },
+        include: {
+          booking: {
+            include: {
+              guest: {
+                select: {
+                  email: true,
+                  guestProfile: {
+                    select: {
+                      displayName: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          transactionLogs: {
+            orderBy: { createdAt: "desc" },
+          },
+        },
+      });
+
+      if (!payment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "取引が見つかりません",
+        });
+      }
+
+      return payment;
+    }),
+
+  // 銀行口座一覧取得
+  getBankAccounts: protectedProcedure.query(async ({ ctx }) => {
+    if (ctx.session.user.userType !== "CAST") {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "キャストユーザーのみアクセス可能です",
+      });
+    }
+
+    return ctx.db.bankAccount.findMany({
+      where: { castId: ctx.session.user.id },
+      orderBy: [
+        { isPrimary: "desc" },
+        { createdAt: "desc" },
+      ],
+    });
+  }),
+
+  // 銀行口座追加
+  addBankAccount: protectedProcedure
+    .input(
+      z.object({
+        bankName: z.string().min(1, "銀行名を入力してください"),
+        branchName: z.string().min(1, "支店名を入力してください"),
+        accountType: z.enum(["SAVINGS", "CHECKING"]),
+        accountNumber: z.string().min(1, "口座番号を入力してください"),
+        accountHolderName: z.string().min(1, "口座名義を入力してください"),
+        isPrimary: z.boolean().default(false),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.session.user.userType !== "CAST") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "キャストユーザーのみアクセス可能です",
+        });
+      }
+
+      // メイン口座に設定する場合は他の口座をメインから外す
+      if (input.isPrimary) {
+        await ctx.db.bankAccount.updateMany({
+          where: {
+            castId: ctx.session.user.id,
+            isPrimary: true,
+          },
+          data: {
+            isPrimary: false,
+          },
+        });
+      }
+
+      return ctx.db.bankAccount.create({
+        data: {
+          ...input,
+          castId: ctx.session.user.id,
+        },
+      });
+    }),
+
+  // 銀行口座更新
+  updateBankAccount: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.string(),
+        bankName: z.string().min(1, "銀行名を入力してください").optional(),
+        branchName: z.string().min(1, "支店名を入力してください").optional(),
+        accountType: z.enum(["SAVINGS", "CHECKING"]).optional(),
+        accountNumber: z.string().min(1, "口座番号を入力してください").optional(),
+        accountHolderName: z.string().min(1, "口座名義を入力してください").optional(),
+        isPrimary: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.session.user.userType !== "CAST") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "キャストユーザーのみアクセス可能です",
+        });
+      }
+
+      const account = await ctx.db.bankAccount.findUnique({
+        where: {
+          id: input.accountId,
+          castId: ctx.session.user.id,
+        },
+      });
+
+      if (!account) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "銀行口座が見つかりません",
+        });
+      }
+
+      // メイン口座に設定する場合は他の口座をメインから外す
+      if (input.isPrimary) {
+        await ctx.db.bankAccount.updateMany({
+          where: {
+            castId: ctx.session.user.id,
+            isPrimary: true,
+            id: { not: input.accountId },
+          },
+          data: {
+            isPrimary: false,
+          },
+        });
+      }
+
+      const { accountId, ...updateData } = input;
+      return ctx.db.bankAccount.update({
+        where: { id: input.accountId },
+        data: updateData,
+      });
+    }),
+
+  // 銀行口座削除
+  deleteBankAccount: protectedProcedure
+    .input(z.object({ accountId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.session.user.userType !== "CAST") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "キャストユーザーのみアクセス可能です",
+        });
+      }
+
+      const account = await ctx.db.bankAccount.findUnique({
+        where: {
+          id: input.accountId,
+          castId: ctx.session.user.id,
+        },
+      });
+
+      if (!account) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "銀行口座が見つかりません",
+        });
+      }
+
+      return ctx.db.bankAccount.delete({
+        where: { id: input.accountId },
+      });
+    }),
+
+  // メイン銀行口座設定
+  setPrimaryBankAccount: protectedProcedure
+    .input(z.object({ accountId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.session.user.userType !== "CAST") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "キャストユーザーのみアクセス可能です",
+        });
+      }
+
+      const account = await ctx.db.bankAccount.findUnique({
+        where: {
+          id: input.accountId,
+          castId: ctx.session.user.id,
+        },
+      });
+
+      if (!account) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "銀行口座が見つかりません",
+        });
+      }
+
+      // 他の口座をメインから外す
+      await ctx.db.bankAccount.updateMany({
+        where: {
+          castId: ctx.session.user.id,
+          isPrimary: true,
+        },
+        data: {
+          isPrimary: false,
+        },
+      });
+
+      // 指定した口座をメインに設定
+      return ctx.db.bankAccount.update({
+        where: { id: input.accountId },
+        data: { isPrimary: true },
+      });
+    }),
+
+  // 引き出し申請履歴取得
+  getWithdrawalHistory: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(20),
+        offset: z.number().min(0).default(0),
+        status: z.enum(["PENDING", "APPROVED", "PROCESSING", "COMPLETED", "REJECTED", "FAILED", "CANCELLED"]).optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      if (ctx.session.user.userType !== "CAST") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "キャストユーザーのみアクセス可能です",
+        });
+      }
+
+      return ctx.db.withdrawalRequest.findMany({
+        where: {
+          castId: ctx.session.user.id,
+          ...(input.status && { status: input.status }),
+        },
+        include: {
+          bankAccount: {
+            select: {
+              bankName: true,
+              branchName: true,
+              accountNumber: true,
+              accountHolderName: true,
+            },
+          },
+        },
+        orderBy: { requestedAt: "desc" },
+        take: input.limit,
+        skip: input.offset,
+      });
+    }),
+
+  // 引き出し申請
+  requestWithdrawal: protectedProcedure
+    .input(
+      z.object({
+        amount: z.number().min(1000, "最低1,000円から引き出し可能です"),
+        bankAccountId: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.session.user.userType !== "CAST") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "キャストユーザーのみアクセス可能です",
+        });
+      }
+
+      const bankAccount = await ctx.db.bankAccount.findUnique({
+        where: {
+          id: input.bankAccountId,
+          castId: ctx.session.user.id,
+        },
+      });
+
+      if (!bankAccount) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "指定された銀行口座が見つかりません",
+        });
+      }
+
+      if (!bankAccount.isVerified) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "口座の認証が完了していません",
+        });
+      }
+
+      // TODO: 利用可能残高の確認
+      // 現在は簡単な手数料計算のみ
+      const fee = Math.min(Math.max(Math.floor(input.amount * 0.03), 100), 500); // 3%、最低100円、最高500円
+      const netAmount = input.amount - fee;
+
+      return ctx.db.withdrawalRequest.create({
+        data: {
+          castId: ctx.session.user.id,
+          bankAccountId: input.bankAccountId,
+          amount: input.amount,
+          fee,
+          netAmount,
+        },
+        include: {
+          bankAccount: {
+            select: {
+              bankName: true,
+              branchName: true,
+              accountNumber: true,
+              accountHolderName: true,
+            },
+          },
+        },
+      });
+    }),
+
+  // 引き出し申請キャンセル
+  cancelWithdrawal: protectedProcedure
+    .input(z.object({ requestId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.session.user.userType !== "CAST") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "キャストユーザーのみアクセス可能です",
+        });
+      }
+
+      const request = await ctx.db.withdrawalRequest.findUnique({
+        where: {
+          id: input.requestId,
+          castId: ctx.session.user.id,
+        },
+      });
+
+      if (!request) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "引き出し申請が見つかりません",
+        });
+      }
+
+      if (request.status !== "PENDING") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "処理中または完了済みの申請はキャンセルできません",
+        });
+      }
+
+      return ctx.db.withdrawalRequest.update({
+        where: { id: input.requestId },
+        data: {
+          status: "CANCELLED",
+          processedAt: new Date(),
+        },
+      });
+    }),
+
+  // 引き出し制限情報取得
+  getWithdrawalLimits: protectedProcedure.query(async ({ ctx }) => {
+    if (ctx.session.user.userType !== "CAST") {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "キャストユーザーのみアクセス可能です",
+      });
+    }
+
+    // TODO: 実際の利用可能残高計算
+    // 現在は固定値を返す
+    return {
+      minAmount: 1000,
+      maxAmount: 1000000,
+      dailyLimit: 100000,
+      monthlyLimit: 1000000,
+      availableBalance: 0, // TODO: 実際の残高計算
+      feeRate: 0.03,
+      minFee: 100,
+      maxFee: 500,
+    };
+  }),
 });

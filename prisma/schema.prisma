@@ -69,6 +69,13 @@ model User {
   reviews              Review[]
   searchHistory        SearchHistory[]
   conversations        Conversation[]        @relation("ConversationToUser")
+  pointTransactions    PointTransaction[]
+  paymentMethods       PaymentMethod[]
+  bankAccounts         BankAccount[]
+  withdrawalRequests   WithdrawalRequest[]
+  newsReadStatus       NewsReadStatus[]
+  helpArticleRatings   HelpArticleRating[]
+  inquiries            Inquiry[]
 
   @@index([email])
   @@index([userType])
@@ -632,4 +639,300 @@ enum ReportFormat {
   JSON
   CSV
   PDF
+}
+
+model PointTransaction {
+  id              String                @id @default(cuid())
+  userId          String
+  points          Int
+  transactionType PointTransactionKind
+  amount          Int?
+  referenceId     String?
+  referenceType   String?
+  description     String?
+  createdAt       DateTime              @default(now())
+  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([transactionType])
+  @@map("point_transactions")
+}
+
+model PaymentMethod {
+  id               String               @id @default(cuid())
+  userId           String
+  stripeMethodId   String               @unique
+  type             PaymentMethodKind
+  card             Json?
+  isDefault        Boolean              @default(false)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  withdrawalRequests WithdrawalRequest[]
+
+  @@index([userId])
+  @@map("payment_methods")
+}
+
+model BankAccount {
+  id                 String               @id @default(cuid())
+  castId             String
+  bankName           String
+  branchName         String
+  accountType        BankAccountKind
+  accountNumber      String
+  accountHolderName  String
+  isPrimary          Boolean              @default(false)
+  isVerified         Boolean              @default(false)
+  verifiedAt         DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  user               User                 @relation(fields: [castId], references: [id], onDelete: Cascade)
+  withdrawalRequests WithdrawalRequest[]
+
+  @@index([castId])
+  @@map("bank_accounts")
+}
+
+model WithdrawalRequest {
+  id              String               @id @default(cuid())
+  castId          String
+  bankAccountId   String
+  paymentMethodId String?
+  amount          Int
+  fee             Int                  @default(0)
+  netAmount       Int
+  status          WithdrawalRequestStatus     @default(PENDING)
+  requestedAt     DateTime             @default(now())
+  processedAt     DateTime?
+  completedAt     DateTime?
+  failedAt        DateTime?
+  failureReason   String?
+  notes           String?
+  bankAccount     BankAccount          @relation(fields: [bankAccountId], references: [id])
+  cast            User                 @relation(fields: [castId], references: [id])
+  paymentMethod   PaymentMethod?       @relation(fields: [paymentMethodId], references: [id])
+
+  @@index([castId, status])
+  @@index([status, requestedAt])
+  @@map("withdrawal_requests")
+}
+
+model News {
+  id           String        @id @default(cuid())
+  title        String
+  content      String        @db.Text
+  category     NewsTopicCategory
+  importance   NewsImportanceLevel @default(NORMAL)
+  imageUrl     String?
+  isPublished  Boolean       @default(false)
+  publishedAt  DateTime?
+  viewCount    Int           @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  readStatus   NewsReadStatus[]
+
+  @@index([category, isPublished])
+  @@index([importance, publishedAt])
+  @@map("news")
+}
+
+model NewsReadStatus {
+  id       String   @id @default(cuid())
+  newsId   String
+  userId   String
+  readAt   DateTime @default(now())
+  news     News     @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([newsId, userId])
+  @@map("news_read_status")
+}
+
+model HelpArticle {
+  id          String           @id @default(cuid())
+  title       String
+  content     String           @db.Text
+  category    HelpArticleCategory
+  tags        String[]
+  sortOrder   Int              @default(0)
+  isPublished Boolean          @default(false)
+  viewCount   Int              @default(0)
+  helpfulCount Int             @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  ratings     HelpArticleRating[]
+
+  @@index([category, isPublished])
+  @@index([tags])
+  @@map("help_articles")
+}
+
+model HelpArticleRating {
+  id          String      @id @default(cuid())
+  articleId   String
+  userId      String
+  isHelpful   Boolean
+  comment     String?
+  createdAt   DateTime    @default(now())
+  article     HelpArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, userId])
+  @@map("help_article_ratings")
+}
+
+model Inquiry {
+  id          String        @id @default(cuid())
+  userId      String
+  category    InquiryTopicCategory
+  subject     String
+  message     String        @db.Text
+  attachments Json?
+  status      InquiryRequestStatus @default(PENDING)
+  priority    InquiryPriorityLevel @default(NORMAL)
+  assignedTo  String?
+  resolvedAt  DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  user        User          @relation(fields: [userId], references: [id])
+
+  @@index([userId, status])
+  @@index([status, priority])
+  @@map("inquiries")
+}
+
+model Bank {
+  id         String       @id @default(cuid())
+  code       String       @unique
+  name       String
+  nameKana   String?
+  nameEn     String?
+  isActive   Boolean      @default(true)
+  sortOrder  Int          @default(0)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  branches   BankBranch[]
+
+  @@map("banks")
+}
+
+model BankBranch {
+  id         String   @id @default(cuid())
+  bankId     String
+  code       String
+  name       String
+  nameKana   String?
+  nameEn     String?
+  address    String?
+  phone      String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  bank       Bank     @relation(fields: [bankId], references: [id])
+
+  @@unique([bankId, code])
+  @@map("bank_branches")
+}
+
+model Skill {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  nameEn      String?
+  category    SkillTopicCategory
+  description String?
+  iconUrl     String?
+  sortOrder   Int          @default(0)
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("skills")
+}
+
+enum PointTransactionKind {
+  PURCHASE
+  USE
+  BONUS
+  REFUND
+  EXPIRE
+}
+
+enum PaymentMethodKind {
+  CARD
+  BANK_TRANSFER
+}
+
+enum BankAccountKind {
+  SAVINGS
+  CHECKING
+}
+
+enum WithdrawalRequestStatus {
+  PENDING
+  APPROVED
+  PROCESSING
+  COMPLETED
+  REJECTED
+  FAILED
+  CANCELLED
+}
+
+enum NewsTopicCategory {
+  ANNOUNCEMENT
+  UPDATE
+  MAINTENANCE
+  PROMOTION
+  EVENT
+}
+
+enum NewsImportanceLevel {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum HelpArticleCategory {
+  GETTING_STARTED
+  ACCOUNT
+  BOOKING
+  PAYMENT
+  CAST_GUIDE
+  GUEST_GUIDE
+  TROUBLESHOOTING
+  SAFETY
+}
+
+enum InquiryTopicCategory {
+  GENERAL
+  ACCOUNT
+  PAYMENT
+  BOOKING
+  TECHNICAL
+  COMPLAINT
+  OTHER
+}
+
+enum InquiryRequestStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum InquiryPriorityLevel {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum SkillTopicCategory {
+  LANGUAGE
+  TECHNICAL
+  CREATIVE
+  BUSINESS
+  LIFESTYLE
+  OTHER
 }

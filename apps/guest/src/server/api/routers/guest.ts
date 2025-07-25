@@ -1,10 +1,15 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import Stripe from "stripe";
 import {
   createTRPCRouter,
   publicProcedure,
   protectedProcedure,
 } from "~/server/api/trpc";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2024-06-20",
+});
 
 const guestProfileSchema = z.object({
   displayName: z.string().min(1, "表示名を入力してください").max(100, "表示名は100文字以下で入力してください"),
@@ -865,6 +870,7 @@ export const guestRouter = createTRPCRouter({
       z.object({
         limit: z.number().min(1).max(100).default(20),
         offset: z.number().min(0).default(0),
+        transactionType: z.enum(["PURCHASE", "USE", "BONUS", "REFUND", "EXPIRE"]).optional(),
       })
     )
     .query(({ ctx, input }) => {
@@ -875,23 +881,20 @@ export const guestRouter = createTRPCRouter({
         });
       }
 
-      // TODO: Point履歴テーブルが必要
-      // 現在のスキーマでは実装不可のため、Payment履歴で代替
-      return ctx.db.payment.findMany({
-        where: { payerId: ctx.session.user.id },
+      return ctx.db.pointTransaction.findMany({
+        where: {
+          userId: ctx.session.user.id,
+          ...(input.transactionType && { transactionType: input.transactionType }),
+        },
         select: {
           id: true,
+          points: true,
+          transactionType: true,
           amount: true,
-          status: true,
-          paidAt: true,
+          description: true,
+          referenceId: true,
+          referenceType: true,
           createdAt: true,
-          booking: {
-            select: {
-              id: true,
-              title: true,
-              serviceType: true,
-            },
-          },
         },
         orderBy: { createdAt: "desc" },
         take: input.limit,
@@ -954,83 +957,6 @@ export const guestRouter = createTRPCRouter({
       });
     }),
 
-  // 領収書を生成
-  generateReceipt: protectedProcedure
-    .input(z.object({ paymentId: z.string() }))
-    .query(async ({ ctx, input }) => {
-      if (ctx.session.user.userType !== "GUEST") {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "ゲストユーザーのみアクセス可能です",
-        });
-      }
-
-      const payment = await ctx.db.payment.findUnique({
-        where: {
-          id: input.paymentId,
-          payerId: ctx.session.user.id,
-        },
-        select: {
-          id: true,
-          amount: true,
-          platformFee: true,
-          castAmount: true,
-          paidAt: true,
-          createdAt: true,
-          booking: {
-            select: {
-              id: true,
-              title: true,
-              description: true,
-              serviceType: true,
-              startDateTime: true,
-              endDateTime: true,
-              cast: {
-                select: {
-                  castProfile: {
-                    select: {
-                      displayName: true,
-                    },
-                  },
-                },
-              },
-            },
-          },
-          payer: {
-            select: {
-              email: true,
-              guestProfile: {
-                select: {
-                  displayName: true,
-                },
-              },
-            },
-          },
-        },
-      });
-
-      if (!payment) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "決済情報が見つかりません",
-        });
-      }
-
-      if (payment.booking?.booking?.status !== "COMPLETED") {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "完了していない予約の領収書は生成できません",
-        });
-      }
-
-      // 領収書データを生成
-      return {
-        receiptId: `RECEIPT-${payment.id}`,
-        issuedAt: new Date().toISOString(),
-        payment,
-        receiptUrl: `/api/receipts/${payment.id}`, // 実際のPDF生成エンドポイント
-      };
-    }),
 
   // 登録済みのクレジットカード情報を取得
   getPaymentMethods: protectedProcedure.query(async ({ ctx }) => {
@@ -1041,11 +967,20 @@ export const guestRouter = createTRPCRouter({
       });
     }
 
-    // TODO: PaymentMethod テーブルが必要
-    // Stripe Integration が必要
-    throw new TRPCError({
-      code: "NOT_IMPLEMENTED",
-      message: "決済方法管理機能はまだ実装されていません。Stripe統合とPaymentMethodテーブルが必要です。",
+    return ctx.db.paymentMethod.findMany({
+      where: { userId: ctx.session.user.id },
+      select: {
+        id: true,
+        stripeMethodId: true,
+        type: true,
+        card: true,
+        isDefault: true,
+        createdAt: true,
+      },
+      orderBy: [
+        { isDefault: "desc" },
+        { createdAt: "desc" },
+      ],
     });
   }),
 
@@ -1065,11 +1000,54 @@ export const guestRouter = createTRPCRouter({
         });
       }
 
-      // TODO: Stripe Setup Intent + PaymentMethod テーブルが必要
-      throw new TRPCError({
-        code: "NOT_IMPLEMENTED",
-        message: "決済方法追加機能はまだ実装されていません。Stripe統合が必要です。",
-      });
+      try {
+        // Stripeから決済方法の詳細を取得
+        const paymentMethod = await stripe.paymentMethods.retrieve(input.paymentMethodId);
+
+        if (paymentMethod.customer && paymentMethod.customer !== ctx.session.user.id) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "この決済方法は他のユーザーに関連付けられています",
+          });
+        }
+
+        // デフォルトに設定する場合は他のカードをデフォルトから外す
+        if (input.isDefault) {
+          await ctx.db.paymentMethod.updateMany({
+            where: {
+              userId: ctx.session.user.id,
+              isDefault: true,
+            },
+            data: {
+              isDefault: false,
+            },
+          });
+        }
+
+        // データベースに保存
+        return await ctx.db.paymentMethod.create({
+          data: {
+            userId: ctx.session.user.id,
+            stripeMethodId: input.paymentMethodId,
+            type: paymentMethod.type === "card" ? "CARD" : "BANK_TRANSFER",
+            card: paymentMethod.card ? {
+              brand: paymentMethod.card.brand,
+              last4: paymentMethod.card.last4,
+              exp_month: paymentMethod.card.exp_month,
+              exp_year: paymentMethod.card.exp_year,
+            } : null,
+            isDefault: input.isDefault,
+          },
+        });
+      } catch (error) {
+        if (error instanceof Stripe.errors.StripeError) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Stripeエラー: ${error.message}`,
+          });
+        }
+        throw error;
+      }
     }),
 
   // クレジットカードを削除
@@ -1083,10 +1061,79 @@ export const guestRouter = createTRPCRouter({
         });
       }
 
-      // TODO: Stripe + PaymentMethod テーブルが必要
-      throw new TRPCError({
-        code: "NOT_IMPLEMENTED",
-        message: "決済方法削除機能はまだ実装されていません。Stripe統合が必要です。",
+      const paymentMethod = await ctx.db.paymentMethod.findUnique({
+        where: {
+          id: input.paymentMethodId,
+          userId: ctx.session.user.id,
+        },
+      });
+
+      if (!paymentMethod) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "決済方法が見つかりません",
+        });
+      }
+
+      try {
+        // Stripeから決済方法を削除
+        await stripe.paymentMethods.detach(paymentMethod.stripeMethodId);
+
+        // データベースから削除
+        return await ctx.db.paymentMethod.delete({
+          where: { id: input.paymentMethodId },
+        });
+      } catch (error) {
+        if (error instanceof Stripe.errors.StripeError) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Stripeエラー: ${error.message}`,
+          });
+        }
+        throw error;
+      }
+    }),
+
+  // デフォルト決済方法設定
+  setDefaultPaymentMethod: protectedProcedure
+    .input(z.object({ paymentMethodId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.session.user.userType !== "GUEST") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "ゲストユーザーのみアクセス可能です",
+        });
+      }
+
+      const paymentMethod = await ctx.db.paymentMethod.findUnique({
+        where: {
+          id: input.paymentMethodId,
+          userId: ctx.session.user.id,
+        },
+      });
+
+      if (!paymentMethod) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "決済方法が見つかりません",
+        });
+      }
+
+      // 他のカードをデフォルトから外す
+      await ctx.db.paymentMethod.updateMany({
+        where: {
+          userId: ctx.session.user.id,
+          isDefault: true,
+        },
+        data: {
+          isDefault: false,
+        },
+      });
+
+      // 指定したカードをデフォルトに設定
+      return await ctx.db.paymentMethod.update({
+        where: { id: input.paymentMethodId },
+        data: { isDefault: true },
       });
     }),
 
@@ -1095,7 +1142,7 @@ export const guestRouter = createTRPCRouter({
     .input(
       z.object({
         amount: z.number().min(100, "最低100円から購入可能です"),
-        paymentMethodId: z.string(),
+        paymentMethodId: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -1106,10 +1153,236 @@ export const guestRouter = createTRPCRouter({
         });
       }
 
-      // TODO: Stripe Payment Intent + Point システムが必要
-      throw new TRPCError({
-        code: "NOT_IMPLEMENTED",
-        message: "ポイント購入機能はまだ実装されていません。Stripe統合とPointシステムが必要です。",
-      });
+      try {
+        let paymentMethodId = input.paymentMethodId;
+
+        // 決済方法が指定されていない場合、デフォルトの決済方法を使用
+        if (!paymentMethodId) {
+          const defaultPaymentMethod = await ctx.db.paymentMethod.findFirst({
+            where: {
+              userId: ctx.session.user.id,
+              isDefault: true,
+            },
+          });
+
+          if (!defaultPaymentMethod) {
+            throw new TRPCError({
+              code: "PRECONDITION_FAILED",
+              message: "決済方法が登録されていません",
+            });
+          }
+
+          paymentMethodId = defaultPaymentMethod.id;
+        }
+
+        const paymentMethod = await ctx.db.paymentMethod.findUnique({
+          where: {
+            id: paymentMethodId,
+            userId: ctx.session.user.id,
+          },
+        });
+
+        if (!paymentMethod) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "指定された決済方法が見つかりません",
+          });
+        }
+
+        // Stripe Payment Intentを作成
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: input.amount,
+          currency: "jpy",
+          payment_method: paymentMethod.stripeMethodId,
+          confirm: true,
+          automatic_payment_methods: {
+            enabled: true,
+            allow_redirects: "never",
+          },
+          metadata: {
+            userId: ctx.session.user.id,
+            type: "point_purchase",
+            points: Math.floor(input.amount), // 1円 = 1ポイント
+          },
+        });
+
+        if (paymentIntent.status === "succeeded") {
+          // トランザクションでポイント追加とログ記録を行う
+          const result = await ctx.db.$transaction(async (tx) => {
+            // ユーザーのポイントを更新
+            const user = await tx.user.update({
+              where: { id: ctx.session.user.id },
+              data: {
+                points: {
+                  increment: Math.floor(input.amount),
+                },
+              },
+            });
+
+            // ポイント取引履歴を記録
+            const pointTransaction = await tx.pointTransaction.create({
+              data: {
+                userId: ctx.session.user.id,
+                points: Math.floor(input.amount),
+                transactionType: "PURCHASE",
+                amount: input.amount,
+                referenceId: paymentIntent.id,
+                referenceType: "stripe_payment_intent",
+                description: `ポイント購入 (${input.amount}円)`,
+              },
+            });
+
+            return { user, pointTransaction };
+          });
+
+          return {
+            success: true,
+            points: Math.floor(input.amount),
+            newBalance: result.user.points,
+            paymentIntentId: paymentIntent.id,
+            transaction: result.pointTransaction,
+          };
+        } else {
+          throw new TRPCError({
+            code: "PAYMENT_REQUIRED",
+            message: `決済が完了しませんでした: ${paymentIntent.status}`,
+          });
+        }
+      } catch (error) {
+        if (error instanceof Stripe.errors.StripeError) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `決済エラー: ${error.message}`,
+          });
+        }
+        throw error;
+      }
+    }),
+
+  // 領収書を生成
+  generateReceipt: protectedProcedure
+    .input(z.object({
+      paymentId: z.string().optional(),
+      pointTransactionId: z.string().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      if (ctx.session.user.userType !== "GUEST") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "ゲストユーザーのみアクセス可能です",
+        });
+      }
+
+      if (!input.paymentId && !input.pointTransactionId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "paymentIdまたはpointTransactionIdのいずれかが必要です",
+        });
+      }
+
+      if (input.pointTransactionId) {
+        // ポイント購入の領収書
+        const pointTransaction = await ctx.db.pointTransaction.findUnique({
+          where: {
+            id: input.pointTransactionId,
+            userId: ctx.session.user.id,
+          },
+          include: {
+            user: {
+              select: {
+                email: true,
+                guestProfile: {
+                  select: {
+                    displayName: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        if (!pointTransaction) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "ポイント取引が見つかりません",
+          });
+        }
+
+        return {
+          receiptId: `POINT-RECEIPT-${pointTransaction.id}`,
+          issuedAt: new Date().toISOString(),
+          type: "point_purchase",
+          transaction: pointTransaction,
+          receiptUrl: `/api/receipts/points/${pointTransaction.id}`,
+        };
+      } else {
+        // 既存の決済履歴の領収書（既存のコードを維持）
+        const payment = await ctx.db.payment.findUnique({
+          where: {
+            id: input.paymentId!,
+            payerId: ctx.session.user.id,
+          },
+          select: {
+            id: true,
+            amount: true,
+            platformFee: true,
+            castAmount: true,
+            paidAt: true,
+            createdAt: true,
+            booking: {
+              select: {
+                id: true,
+                title: true,
+                description: true,
+                serviceType: true,
+                startDateTime: true,
+                endDateTime: true,
+                status: true,
+                cast: {
+                  select: {
+                    castProfile: {
+                      select: {
+                        displayName: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            payer: {
+              select: {
+                email: true,
+                guestProfile: {
+                  select: {
+                    displayName: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        if (!payment) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "決済情報が見つかりません",
+          });
+        }
+
+        if (payment.booking?.status !== "COMPLETED") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "完了していない予約の領収書は生成できません",
+          });
+        }
+
+        return {
+          receiptId: `RECEIPT-${payment.id}`,
+          issuedAt: new Date().toISOString(),
+          type: "service_payment",
+          payment,
+          receiptUrl: `/api/receipts/${payment.id}`,
+        };
+      }
     }),
 });
