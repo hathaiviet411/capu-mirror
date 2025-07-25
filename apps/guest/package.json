@@ -5,9 +5,16 @@
   "type": "module",
   "scripts": {
     "build": "next build",
-    "dev": "next dev --port 3001",
+    "dev": "tsx server.ts",
+    "dev:next": "next dev --port 3001",
     "lint": "next lint",
-    "start": "next start --port 3001",
+    "start": "tsx server.ts",
+    "start:next": "next start --port 3001",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui",
+    "test:ws": "vitest run src/server/__tests__/websocket.test.ts",
     "db:push": "prisma db push --schema=../../prisma/schema.prisma",
     "db:seed": "tsx prisma/seed.ts",
     "db:migrate": "prisma migrate dev --schema=../../prisma/schema.prisma",
@@ -54,6 +61,7 @@
     "@trpc/react-query": "^10.45.2",
     "@trpc/server": "^10.45.2",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/ws": "^8.18.1",
     "autoprefixer": "^10.4.20",
     "bcryptjs": "^2.4.3",
     "class-variance-authority": "^0.7.1",
@@ -73,6 +81,7 @@
     "react-hook-form": "^7.54.1",
     "react-resizable-panels": "^2.1.7",
     "recharts": "2.15.0",
+    "rxjs": "^7.8.2",
     "sharp": "^0.33.5",
     "sonner": "^1.7.1",
     "stripe": "^16.12.0",
@@ -80,6 +89,7 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.6",
+    "ws": "^8.18.3",
     "zod": "^3.24.1"
   },
   "devDependencies": {
@@ -87,10 +97,15 @@
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^2.0.0",
+    "@vitest/ui": "^2.0.0",
+    "eslint": "^9.30.1",
+    "eslint-config-next": "15.3.5",
     "postcss": "^8.5",
     "prisma": "^5.19.1",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^2.0.0"
   }
 }

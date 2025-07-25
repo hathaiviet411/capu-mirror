@@ -8,6 +8,7 @@ import { messageRouter } from "~/server/api/routers/message";
 import { bookingRouter } from "~/server/api/routers/booking";
 import { paymentRouter } from "~/server/api/routers/payment";
 import { notificationRouter } from "~/server/api/routers/notification";
+import { presenceRouter } from "~/server/api/routers/presence";
 import { fileRouter } from "~/server/api/routers/file";
 import { searchRouter } from "~/server/api/routers/search";
 import { analyticsRouter } from "~/server/api/routers/analytics";
@@ -30,6 +31,7 @@ export const appRouter = createTRPCRouter({
   message: messageRouter,
   notification: notificationRouter,
   payment: paymentRouter,
+  presence: presenceRouter,
   search: searchRouter,
   user: userRouter,
 });

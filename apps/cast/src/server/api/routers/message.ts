@@ -1,9 +1,14 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import { filter } from "rxjs";
 import {
   createTRPCRouter,
   publicProcedure,
   protectedProcedure,
+  subscriptionProcedure,
+  rateLimitedProcedure,
+  emitEvent,
+  createObservable,
 } from "~/server/api/trpc";
 
 const messageSchema = z.object({
@@ -100,8 +105,8 @@ export const messageRouter = createTRPCRouter({
       });
     }),
 
-  // メッセージ送信
-  sendMessage: protectedProcedure
+  // メッセージ送信 (Rate Limited)
+  sendMessage: rateLimitedProcedure
     .input(messageSchema)
     .mutation(async ({ ctx, input }) => {
       // 会話の存在確認とアクセス権限チェック
@@ -164,6 +169,15 @@ export const messageRouter = createTRPCRouter({
       await ctx.db.conversation.update({
         where: { id: input.conversationId },
         data: { updatedAt: new Date() },
+      });
+
+      // リアルタイムイベントを発信
+      emitEvent("message:new", {
+        messageId: message.id,
+        conversationId: input.conversationId,
+        senderId: ctx.session.user.id,
+        content: input.content,
+        timestamp: message.createdAt,
       });
 
       return message;
@@ -347,6 +361,16 @@ export const messageRouter = createTRPCRouter({
         data: readStatusData,
         skipDuplicates: true,
       });
+
+      // 既読イベントを発信
+      for (const messageId of input.messageIds) {
+        emitEvent("message:read", {
+          messageId,
+          conversationId: messages.find(m => m.id === messageId)?.conversationId || "",
+          userId: ctx.session.user.id,
+          readAt: new Date(),
+        });
+      }
 
       return { success: true, count: input.messageIds.length };
     }),
@@ -749,6 +773,15 @@ export const messageRouter = createTRPCRouter({
           where: { id: existingReaction.id },
         });
 
+        // リアクション削除イベントを発信
+        emitEvent("message:reaction", {
+          messageId: input.messageId,
+          conversationId: message.conversationId,
+          userId: ctx.session.user.id,
+          reaction: input.emoji,
+          action: "remove",
+        });
+
         return {
           success: true,
           action: "removed",
@@ -773,6 +806,15 @@ export const messageRouter = createTRPCRouter({
           },
         });
 
+        // リアクション追加イベントを発信
+        emitEvent("message:reaction", {
+          messageId: input.messageId,
+          conversationId: message.conversationId,
+          userId: ctx.session.user.id,
+          reaction: input.emoji,
+          action: "add",
+        });
+
         return {
           success: true,
           action: "added",
@@ -780,6 +822,201 @@ export const messageRouter = createTRPCRouter({
           message: "リアクションを追加しました",
         };
       }
+    }),
+
+  // タイピング状態を送信 (Rate Limited)
+  sendTyping: rateLimitedProcedure
+    .input(z.object({
+      conversationId: z.string(),
+      isTyping: z.boolean(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // 会話の存在確認とアクセス権限チェック
+      const conversation = await ctx.db.conversation.findUnique({
+        where: { id: input.conversationId },
+        include: {
+          participants: { select: { id: true } },
+        },
+      });
+
+      if (!conversation) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "会話が見つかりません",
+        });
+      }
+
+      const isParticipant = conversation.participants.some(
+        p => p.id === ctx.session.user.id
+      );
+
+      if (!isParticipant) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "この会話に参加していません",
+        });
+      }
+
+      // タイピングイベントを発信
+      emitEvent("message:typing", {
+        conversationId: input.conversationId,
+        userId: ctx.session.user.id,
+        isTyping: input.isTyping,
+      });
+
+      return { success: true };
+    }),
+
+  // WebSocket Subscriptions
+  // 新規メッセージのリアルタイム受信
+  onNewMessage: subscriptionProcedure
+    .input(z.object({
+      conversationId: z.string(),
+    }))
+    .subscription(async ({ ctx, input }) => {
+      // アクセス権限チェック
+      const conversation = await ctx.db.conversation.findUnique({
+        where: { id: input.conversationId },
+        include: {
+          participants: { select: { id: true } },
+        },
+      });
+
+      if (!conversation) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "会話が見つかりません",
+        });
+      }
+
+      const isParticipant = conversation.participants.some(
+        p => p.id === ctx.session.user.id
+      );
+
+      if (!isParticipant) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "この会話に参加していません",
+        });
+      }
+
+      return createObservable("message:new").pipe(
+        filter(data => data.conversationId === input.conversationId)
+      );
+    }),
+
+  // タイピング状態のリアルタイム受信
+  onTyping: subscriptionProcedure
+    .input(z.object({
+      conversationId: z.string(),
+    }))
+    .subscription(async ({ ctx, input }) => {
+      // アクセス権限チェック
+      const conversation = await ctx.db.conversation.findUnique({
+        where: { id: input.conversationId },
+        include: {
+          participants: { select: { id: true } },
+        },
+      });
+
+      if (!conversation) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "会話が見つかりません",
+        });
+      }
+
+      const isParticipant = conversation.participants.some(
+        p => p.id === ctx.session.user.id
+      );
+
+      if (!isParticipant) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "この会話に参加していません",
+        });
+      }
+
+      return createObservable("message:typing").pipe(
+        filter(data => 
+          data.conversationId === input.conversationId && 
+          data.userId !== ctx.session.user.id // 自分のタイピングは除外
+        )
+      );
+    }),
+
+  // 既読状態のリアルタイム受信
+  onReadStatus: subscriptionProcedure
+    .input(z.object({
+      conversationId: z.string(),
+    }))
+    .subscription(async ({ ctx, input }) => {
+      // アクセス権限チェック
+      const conversation = await ctx.db.conversation.findUnique({
+        where: { id: input.conversationId },
+        include: {
+          participants: { select: { id: true } },
+        },
+      });
+
+      if (!conversation) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "会話が見つかりません",
+        });
+      }
+
+      const isParticipant = conversation.participants.some(
+        p => p.id === ctx.session.user.id
+      );
+
+      if (!isParticipant) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "この会話に参加していません",
+        });
+      }
+
+      return createObservable("message:read").pipe(
+        filter(data => data.conversationId === input.conversationId)
+      );
+    }),
+
+  // リアクションのリアルタイム受信
+  onReaction: subscriptionProcedure
+    .input(z.object({
+      conversationId: z.string(),
+    }))
+    .subscription(async ({ ctx, input }) => {
+      // アクセス権限チェック
+      const conversation = await ctx.db.conversation.findUnique({
+        where: { id: input.conversationId },
+        include: {
+          participants: { select: { id: true } },
+        },
+      });
+
+      if (!conversation) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "会話が見つかりません",
+        });
+      }
+
+      const isParticipant = conversation.participants.some(
+        p => p.id === ctx.session.user.id
+      );
+
+      if (!isParticipant) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "この会話に参加していません",
+        });
+      }
+
+      return createObservable("message:reaction").pipe(
+        filter(data => data.conversationId === input.conversationId)
+      );
     }),
 
   // メッセージのリアクション取得

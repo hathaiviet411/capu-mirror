@@ -4,7 +4,7 @@
  *
  * We also create a few inference helpers for input and output types.
  */
-import { httpBatchLink, loggerLink } from "@trpc/client";
+import { httpBatchLink, loggerLink, splitLink, wsLink, createWSClient } from "@trpc/client";
 import { createTRPCNext } from "@trpc/next";
 import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
 import superjson from "superjson";
@@ -16,6 +16,44 @@ const getBaseUrl = () => {
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`; // SSR should use vercel url
   return `http://localhost:${process.env.PORT ?? 3000}`; // dev SSR should use localhost
 };
+
+const getWsUrl = () => {
+  if (typeof window !== "undefined") {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${window.location.host}/api/ws`;
+  }
+  if (process.env.VERCEL_URL) return `wss://${process.env.VERCEL_URL}/api/ws`;
+  return `ws://localhost:${process.env.PORT ?? 3000}/api/ws`;
+};
+
+// WebSocket client creation function
+function createWsClient() {
+  return createWSClient({
+    url: getWsUrl(),
+    connectionParams: async () => {
+      // NextAuth セッションから JWT トークンを取得
+      try {
+        const response = await fetch('/api/trpc/auth.getWSToken', {
+          method: 'GET',
+          credentials: 'include',
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          return {
+            token: data.result?.data?.token,
+          };
+        }
+      } catch (error) {
+        console.error('Failed to get WebSocket token:', error);
+      }
+      
+      // トークン取得に失敗した場合は空のオブジェクトを返す
+      // WebSocket接続時に認証エラーが発生する
+      return {};
+    },
+  });
+}
 
 /** A set of type-safe react-query hooks for your tRPC API. */
 export const api = createTRPCNext<AppRouter>({
@@ -39,8 +77,14 @@ export const api = createTRPCNext<AppRouter>({
             process.env.NODE_ENV === "development" ||
             (opts.direction === "down" && opts.result instanceof Error),
         }),
-        httpBatchLink({
-          url: `${getBaseUrl()}/api/trpc`,
+        splitLink({
+          condition: (op) => op.type === "subscription",
+          true: wsLink({
+            client: createWsClient(),
+          }),
+          false: httpBatchLink({
+            url: `${getBaseUrl()}/api/trpc`,
+          }),
         }),
       ],
     };
