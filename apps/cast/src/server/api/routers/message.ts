@@ -7,80 +7,93 @@ import {
 } from "~/server/api/trpc";
 
 const messageSchema = z.object({
-  bookingId: z.string(),
+  conversationId: z.string(),
   content: z.string().min(1, "メッセージを入力してください").max(1000, "メッセージは1000文字以下で入力してください"),
-  messageType: z.enum(["text", "image", "file"]).default("text"),
-  attachmentUrl: z.string().url("正しいURL形式で入力してください").optional(),
-  replyToId: z.string().optional(),
+  messageType: z.enum(["TEXT", "IMAGE", "FILE", "SYSTEM"]).default("TEXT"),
 });
 
-const chatRoomSchema = z.object({
-  castId: z.string(),
-  guestId: z.string(),
+const conversationSchema = z.object({
+  participantIds: z.array(z.string()).min(2, "参加者は2名以上である必要があります"),
   bookingId: z.string().optional(),
+  title: z.string().max(100, "タイトルは100文字以下で入力してください").optional(),
+  isGroup: z.boolean().default(false),
 });
 
 export const messageRouter = createTRPCRouter({
-  // チャットルーム作成
-  createChatRoom: protectedProcedure
-    .input(chatRoomSchema)
+  // 会話作成
+  createConversation: protectedProcedure
+    .input(conversationSchema)
     .mutation(async ({ ctx, input }) => {
-      // 既存のチャットルーム確認
-      const existingRoom = await ctx.db.chatRoom.findFirst({
-        where: {
-          castId: input.castId,
-          guestId: input.guestId,
-        },
+      // 参加者の存在確認
+      const users = await ctx.db.user.findMany({
+        where: { id: { in: input.participantIds } },
+        select: { id: true, name: true, userType: true },
       });
 
-      if (existingRoom) {
-        return existingRoom;
-      }
-
-      // キャストとゲストの存在確認
-      const [cast, guest] = await Promise.all([
-        ctx.db.castProfile.findUnique({ where: { id: input.castId } }),
-        ctx.db.user.findUnique({ where: { id: input.guestId, userType: "GUEST" } }),
-      ]);
-
-      if (!cast) {
+      if (users.length !== input.participantIds.length) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "キャストが見つかりません",
+          message: "一部の参加者が見つかりません",
         });
       }
 
-      if (!guest) {
+      // 現在のユーザーが参加者に含まれているかチェック
+      if (!input.participantIds.includes(ctx.session.user.id)) {
         throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "ゲストが見つかりません",
+          code: "FORBIDDEN",
+          message: "自分自身を参加者に含める必要があります",
         });
       }
 
-      return ctx.db.chatRoom.create({
-        data: {
-          castId: input.castId,
-          guestId: input.guestId,
-          bookingId: input.bookingId,
-          isActive: true,
-        },
-        include: {
-          cast: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  image: true,
-                },
+      // 1対1の会話の場合、既存の会話があるかチェック
+      if (!input.isGroup && input.participantIds.length === 2) {
+        const existingConversation = await ctx.db.conversation.findFirst({
+          where: {
+            isGroup: false,
+            participants: {
+              every: { id: { in: input.participantIds } },
+            },
+          },
+          include: {
+            participants: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+                userType: true,
               },
             },
           },
-          guest: {
+        });
+
+        if (existingConversation) {
+          return existingConversation;
+        }
+      }
+
+      return ctx.db.conversation.create({
+        data: {
+          bookingId: input.bookingId,
+          title: input.title,
+          isGroup: input.isGroup,
+          participants: {
+            connect: input.participantIds.map(id => ({ id })),
+          },
+        },
+        include: {
+          participants: {
             select: {
               id: true,
               name: true,
               image: true,
+              userType: true,
+            },
+          },
+          booking: {
+            select: {
+              id: true,
+              title: true,
+              status: true,
             },
           },
         },
@@ -91,51 +104,38 @@ export const messageRouter = createTRPCRouter({
   sendMessage: protectedProcedure
     .input(messageSchema)
     .mutation(async ({ ctx, input }) => {
-      // 予約の存在確認とアクセス権限チェック
-      const booking = await ctx.db.booking.findUnique({
-        where: { id: input.bookingId },
+      // 会話の存在確認とアクセス権限チェック
+      const conversation = await ctx.db.conversation.findUnique({
+        where: { id: input.conversationId },
         include: {
-          cast: true,
-          guest: true,
+          participants: { select: { id: true } },
         },
       });
 
-      if (!booking) {
+      if (!conversation) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "予約が見つかりません",
+          message: "会話が見つかりません",
         });
       }
 
-      // 送信者がキャストまたはゲストかチェック
-      const isGuest = ctx.session.user.id === booking.guestId;
-      const isCast = ctx.session.user.id === booking.cast.userId;
+      const isParticipant = conversation.participants.some(
+        p => p.id === ctx.session.user.id
+      );
 
-      if (!isGuest && !isCast) {
+      if (!isParticipant) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "この予約のメッセージを送信する権限がありません",
+          message: "この会話に参加していません",
         });
-      }
-
-      // 返信先メッセージの確認（指定されている場合）
-      if (input.replyToId) {
-        const replyToMessage = await ctx.db.message.findUnique({
-          where: { id: input.replyToId },
-        });
-
-        if (!replyToMessage || replyToMessage.bookingId !== input.bookingId) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "返信先のメッセージが見つかりません",
-          });
-        }
       }
 
       const message = await ctx.db.message.create({
         data: {
-          ...input,
+          conversationId: input.conversationId,
           senderId: ctx.session.user.id,
+          content: input.content,
+          messageType: input.messageType,
         },
         include: {
           sender: {
@@ -143,37 +143,16 @@ export const messageRouter = createTRPCRouter({
               id: true,
               name: true,
               image: true,
+              userType: true,
             },
           },
-          booking: {
+          attachments: true,
+          reactions: {
             include: {
-              cast: {
-                include: {
-                  user: {
-                    select: {
-                      id: true,
-                      name: true,
-                      image: true,
-                    },
-                  },
-                },
-              },
-              guest: {
+              user: {
                 select: {
                   id: true,
                   name: true,
-                  image: true,
-                },
-              },
-            },
-          },
-          replyTo: {
-            include: {
-              sender: {
-                select: {
-                  id: true,
-                  name: true,
-                  image: true,
                 },
               },
             },
@@ -181,48 +160,57 @@ export const messageRouter = createTRPCRouter({
         },
       });
 
-      // TODO: WebSocket経由でリアルタイム送信
-      // io.to(input.bookingId).emit('newMessage', message);
+      // 会話の最終更新時刻を更新
+      await ctx.db.conversation.update({
+        where: { id: input.conversationId },
+        data: { updatedAt: new Date() },
+      });
 
       return message;
     }),
 
   // メッセージ一覧取得
   getMessages: protectedProcedure
-    .input(z.object({
-      bookingId: z.string(),
-      limit: z.number().min(1).max(100).default(20),
-      offset: z.number().min(0).default(0),
-    }))
+    .input(
+      z.object({
+        conversationId: z.string(),
+        limit: z.number().min(1).max(100).default(50),
+        cursor: z.string().optional(),
+      })
+    )
     .query(async ({ ctx, input }) => {
-      // 予約の存在確認とアクセス権限チェック
-      const booking = await ctx.db.booking.findUnique({
-        where: { id: input.bookingId },
+      // アクセス権限チェック
+      const conversation = await ctx.db.conversation.findUnique({
+        where: { id: input.conversationId },
         include: {
-          cast: true,
+          participants: { select: { id: true } },
         },
       });
 
-      if (!booking) {
+      if (!conversation) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "予約が見つかりません",
+          message: "会話が見つかりません",
         });
       }
 
-      const isGuest = ctx.session.user.id === booking.guestId;
-      const isCast = ctx.session.user.id === booking.cast.userId;
+      const isParticipant = conversation.participants.some(
+        p => p.id === ctx.session.user.id
+      );
 
-      if (!isGuest && !isCast) {
+      if (!isParticipant) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "このメッセージを閲覧する権限がありません",
+          message: "この会話に参加していません",
         });
       }
 
-      return ctx.db.message.findMany({
+      const messages = await ctx.db.message.findMany({
         where: {
-          bookingId: input.bookingId,
+          conversationId: input.conversationId,
+          ...(input.cursor && {
+            id: { lt: input.cursor },
+          }),
         },
         include: {
           sender: {
@@ -230,672 +218,54 @@ export const messageRouter = createTRPCRouter({
               id: true,
               name: true,
               image: true,
+              userType: true,
             },
           },
-          replyTo: {
-            include: {
-              sender: {
-                select: {
-                  id: true,
-                  name: true,
-                  image: true,
-                },
-              },
-            },
-          },
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
-        take: input.limit,
-        skip: input.offset,
-      });
-    }),
-
-  // チャットルーム一覧取得
-  getChatRooms: protectedProcedure
-    .input(z.object({
-      userId: z.string(),
-      userType: z.enum(["GUEST", "CAST"]),
-      limit: z.number().min(1).max(100).default(20),
-      offset: z.number().min(0).default(0),
-    }))
-    .query(async ({ ctx, input }) => {
-      // 自分のチャットルームまたは管理者のみアクセス可能
-      if (ctx.session.user.id !== input.userId && ctx.session.user.userType !== "ADMIN") {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "自分のチャットルームのみ閲覧できます",
-        });
-      }
-
-      const where = input.userType === "CAST" 
-        ? { castId: input.userId }
-        : { guestId: input.userId };
-
-      return ctx.db.chatRoom.findMany({
-        where: {
-          ...where,
-          isActive: true,
-        },
-        include: {
-          cast: {
+          attachments: true,
+          reactions: {
             include: {
               user: {
                 select: {
                   id: true,
                   name: true,
-                  image: true,
-                },
-              },
-            },
-          },
-          guest: {
-            select: {
-              id: true,
-              name: true,
-              image: true,
-            },
-          },
-          messages: {
-            orderBy: {
-              createdAt: "desc",
-            },
-            take: 1,
-          },
-          _count: {
-            select: {
-              messages: {
-                where: {
-                  isRead: false,
-                  senderId: {
-                    not: input.userId,
-                  },
                 },
               },
             },
           },
         },
-        orderBy: {
-          updatedAt: "desc",
-        },
+        orderBy: { createdAt: "desc" },
         take: input.limit,
-        skip: input.offset,
-      });
-    }),
-
-  // メッセージ既読マーク
-  markAsRead: protectedProcedure
-    .input(z.object({
-      bookingId: z.string(),
-    }))
-    .mutation(async ({ ctx, input }) => {
-      // 予約の存在確認とアクセス権限チェック
-      const booking = await ctx.db.booking.findUnique({
-        where: { id: input.bookingId },
-        include: {
-          cast: true,
-        },
-      });
-
-      if (!booking) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "予約が見つかりません",
-        });
-      }
-
-      const isGuest = ctx.session.user.id === booking.guestId;
-      const isCast = ctx.session.user.id === booking.cast.userId;
-
-      if (!isGuest && !isCast) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "このメッセージを既読にする権限がありません",
-        });
-      }
-
-      return ctx.db.message.updateMany({
-        where: {
-          bookingId: input.bookingId,
-          senderId: {
-            not: ctx.session.user.id,
-          },
-          isRead: false,
-        },
-        data: {
-          isRead: true,
-        },
-      });
-    }),
-
-  // メッセージ削除
-  deleteMessage: protectedProcedure
-    .input(z.object({
-      messageId: z.string(),
-    }))
-    .mutation(async ({ ctx, input }) => {
-      const message = await ctx.db.message.findUnique({
-        where: { id: input.messageId },
-        include: {
-          booking: {
-            include: {
-              cast: true,
-            },
-          },
-        },
-      });
-
-      if (!message) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "メッセージが見つかりません",
-        });
-      }
-
-      // 送信者または管理者のみ削除可能
-      if (message.senderId !== ctx.session.user.id && ctx.session.user.userType !== "ADMIN") {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "このメッセージを削除する権限がありません",
-        });
-      }
-
-      return ctx.db.message.update({
-        where: { id: input.messageId },
-        data: {
-          isDeleted: true,
-          content: "[削除されたメッセージ]",
-        },
-      });
-    }),
-
-  // 未読メッセージ数取得
-  getUnreadCount: protectedProcedure
-    .input(z.object({
-      userId: z.string(),
-    }))
-    .query(async ({ ctx, input }) => {
-      // 自分の未読数または管理者のみアクセス可能
-      if (ctx.session.user.id !== input.userId && ctx.session.user.userType !== "ADMIN") {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "自分の未読数のみ取得できます",
-        });
-      }
-
-      const userType = ctx.session.user.userType;
-      
-      // ユーザータイプに応じて未読メッセージをカウント
-      if (userType === "CAST") {
-        const castProfile = await ctx.db.castProfile.findUnique({
-          where: { userId: input.userId },
-        });
-
-        if (!castProfile) {
-          return { unreadCount: 0 };
-        }
-
-        const unreadCount = await ctx.db.message.count({
-          where: {
-            booking: {
-              castId: castProfile.id,
-            },
-            senderId: {
-              not: input.userId,
-            },
-            isRead: false,
-            isDeleted: false,
-          },
-        });
-
-        return { unreadCount };
-      } else if (userType === "GUEST") {
-        const unreadCount = await ctx.db.message.count({
-          where: {
-            booking: {
-              guestId: input.userId,
-            },
-            senderId: {
-              not: input.userId,
-            },
-            isRead: false,
-            isDeleted: false,
-          },
-        });
-
-        return { unreadCount };
-      }
-
-      return { unreadCount: 0 };
-    }),
-
-  // メッセージ検索
-  searchMessages: protectedProcedure
-    .input(z.object({
-      bookingId: z.string(),
-      query: z.string().min(1, "検索キーワードを入力してください"),
-      limit: z.number().min(1).max(100).default(20),
-      offset: z.number().min(0).default(0),
-    }))
-    .query(async ({ ctx, input }) => {
-      // 予約の存在確認とアクセス権限チェック
-      const booking = await ctx.db.booking.findUnique({
-        where: { id: input.bookingId },
-        include: {
-          cast: true,
-        },
-      });
-
-      if (!booking) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "予約が見つかりません",
-        });
-      }
-
-      const isGuest = ctx.session.user.id === booking.guestId;
-      const isCast = ctx.session.user.id === booking.cast.userId;
-
-      if (!isGuest && !isCast) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "このメッセージを検索する権限がありません",
-        });
-      }
-
-      return ctx.db.message.findMany({
-        where: {
-          bookingId: input.bookingId,
-          content: {
-            contains: input.query,
-            mode: "insensitive",
-          },
-          isDeleted: false,
-        },
-        include: {
-          sender: {
-            select: {
-              id: true,
-              name: true,
-              image: true,
-            },
-          },
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
-        take: input.limit,
-        skip: input.offset,
-      });
-    }),
-
-  // 画像を送信
-  sendImage: protectedProcedure
-    .input(
-      z.object({
-        conversationId: z.string().optional(),
-        bookingId: z.string().optional(),
-        imageUrl: z.string().url("正しいURL形式で入力してください"),
-        caption: z.string().max(500, "キャプションは500文字以下で入力してください").optional(),
-        replyTo: z.string().optional(),
-      })
-    )
-    .mutation(async ({ ctx, input }) => {
-      let conversationId = input.conversationId;
-
-      // bookingIdが指定されている場合、そのbookingのconversationを取得または作成
-      if (input.bookingId && !conversationId) {
-        const booking = await ctx.db.booking.findUnique({
-          where: { id: input.bookingId },
-          include: { conversation: true },
-        });
-
-        if (!booking) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "予約が見つかりません",
-          });
-        }
-
-        // ユーザーが予約の参加者かチェック
-        if (booking.guestId !== ctx.session.user.id && 
-            booking.castId !== ctx.session.user.id) {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: "この予約にアクセスする権限がありません",
-          });
-        }
-
-        conversationId = booking.conversation?.id;
-        if (!conversationId) {
-          // conversationが存在しない場合は作成
-          const conversation = await ctx.db.conversation.create({
-            data: {
-              bookingId: input.bookingId,
-              participants: {
-                connect: [
-                  { id: booking.guestId },
-                  { id: booking.castId },
-                ],
-              },
-            },
-          });
-          conversationId = conversation.id;
-        }
-      }
-
-      if (!conversationId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "conversationId または bookingId が必要です",
-        });
-      }
-
-      // conversationの参加者かチェック
-      const conversation = await ctx.db.conversation.findUnique({
-        where: { id: conversationId },
-        include: { participants: true },
-      });
-
-      if (!conversation) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "会話が見つかりません",
-        });
-      }
-
-      const isParticipant = conversation.participants.some(
-        (participant) => participant.id === ctx.session.user.id
-      );
-
-      if (!isParticipant) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "この会話に参加する権限がありません",
-        });
-      }
-
-      // メッセージを作成
-      const message = await ctx.db.message.create({
-        data: {
-          conversationId,
-          senderId: ctx.session.user.id,
-          content: input.caption || "",
-          messageType: "IMAGE",
-          attachments: {
-            create: {
-              fileName: "image.jpg",
-              fileUrl: input.imageUrl,
-              fileType: "image/jpeg",
-              fileSize: 0, // TODO: 実際のファイルサイズを取得
-            },
-          },
-        },
-        include: {
-          sender: {
-            select: {
-              id: true,
-              email: true,
-              userType: true,
-            },
-          },
-          attachments: true,
-        },
-      });
-
-      // TODO: リアルタイム通知を送信
-
-      return message;
-    }),
-
-  // 新規メッセージをリアルタイムで購読 (WebSocket)
-  onNewMessage: protectedProcedure
-    .input(z.object({ conversationId: z.string() }))
-    .subscription(async ({ ctx, input }) => {
-      // conversationの参加者かチェック
-      const conversation = await ctx.db.conversation.findUnique({
-        where: { id: input.conversationId },
-        include: { participants: true },
-      });
-
-      if (!conversation) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "会話が見つかりません",
-        });
-      }
-
-      const isParticipant = conversation.participants.some(
-        (participant) => participant.id === ctx.session.user.id
-      );
-
-      if (!isParticipant) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "この会話に参加する権限がありません",
-        });
-      }
-
-      // TODO: tRPC Subscriptionの実装
-      // 実際のWebSocket実装は別途必要
-      throw new TRPCError({
-        code: "NOT_IMPLEMENTED",
-        message: "リアルタイムメッセージ機能はまだ実装されていません。WebSocket/Subscriptionの設定が必要です。",
-      });
-    }),
-
-  // ゲストがキャストに日程を提案
-  proposeSchedule: protectedProcedure
-    .input(
-      z.object({
-        conversationId: z.string().optional(),
-        bookingId: z.string().optional(),
-        castId: z.string(), // 提案対象のキャスト
-        proposedDateTime: z.date(),
-        durationMinutes: z.number().min(30, "最低30分以上である必要があります").max(480, "最大8時間まで設定可能です"),
-        serviceType: z.string().min(1, "サービスタイプを入力してください"),
-        message: z.string().max(500, "メッセージは500文字以下で入力してください").optional(),
-      })
-    )
-    .mutation(async ({ ctx, input }) => {
-      if (ctx.session.user.userType !== "GUEST") {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "ゲストユーザーのみ日程提案が可能です",
-        });
-      }
-
-      // キャストの存在確認
-      const castProfile = await ctx.db.castProfile.findUnique({
-        where: { userId: input.castId },
-        select: { id: true, userId: true, hourlyRate: true, isActive: true },
-      });
-
-      if (!castProfile || !castProfile.isActive) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "キャストが見つからないか、現在利用できません",
-        });
-      }
-
-      let conversationId = input.conversationId;
-
-      // conversationが指定されていない場合、作成または取得
-      if (!conversationId) {
-        const existingConversation = await ctx.db.conversation.findFirst({
-          where: {
-            participants: {
-              every: {
-                id: { in: [ctx.session.user.id, input.castId] },
-              },
-            },
-          },
-        });
-
-        if (existingConversation) {
-          conversationId = existingConversation.id;
-        } else {
-          const newConversation = await ctx.db.conversation.create({
-            data: {
-              participants: {
-                connect: [
-                  { id: ctx.session.user.id },
-                  { id: input.castId },
-                ],
-              },
-            },
-          });
-          conversationId = newConversation.id;
-        }
-      }
-
-      // 日程提案のメッセージを作成
-      const scheduleProposal = {
-        proposedDateTime: input.proposedDateTime.toISOString(),
-        durationMinutes: input.durationMinutes,
-        serviceType: input.serviceType,
-        hourlyRate: castProfile.hourlyRate,
-        totalAmount: Math.ceil((input.durationMinutes / 60) * castProfile.hourlyRate),
-      };
-
-      const message = await ctx.db.message.create({
-        data: {
-          conversationId,
-          senderId: ctx.session.user.id,
-          content: input.message || `日程を提案しました: ${input.proposedDateTime.toLocaleString()} (${input.durationMinutes}分)`,
-          messageType: "SYSTEM",
-          // TODO: 実際の日程提案テーブルへの保存は別途実装が必要
-        },
-        include: {
-          sender: {
-            select: {
-              id: true,
-              email: true,
-              userType: true,
-            },
-          },
-        },
-      });
-
-      // ログに記録
-      await ctx.db.activityLog.create({
-        data: {
-          userId: ctx.session.user.id,
-          action: "SCHEDULE_PROPOSAL",
-          entity: "MESSAGE",
-          entityId: message.id,
-          description: `日程提案: ${input.serviceType}`,
-          metadata: scheduleProposal,
-          level: "INFO",
-        },
       });
 
       return {
-        message,
-        proposal: scheduleProposal,
+        messages,
+        nextCursor: messages.length === input.limit ? messages[messages.length - 1]?.id : null,
       };
     }),
 
-  // メッセージスレッドをピン留め
-  pinThread: protectedProcedure
-    .input(
-      z.object({
-        messageId: z.string(),
-        isPinned: z.boolean(),
-      })
-    )
-    .mutation(async ({ ctx, input }) => {
-      // メッセージの存在確認と権限チェック
-      const message = await ctx.db.message.findUnique({
-        where: { id: input.messageId },
-        include: {
-          conversation: {
-            include: {
-              participants: true,
-            },
-          },
-        },
-      });
-
-      if (!message) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "メッセージが見つかりません",
-        });
-      }
-
-      const isParticipant = message.conversation.participants.some(
-        (participant) => participant.id === ctx.session.user.id
-      );
-
-      if (!isParticipant) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "この会話に参加する権限がありません",
-        });
-      }
-
-      // TODO: メッセージピン機能のためのテーブル拡張が必要
-      // 現在のスキーマでは Message テーブルに isPinned フィールドがない
-      
-      // 代替として Activity Log に記録
-      await ctx.db.activityLog.create({
-        data: {
-          userId: ctx.session.user.id,
-          action: input.isPinned ? "MESSAGE_PIN" : "MESSAGE_UNPIN",
-          entity: "MESSAGE",
-          entityId: input.messageId,
-          description: `メッセージ${input.isPinned ? "ピン留め" : "ピン解除"}`,
-          metadata: {
-            conversationId: message.conversationId,
-            messageContent: message.content,
-            pinnedAt: input.isPinned ? new Date().toISOString() : undefined,
-          },
-          level: "INFO",
-        },
-      });
-
-      throw new TRPCError({
-        code: "NOT_IMPLEMENTED",
-        message: "メッセージピン機能はまだ実装されていません。Messageテーブルの拡張が必要です。",
-      });
-    }),
-
-  // API仕様に合わせたエイリアス - 既存の機能を仕様名でアクセス可能にする
-  getRooms: protectedProcedure
+  // 会話一覧取得
+  getConversations: protectedProcedure
     .input(
       z.object({
         limit: z.number().min(1).max(100).default(20),
-        cursor: z.string().optional(),
+        offset: z.number().min(0).default(0),
       })
     )
     .query(({ ctx, input }) => {
-      // getChatRooms の処理をそのまま呼び出し
       return ctx.db.conversation.findMany({
         where: {
           participants: {
             some: { id: ctx.session.user.id },
           },
+          isActive: true,
         },
         include: {
           participants: {
             select: {
               id: true,
-              email: true,
+              name: true,
+              image: true,
               userType: true,
-              castProfile: {
-                select: {
-                  displayName: true,
-                  avatar: true,
-                },
-              },
-              guestProfile: {
-                select: {
-                  displayName: true,
-                  avatar: true,
-                },
-              },
             },
           },
           messages: {
@@ -907,7 +277,7 @@ export const messageRouter = createTRPCRouter({
               sender: {
                 select: {
                   id: true,
-                  email: true,
+                  name: true,
                 },
               },
             },
@@ -930,54 +300,74 @@ export const messageRouter = createTRPCRouter({
         },
         orderBy: { updatedAt: "desc" },
         take: input.limit,
-        ...(input.cursor && {
-          cursor: { id: input.cursor },
-          skip: 1,
-        }),
+        skip: input.offset,
       });
     }),
 
-  // API仕様に合わせたエイリアス - getHistory
-  getHistory: protectedProcedure
+  // メッセージを既読にする
+  markAsRead: protectedProcedure
     .input(
       z.object({
-        conversationId: z.string().optional(),
-        bookingId: z.string().optional(),
-        limit: z.number().min(1).max(100).default(20),
-        cursor: z.string().optional(),
+        messageIds: z.array(z.string()),
       })
     )
-    .query(async ({ ctx, input }) => {
-      let conversationId = input.conversationId;
+    .mutation(async ({ ctx, input }) => {
+      const messages = await ctx.db.message.findMany({
+        where: { id: { in: input.messageIds } },
+        include: {
+          conversation: {
+            include: {
+              participants: { select: { id: true } },
+            },
+          },
+        },
+      });
 
-      // bookingIdが指定されている場合、そのbookingのconversationを取得
-      if (input.bookingId && !conversationId) {
-        const booking = await ctx.db.booking.findUnique({
-          where: { id: input.bookingId },
-          include: { conversation: true },
-        });
+      // 権限チェック
+      for (const message of messages) {
+        const isParticipant = message.conversation.participants.some(
+          p => p.id === ctx.session.user.id
+        );
 
-        if (!booking) {
+        if (!isParticipant) {
           throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "予約が見つかりません",
+            code: "FORBIDDEN",
+            message: "この会話に参加していません",
           });
         }
-
-        conversationId = booking.conversation?.id;
       }
 
-      if (!conversationId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "conversationId または bookingId が必要です",
-        });
-      }
+      // 既読状態を一括作成（重複は無視）
+      const readStatusData = input.messageIds.map(messageId => ({
+        messageId,
+        userId: ctx.session.user.id,
+      }));
 
-      // conversationの参加者かチェック
+      await ctx.db.messageReadStatus.createMany({
+        data: readStatusData,
+        skipDuplicates: true,
+      });
+
+      return { success: true, count: input.messageIds.length };
+    }),
+
+  // Phase 3: 日程提案機能
+  proposeSchedule: protectedProcedure
+    .input(
+      z.object({
+        conversationId: z.string(),
+        proposedDateTime: z.date(),
+        durationMinutes: z.number().min(30).max(480), // 30分〜8時間
+        message: z.string().max(200, "メッセージは200文字以下で入力してください").optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // 会話の存在確認とアクセス権限チェック
       const conversation = await ctx.db.conversation.findUnique({
-        where: { id: conversationId },
-        include: { participants: true },
+        where: { id: input.conversationId },
+        include: {
+          participants: { select: { id: true } },
+        },
       });
 
       if (!conversation) {
@@ -988,49 +378,467 @@ export const messageRouter = createTRPCRouter({
       }
 
       const isParticipant = conversation.participants.some(
-        (participant) => participant.id === ctx.session.user.id
+        p => p.id === ctx.session.user.id
       );
 
       if (!isParticipant) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "この会話にアクセスする権限がありません",
+          message: "この会話に参加していません",
         });
       }
 
-      return ctx.db.message.findMany({
-        where: { conversationId },
+      const proposal = await ctx.db.scheduleProposal.create({
+        data: {
+          conversationId: input.conversationId,
+          proposerId: ctx.session.user.id,
+          proposedDateTime: input.proposedDateTime,
+          durationMinutes: input.durationMinutes,
+          message: input.message,
+        },
         include: {
-          sender: {
+          proposer: {
             select: {
               id: true,
-              email: true,
-              userType: true,
-              castProfile: {
-                select: {
-                  displayName: true,
-                  avatar: true,
-                },
-              },
-              guestProfile: {
-                select: {
-                  displayName: true,
-                  avatar: true,
+              name: true,
+              image: true,
+            },
+          },
+        },
+      });
+
+      // システムメッセージとして日程提案を記録
+      await ctx.db.message.create({
+        data: {
+          conversationId: input.conversationId,
+          senderId: ctx.session.user.id,
+          content: `日程を提案しました: ${input.proposedDateTime.toLocaleString('ja-JP')}`,
+          messageType: "SYSTEM",
+        },
+      });
+
+      return proposal;
+    }),
+
+  // 日程提案に回答
+  respondToSchedule: protectedProcedure
+    .input(
+      z.object({
+        proposalId: z.string(),
+        status: z.enum(["ACCEPTED", "DECLINED"]),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const proposal = await ctx.db.scheduleProposal.findUnique({
+        where: { id: input.proposalId },
+        include: {
+          conversation: {
+            include: {
+              participants: { select: { id: true } },
+            },
+          },
+          proposer: {
+            select: { id: true, name: true },
+          },
+        },
+      });
+
+      if (!proposal) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "日程提案が見つかりません",
+        });
+      }
+
+      // 提案者本人は回答できない
+      if (proposal.proposerId === ctx.session.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "自分の提案には回答できません",
+        });
+      }
+
+      // 会話参加者チェック
+      const isParticipant = proposal.conversation.participants.some(
+        p => p.id === ctx.session.user.id
+      );
+
+      if (!isParticipant) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "この会話に参加していません",
+        });
+      }
+
+      if (proposal.status !== "PENDING") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "この提案は既に回答済みです",
+        });
+      }
+
+      const updatedProposal = await ctx.db.scheduleProposal.update({
+        where: { id: input.proposalId },
+        data: {
+          status: input.status,
+          respondedAt: new Date(),
+        },
+      });
+
+      // システムメッセージとして回答を記録
+      const statusText = input.status === "ACCEPTED" ? "承認" : "却下";
+      await ctx.db.message.create({
+        data: {
+          conversationId: proposal.conversationId,
+          senderId: ctx.session.user.id,
+          content: `日程提案を${statusText}しました`,
+          messageType: "SYSTEM",
+        },
+      });
+
+      return updatedProposal;
+    }),
+
+  // 日程提案一覧取得
+  getScheduleProposals: protectedProcedure
+    .input(
+      z.object({
+        conversationId: z.string(),
+        status: z.enum(["PENDING", "ACCEPTED", "DECLINED", "EXPIRED"]).optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      // アクセス権限チェック
+      const conversation = await ctx.db.conversation.findUnique({
+        where: { id: input.conversationId },
+        include: {
+          participants: { select: { id: true } },
+        },
+      });
+
+      if (!conversation) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "会話が見つかりません",
+        });
+      }
+
+      const isParticipant = conversation.participants.some(
+        p => p.id === ctx.session.user.id
+      );
+
+      if (!isParticipant) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "この会話に参加していません",
+        });
+      }
+
+      return ctx.db.scheduleProposal.findMany({
+        where: {
+          conversationId: input.conversationId,
+          ...(input.status && { status: input.status }),
+        },
+        include: {
+          proposer: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    }),
+
+  // Phase 3: メッセージピン留め機能
+  pinThread: protectedProcedure
+    .input(
+      z.object({
+        conversationId: z.string(),
+        messageId: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // アクセス権限チェック
+      const conversation = await ctx.db.conversation.findUnique({
+        where: { id: input.conversationId },
+        include: {
+          participants: { select: { id: true } },
+        },
+      });
+
+      if (!conversation) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "会話が見つかりません",
+        });
+      }
+
+      const isParticipant = conversation.participants.some(
+        p => p.id === ctx.session.user.id
+      );
+
+      if (!isParticipant) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "この会話に参加していません",
+        });
+      }
+
+      // メッセージが会話に属しているかチェック
+      const message = await ctx.db.message.findFirst({
+        where: {
+          id: input.messageId,
+          conversationId: input.conversationId,
+        },
+      });
+
+      if (!message) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "メッセージが見つかりません",
+        });
+      }
+
+      try {
+        const pinnedThread = await ctx.db.pinnedThread.create({
+          data: {
+            conversationId: input.conversationId,
+            messageId: input.messageId,
+            pinnedBy: ctx.session.user.id,
+          },
+          include: {
+            message: {
+              include: {
+                sender: {
+                  select: {
+                    id: true,
+                    name: true,
+                    image: true,
+                  },
                 },
               },
             },
           },
-          attachments: true,
-          messageReadStatus: {
-            where: { userId: ctx.session.user.id },
+        });
+
+        return {
+          success: true,
+          pinnedThread,
+          message: "メッセージをピン留めしました",
+        };
+      } catch (error) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "このメッセージは既にピン留めされています",
+        });
+      }
+    }),
+
+  // ピン留めされたスレッド一覧取得
+  getPinnedThreads: protectedProcedure
+    .input(z.object({ conversationId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // アクセス権限チェック
+      const conversation = await ctx.db.conversation.findUnique({
+        where: { id: input.conversationId },
+        include: {
+          participants: { select: { id: true } },
+        },
+      });
+
+      if (!conversation) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "会話が見つかりません",
+        });
+      }
+
+      const isParticipant = conversation.participants.some(
+        p => p.id === ctx.session.user.id
+      );
+
+      if (!isParticipant) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "この会話に参加していません",
+        });
+      }
+
+      return ctx.db.pinnedThread.findMany({
+        where: { conversationId: input.conversationId },
+        include: {
+          message: {
+            include: {
+              sender: {
+                select: {
+                  id: true,
+                  name: true,
+                  image: true,
+                },
+              },
+            },
+          },
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            },
           },
         },
-        orderBy: { createdAt: "desc" },
-        take: input.limit,
-        ...(input.cursor && {
-          cursor: { id: input.cursor },
-          skip: 1,
-        }),
+        orderBy: { pinnedAt: "desc" },
       });
+    }),
+
+  // Phase 3: メッセージリアクション機能
+  setMessageReaction: protectedProcedure
+    .input(
+      z.object({
+        messageId: z.string(),
+        emoji: z.string().min(1).max(10),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // メッセージの存在確認とアクセス権限チェック
+      const message = await ctx.db.message.findUnique({
+        where: { id: input.messageId },
+        include: {
+          conversation: {
+            include: {
+              participants: { select: { id: true } },
+            },
+          },
+        },
+      });
+
+      if (!message) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "メッセージが見つかりません",
+        });
+      }
+
+      const isParticipant = message.conversation.participants.some(
+        p => p.id === ctx.session.user.id
+      );
+
+      if (!isParticipant) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "この会話に参加していません",
+        });
+      }
+
+      // 既存のリアクションを確認
+      const existingReaction = await ctx.db.messageReaction.findUnique({
+        where: {
+          messageId_userId_emoji: {
+            messageId: input.messageId,
+            userId: ctx.session.user.id,
+            emoji: input.emoji,
+          },
+        },
+      });
+
+      if (existingReaction) {
+        // 既存のリアクションを削除（トグル動作）
+        await ctx.db.messageReaction.delete({
+          where: { id: existingReaction.id },
+        });
+
+        return {
+          success: true,
+          action: "removed",
+          message: "リアクションを削除しました",
+        };
+      } else {
+        // 新しいリアクションを追加
+        const reaction = await ctx.db.messageReaction.create({
+          data: {
+            messageId: input.messageId,
+            userId: ctx.session.user.id,
+            emoji: input.emoji,
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+              },
+            },
+          },
+        });
+
+        return {
+          success: true,
+          action: "added",
+          reaction,
+          message: "リアクションを追加しました",
+        };
+      }
+    }),
+
+  // メッセージのリアクション取得
+  getMessageReactions: protectedProcedure
+    .input(z.object({ messageId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // メッセージの存在確認とアクセス権限チェック
+      const message = await ctx.db.message.findUnique({
+        where: { id: input.messageId },
+        include: {
+          conversation: {
+            include: {
+              participants: { select: { id: true } },
+            },
+          },
+        },
+      });
+
+      if (!message) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "メッセージが見つかりません",
+        });
+      }
+
+      const isParticipant = message.conversation.participants.some(
+        p => p.id === ctx.session.user.id
+      );
+
+      if (!isParticipant) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "この会話に参加していません",
+        });
+      }
+
+      const reactions = await ctx.db.messageReaction.findMany({
+        where: { messageId: input.messageId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "asc" },
+      });
+
+      // 絵文字ごとにグループ化
+      const grouped = reactions.reduce((acc, reaction) => {
+        if (!acc[reaction.emoji]) {
+          acc[reaction.emoji] = [];
+        }
+        acc[reaction.emoji].push(reaction);
+        return acc;
+      }, {} as Record<string, typeof reactions>);
+
+      return grouped;
     }),
 });

@@ -631,35 +631,118 @@ export const userRouter = createTRPCRouter({
       })
     )
     .query(({ ctx, input }) => {
-      // TODO: Footprint テーブルが必要
-      // 現在のスキーマでは実装不可のため、TODO として返す
-      throw new TRPCError({
-        code: "NOT_IMPLEMENTED",
-        message: "足あと機能はまだ実装されていません。Footprintテーブルの追加が必要です。",
+      return ctx.db.profileView.findMany({
+        where: { viewedId: ctx.session.user.id },
+        select: {
+          id: true,
+          viewedAt: true,
+          viewer: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              userType: true,
+              castProfile: {
+                select: {
+                  id: true,
+                  displayName: true,
+                  avatar: true,
+                  hourlyRate: true,
+                },
+              },
+              guestProfile: {
+                select: {
+                  id: true,
+                  displayName: true,
+                  avatar: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { viewedAt: "desc" },
+        take: input.limit,
+        skip: input.offset,
       });
+    }),
+
+  // プロフィール閲覧を記録
+  recordProfileView: protectedProcedure
+    .input(z.object({ viewedUserId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.session.user.id === input.viewedUserId) {
+        return { success: false, message: "自分のプロフィールの閲覧は記録されません" };
+      }
+
+      const targetUser = await ctx.db.user.findUnique({
+        where: { id: input.viewedUserId },
+        select: { id: true, privacySettings: { select: { showFootprints: true } } },
+      });
+
+      if (!targetUser) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "ユーザーが見つかりません",
+        });
+      }
+
+      // プライバシー設定で足あとを無効にしている場合は記録しない
+      if (!targetUser.privacySettings?.showFootprints) {
+        return { success: false, message: "プライバシー設定により記録されません" };
+      }
+
+      // 今日の同じユーザーからの閲覧は重複記録しない
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const existingView = await ctx.db.profileView.findFirst({
+        where: {
+          viewerId: ctx.session.user.id,
+          viewedId: input.viewedUserId,
+          viewedAt: {
+            gte: today,
+            lt: tomorrow,
+          },
+        },
+      });
+
+      if (existingView) {
+        return { success: false, message: "本日既に記録済みです" };
+      }
+
+      await ctx.db.profileView.create({
+        data: {
+          viewerId: ctx.session.user.id,
+          viewedId: input.viewedUserId,
+        },
+      });
+
+      return { success: true, message: "プロフィール閲覧を記録しました" };
     }),
 
   // 他ユーザーを運営に通報
   reportUser: protectedProcedure
     .input(
       z.object({
-        targetUserId: z.string(),
+        reportedUserId: z.string(),
         reason: z.enum([
-          "INAPPROPRIATE_CONTENT",
-          "HARASSMENT", 
+          "INAPPROPRIATE_BEHAVIOR",
+          "HARASSMENT",
+          "FAKE_PROFILE",
           "SPAM",
           "FRAUD",
+          "VIOLENCE_THREAT",
           "OTHER"
         ]),
         description: z.string().min(1, "詳細を入力してください").max(1000, "詳細は1000文字以下で入力してください"),
+        evidenceUrls: z.array(z.string().url()).max(5, "証拠画像は5枚まで添付可能です").optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // TODO: UserReport テーブルが必要
-      // 現在のスキーマでは実装不可、Activity Logで代替
-      
       const targetUser = await ctx.db.user.findUnique({
-        where: { id: input.targetUserId },
+        where: { id: input.reportedUserId },
         select: { id: true, email: true },
       });
 
@@ -677,40 +760,74 @@ export const userRouter = createTRPCRouter({
         });
       }
 
-      // ログに記録
-      await ctx.db.activityLog.create({
+      // 既に同じユーザーを通報済みかチェック
+      const existingReport = await ctx.db.userReport.findFirst({
+        where: {
+          reporterId: ctx.session.user.id,
+          reportedId: input.reportedUserId,
+          status: { in: ["PENDING", "UNDER_REVIEW"] },
+        },
+      });
+
+      if (existingReport) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "このユーザーは既に通報済みです",
+        });
+      }
+
+      const report = await ctx.db.userReport.create({
+        data: {
+          reporterId: ctx.session.user.id,
+          reportedId: input.reportedUserId,
+          reason: input.reason,
+          description: input.description,
+          evidenceUrls: input.evidenceUrls || [],
+        },
+        select: {
+          id: true,
+          reason: true,
+          status: true,
+          createdAt: true,
+        },
+      });
+
+      // セキュリティログに記録
+      await ctx.db.securityLog.create({
         data: {
           userId: ctx.session.user.id,
-          action: "USER_REPORT",
+          action: "USER_REPORTED",
           entity: "USER",
-          entityId: input.targetUserId,
+          entityId: input.reportedUserId,
           description: `ユーザー通報: ${input.reason}`,
           metadata: {
+            reportId: report.id,
             reason: input.reason,
-            description: input.description,
-            targetUserId: input.targetUserId,
-            reportedAt: new Date().toISOString(),
+            evidenceCount: input.evidenceUrls?.length || 0,
           },
-          level: "WARN",
+          severity: "WARNING",
         },
       });
 
       return {
         success: true,
+        reportId: report.id,
         message: "通報を受け付けました。運営チームが確認いたします。",
       };
     }),
 
   // 他ユーザーをブロック
   blockUser: protectedProcedure
-    .input(z.object({ targetUserId: z.string() }))
+    .input(
+      z.object({
+        blockedUserId: z.string(),
+        reason: z.string().max(200, "理由は200文字以下で入力してください").optional(),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
-      // TODO: UserBlock テーブルが必要
-      // 現在のスキーマでは実装不可
-      
       const targetUser = await ctx.db.user.findUnique({
-        where: { id: input.targetUserId },
-        select: { id: true },
+        where: { id: input.blockedUserId },
+        select: { id: true, name: true },
       });
 
       if (!targetUser) {
@@ -727,47 +844,377 @@ export const userRouter = createTRPCRouter({
         });
       }
 
-      throw new TRPCError({
-        code: "NOT_IMPLEMENTED",
-        message: "ブロック機能はまだ実装されていません。UserBlockテーブルの追加が必要です。",
+      // 既にブロック済みかチェック
+      const existingBlock = await ctx.db.userBlock.findUnique({
+        where: {
+          blockerId_blockedId: {
+            blockerId: ctx.session.user.id,
+            blockedId: input.blockedUserId,
+          },
+        },
       });
+
+      if (existingBlock) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "このユーザーは既にブロック済みです",
+        });
+      }
+
+      const block = await ctx.db.userBlock.create({
+        data: {
+          blockerId: ctx.session.user.id,
+          blockedId: input.blockedUserId,
+          reason: input.reason,
+        },
+        select: {
+          id: true,
+          createdAt: true,
+          blocked: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            },
+          },
+        },
+      });
+
+      // セキュリティログに記録
+      await ctx.db.securityLog.create({
+        data: {
+          userId: ctx.session.user.id,
+          action: "USER_BLOCKED",
+          entity: "USER",
+          entityId: input.blockedUserId,
+          description: `ユーザーブロック: ${targetUser.name}`,
+          metadata: {
+            blockId: block.id,
+            reason: input.reason,
+          },
+          severity: "INFO",
+        },
+      });
+
+      return {
+        success: true,
+        blockId: block.id,
+        message: "ユーザーをブロックしました",
+      };
+    }),
+
+  // ブロック中のユーザー一覧取得
+  getBlockedUsers: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(20),
+        offset: z.number().min(0).default(0),
+      })
+    )
+    .query(({ ctx, input }) => {
+      return ctx.db.userBlock.findMany({
+        where: { blockerId: ctx.session.user.id },
+        select: {
+          id: true,
+          reason: true,
+          createdAt: true,
+          blocked: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              userType: true,
+              castProfile: {
+                select: {
+                  displayName: true,
+                  avatar: true,
+                },
+              },
+              guestProfile: {
+                select: {
+                  displayName: true,
+                  avatar: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: input.limit,
+        skip: input.offset,
+      });
+    }),
+
+  // ユーザーのブロック解除
+  unblockUser: protectedProcedure
+    .input(z.object({ blockedUserId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const block = await ctx.db.userBlock.findUnique({
+        where: {
+          blockerId_blockedId: {
+            blockerId: ctx.session.user.id,
+            blockedId: input.blockedUserId,
+          },
+        },
+        include: {
+          blocked: {
+            select: { name: true },
+          },
+        },
+      });
+
+      if (!block) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "ブロック情報が見つかりません",
+        });
+      }
+
+      await ctx.db.userBlock.delete({
+        where: { id: block.id },
+      });
+
+      // セキュリティログに記録
+      await ctx.db.securityLog.create({
+        data: {
+          userId: ctx.session.user.id,
+          action: "USER_BLOCKED",
+          entity: "USER",
+          entityId: input.blockedUserId,
+          description: `ユーザーブロック解除: ${block.blocked.name}`,
+          metadata: {
+            previousBlockId: block.id,
+          },
+          severity: "INFO",
+        },
+      });
+
+      return {
+        success: true,
+        message: "ユーザーのブロックを解除しました",
+      };
     }),
 
   // 本人確認書類を提出
   submitIdVerification: protectedProcedure
     .input(
       z.object({
-        documentType: z.enum(["DRIVERS_LICENSE", "PASSPORT", "NATIONAL_ID"]),
-        frontImageUrl: z.string().url("正しいURL形式で入力してください"),
-        backImageUrl: z.string().url("正しいURL形式で入力してください").optional(),
-        notes: z.string().max(500, "備考は500文字以下で入力してください").optional(),
+        documentType: z.enum(["DRIVERS_LICENSE", "PASSPORT", "NATIONAL_ID", "RESIDENCE_CARD"]),
+        documentUrls: z.array(z.string().url("正しいURL形式で入力してください")).min(1, "書類画像を1枚以上添付してください").max(3, "書類画像は3枚まで添付可能です"),
+        extractedData: z.object({
+          fullName: z.string().optional(),
+          birthDate: z.string().optional(),
+          documentNumber: z.string().optional(),
+          address: z.string().optional(),
+        }).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // TODO: IdVerification テーブルが必要
-      // 現在のスキーマでは実装不可、Activity Logで代替
-      
-      await ctx.db.activityLog.create({
+      // 既に審査中または承認済みの本人確認があるかチェック
+      const existingVerification = await ctx.db.idVerification.findFirst({
+        where: {
+          userId: ctx.session.user.id,
+          status: { in: ["PENDING", "UNDER_REVIEW", "APPROVED"] },
+        },
+      });
+
+      if (existingVerification) {
+        if (existingVerification.status === "APPROVED") {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "本人確認は既に完了しています",
+          });
+        } else {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "既に本人確認書類を提出済みです。審査結果をお待ちください",
+          });
+        }
+      }
+
+      const verification = await ctx.db.idVerification.create({
         data: {
           userId: ctx.session.user.id,
-          action: "ID_VERIFICATION_SUBMIT",
+          documentType: input.documentType,
+          documentUrls: input.documentUrls,
+          extractedData: input.extractedData,
+        },
+        select: {
+          id: true,
+          status: true,
+          submittedAt: true,
+        },
+      });
+
+      // セキュリティログに記録
+      await ctx.db.securityLog.create({
+        data: {
+          userId: ctx.session.user.id,
+          action: "USER_REPORTED",
           entity: "USER",
           entityId: ctx.session.user.id,
           description: `本人確認書類提出: ${input.documentType}`,
           metadata: {
+            verificationId: verification.id,
             documentType: input.documentType,
-            frontImageUrl: input.frontImageUrl,
-            backImageUrl: input.backImageUrl,
-            notes: input.notes,
-            submittedAt: new Date().toISOString(),
+            documentCount: input.documentUrls.length,
           },
-          level: "INFO",
+          severity: "INFO",
         },
       });
 
       return {
         success: true,
+        verificationId: verification.id,
         message: "本人確認書類を提出しました。審査完了までお待ちください。",
       };
     }),
+
+  // 本人確認ステータス取得
+  getIdVerificationStatus: protectedProcedure.query(async ({ ctx }) => {
+    const verification = await ctx.db.idVerification.findFirst({
+      where: { userId: ctx.session.user.id },
+      select: {
+        id: true,
+        documentType: true,
+        status: true,
+        submittedAt: true,
+        reviewedAt: true,
+        reviewerNotes: true,
+        failureReason: true,
+      },
+      orderBy: { submittedAt: "desc" },
+    });
+
+    return verification;
+  }),
+
+  // 本人確認書類の再提出
+  resubmitIdVerification: protectedProcedure
+    .input(
+      z.object({
+        documentType: z.enum(["DRIVERS_LICENSE", "PASSPORT", "NATIONAL_ID", "RESIDENCE_CARD"]),
+        documentUrls: z.array(z.string().url()).min(1).max(3),
+        extractedData: z.object({
+          fullName: z.string().optional(),
+          birthDate: z.string().optional(),
+          documentNumber: z.string().optional(),
+          address: z.string().optional(),
+        }).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // 最新の本人確認を取得
+      const latestVerification = await ctx.db.idVerification.findFirst({
+        where: { userId: ctx.session.user.id },
+        orderBy: { submittedAt: "desc" },
+      });
+
+      if (!latestVerification || latestVerification.status !== "REJECTED") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "再提出可能な本人確認書類がありません",
+        });
+      }
+
+      const newVerification = await ctx.db.idVerification.create({
+        data: {
+          userId: ctx.session.user.id,
+          documentType: input.documentType,
+          documentUrls: input.documentUrls,
+          extractedData: input.extractedData,
+        },
+        select: {
+          id: true,
+          status: true,
+          submittedAt: true,
+        },
+      });
+
+      return {
+        success: true,
+        verificationId: newVerification.id,
+        message: "本人確認書類を再提出しました。",
+      };
+    }),
+
+  // プライバシー設定更新
+  updatePrivacySettings: protectedProcedure
+    .input(
+      z.object({
+        showFootprints: z.boolean().optional(),
+        allowSearch: z.boolean().optional(),
+        showOnlineStatus: z.boolean().optional(),
+        allowDirectMessages: z.boolean().optional(),
+        showLastActiveTime: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const settings = await ctx.db.privacySetting.upsert({
+        where: { userId: ctx.session.user.id },
+        update: input,
+        create: {
+          userId: ctx.session.user.id,
+          ...input,
+        },
+        select: {
+          id: true,
+          showFootprints: true,
+          allowSearch: true,
+          showOnlineStatus: true,
+          allowDirectMessages: true,
+          showLastActiveTime: true,
+          updatedAt: true,
+        },
+      });
+
+      return {
+        success: true,
+        settings,
+        message: "プライバシー設定を更新しました",
+      };
+    }),
+
+  // プライバシー設定取得
+  getPrivacySettings: protectedProcedure.query(async ({ ctx }) => {
+    let settings = await ctx.db.privacySetting.findUnique({
+      where: { userId: ctx.session.user.id },
+      select: {
+        id: true,
+        showFootprints: true,
+        allowSearch: true,
+        showOnlineStatus: true,
+        allowDirectMessages: true,
+        showLastActiveTime: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    // デフォルト設定で初期化
+    if (!settings) {
+      settings = await ctx.db.privacySetting.create({
+        data: {
+          userId: ctx.session.user.id,
+          showFootprints: true,
+          allowSearch: true,
+          showOnlineStatus: true,
+          allowDirectMessages: true,
+          showLastActiveTime: true,
+        },
+        select: {
+          id: true,
+          showFootprints: true,
+          allowSearch: true,
+          showOnlineStatus: true,
+          allowDirectMessages: true,
+          showLastActiveTime: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+    }
+
+    return settings;
+  }),
 });

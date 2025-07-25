@@ -76,6 +76,19 @@ model User {
   newsReadStatus       NewsReadStatus[]
   helpArticleRatings   HelpArticleRating[]
   inquiries            Inquiry[]
+  profileViewsGiven    ProfileView[]        @relation("ProfileViewViewer")
+  profileViewsReceived ProfileView[]        @relation("ProfileViewViewed")
+  blockedUsers         UserBlock[]          @relation("UserBlockBlocker")
+  blockedBy            UserBlock[]          @relation("UserBlockBlocked")
+  reportsSubmitted     UserReport[]         @relation("UserReportReporter")
+  reportsReceived      UserReport[]         @relation("UserReportReported")
+  idVerifications      IdVerification[]
+  privacySettings      PrivacySetting?
+  scheduleProposals    ScheduleProposal[]
+  pinnedThreads        PinnedThread[]
+  messageReactions     MessageReaction[]
+  scheduledNotifications ScheduledNotification[]
+  securityLogs         SecurityLog[]
 
   @@index([email])
   @@index([userType])
@@ -175,9 +188,11 @@ model Conversation {
   isActive     Boolean   @default(true)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
-  booking      Booking?  @relation(fields: [bookingId], references: [id])
-  messages     Message[]
-  participants User[]    @relation("ConversationToUser")
+  booking           Booking?            @relation(fields: [bookingId], references: [id])
+  messages          Message[]
+  participants      User[]              @relation("ConversationToUser")
+  scheduleProposals ScheduleProposal[]
+  pinnedThreads     PinnedThread[]
 
   @@map("conversations")
 }
@@ -197,6 +212,8 @@ model Message {
   messageReadStatus MessageReadStatus[]
   conversation      Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender            User                @relation("MessageSender", fields: [senderId], references: [id])
+  pinnedThreads     PinnedThread[]
+  reactions         MessageReaction[]
 
   @@index([conversationId, createdAt])
   @@index([senderId])
@@ -935,4 +952,262 @@ enum SkillTopicCategory {
   BUSINESS
   LIFESTYLE
   OTHER
+}
+
+// Phase 3: Advanced User Features Models
+
+model ProfileView {
+  id        String   @id @default(cuid())
+  viewerId  String
+  viewedId  String
+  viewedAt  DateTime @default(now())
+  viewer    User     @relation("ProfileViewViewer", fields: [viewerId], references: [id], onDelete: Cascade)
+  viewed    User     @relation("ProfileViewViewed", fields: [viewedId], references: [id], onDelete: Cascade)
+
+  @@unique([viewerId, viewedId, viewedAt])
+  @@index([viewedId, viewedAt])
+  @@index([viewerId, viewedAt])
+  @@map("profile_views")
+}
+
+model UserBlock {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  reason    String?
+  createdAt DateTime @default(now())
+  blocker   User     @relation("UserBlockBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("UserBlockBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+  @@map("user_blocks")
+}
+
+model UserReport {
+  id           String           @id @default(cuid())
+  reporterId   String
+  reportedId   String
+  reason       UserReportReason
+  description  String?          @db.Text
+  evidenceUrls String[]
+  status       UserReportStatus @default(PENDING)
+  reviewedBy   String?
+  reviewedAt   DateTime?
+  reviewNotes  String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  reporter     User             @relation("UserReportReporter", fields: [reporterId], references: [id])
+  reported     User             @relation("UserReportReported", fields: [reportedId], references: [id])
+
+  @@index([reporterId])
+  @@index([reportedId])
+  @@index([status, createdAt])
+  @@map("user_reports")
+}
+
+model IdVerification {
+  id             String                 @id @default(cuid())
+  userId         String
+  documentType   IdDocumentType
+  documentUrls   String[]
+  extractedData  Json?
+  status         IdVerificationStatus   @default(PENDING)
+  submittedAt    DateTime               @default(now())
+  reviewedAt     DateTime?
+  reviewedBy     String?
+  reviewerNotes  String?
+  failureReason  String?
+  user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([status, submittedAt])
+  @@map("id_verifications")
+}
+
+model PrivacySetting {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  showFootprints        Boolean  @default(true)
+  allowSearch           Boolean  @default(true)
+  showOnlineStatus      Boolean  @default(true)
+  allowDirectMessages   Boolean  @default(true)
+  showLastActiveTime    Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("privacy_settings")
+}
+
+model ScheduleProposal {
+  id               String                   @id @default(cuid())
+  conversationId   String
+  proposerId       String
+  proposedDateTime DateTime
+  durationMinutes  Int
+  message          String?
+  status           ScheduleProposalStatus   @default(PENDING)
+  respondedAt      DateTime?
+  createdAt        DateTime                 @default(now())
+  conversation     Conversation             @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  proposer         User                     @relation(fields: [proposerId], references: [id])
+
+  @@index([conversationId, status])
+  @@index([proposerId])
+  @@map("schedule_proposals")
+}
+
+model PinnedThread {
+  id             String       @id @default(cuid())
+  conversationId String
+  messageId      String
+  pinnedBy       String
+  pinnedAt       DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  message        Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [pinnedBy], references: [id])
+
+  @@unique([conversationId, messageId])
+  @@index([conversationId])
+  @@map("pinned_threads")
+}
+
+model MessageReaction {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+  @@map("message_reactions")
+}
+
+model NotificationTemplate {
+  id          String               @id @default(cuid())
+  name        String               @unique
+  type        NotificationType
+  title       String
+  body        String
+  variables   String[]
+  isActive    Boolean              @default(true)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@map("notification_templates")
+}
+
+model ScheduledNotification {
+  id           String                       @id @default(cuid())
+  userId       String
+  templateId   String?
+  title        String
+  body         String
+  data         Json?
+  scheduledFor DateTime
+  status       ScheduledNotificationStatus  @default(PENDING)
+  sentAt       DateTime?
+  failedAt     DateTime?
+  failureReason String?
+  createdAt    DateTime                     @default(now())
+  user         User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, scheduledFor])
+  @@index([status, scheduledFor])
+  @@map("scheduled_notifications")
+}
+
+model SecurityLog {
+  id          String         @id @default(cuid())
+  userId      String?
+  action      SecurityAction
+  entity      String?
+  entityId    String?
+  description String?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  severity    LogSeverity    @default(INFO)
+  createdAt   DateTime       @default(now())
+  user        User?          @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([severity, createdAt])
+  @@map("security_logs")
+}
+
+// Phase 3 Enums
+
+enum UserReportReason {
+  INAPPROPRIATE_BEHAVIOR
+  HARASSMENT
+  FAKE_PROFILE
+  SPAM
+  FRAUD
+  VIOLENCE_THREAT
+  OTHER
+}
+
+enum UserReportStatus {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+  ESCALATED
+}
+
+enum IdDocumentType {
+  DRIVERS_LICENSE
+  PASSPORT
+  NATIONAL_ID
+  RESIDENCE_CARD
+}
+
+enum IdVerificationStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum ScheduleProposalStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+enum ScheduledNotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum SecurityAction {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  PASSWORD_CHANGED
+  EMAIL_CHANGED
+  PROFILE_UPDATED
+  PAYMENT_PROCESSED
+  USER_BLOCKED
+  USER_REPORTED
+  ADMIN_ACTION
+  SUSPICIOUS_ACTIVITY
+}
+
+enum LogSeverity {
+  DEBUG
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
 }
