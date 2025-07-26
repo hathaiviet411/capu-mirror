@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { TRPCReactProvider } from './providers'
+import { Toaster } from '@/components/ui/toaster'
 
 export const metadata: Metadata = {
   title: 'Capu - Cast',
@@ -42,7 +44,12 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Capu - Cast" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
-      <body className="touch-optimized smooth-touch-scroll">{children}</body>
+      <body className="touch-optimized smooth-touch-scroll">
+        <TRPCReactProvider>
+          {children}
+          <Toaster />
+        </TRPCReactProvider>
+      </body>
     </html>
   )
 }
