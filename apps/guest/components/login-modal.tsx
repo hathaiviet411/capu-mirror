@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { X } from "lucide-react"
 import { signIn } from "next-auth/react"
 import { useState } from "react"
+import { toast } from "@/hooks/use-toast"
 
 interface LoginModalProps {
   isOpen: boolean
@@ -21,12 +22,31 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
   const handleLineLogin = async () => {
     setIsLoading(true)
     try {
-      // TODO: LINE OAuth実装時に実際のプロバイダーを使用
-      // 現在は仮の実装として Discord を使用
-      await signIn("discord", { callbackUrl: "/" })
-      onLogin()
+      // LINE OAuth認証を実行
+      const result = await signIn("line", { 
+        callbackUrl: "/",
+        redirect: false 
+      })
+      
+      if (result?.error) {
+        // エラーメッセージを表示
+        toast({
+          title: "ログインエラー",
+          description: "LINEログインに失敗しました。もう一度お試しください。",
+          variant: "destructive",
+        })
+        console.error("Login error:", result.error)
+      } else if (result?.ok) {
+        // 成功時は親コンポーネントのコールバックを呼び出し
+        onLogin()
+      }
     } catch (error) {
       console.error("Login failed:", error)
+      toast({
+        title: "エラー",
+        description: "予期しないエラーが発生しました。",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }
