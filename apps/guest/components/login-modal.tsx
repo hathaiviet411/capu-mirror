@@ -37,9 +37,8 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
         })
         console.error("Login error:", result.error)
       } else if (result?.ok) {
-        // 成功時はホーム画面へリダイレクト
+        // 成功時は親コンポーネントのコールバックを呼び出し
         onLogin()
-        window.location.href = "/"
       }
     } catch (error) {
       console.error("Login failed:", error)
