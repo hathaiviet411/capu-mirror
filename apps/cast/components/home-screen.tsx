@@ -11,8 +11,11 @@ import MyPageScreen from "@/components/mypage-screen"
 import { Button } from "@/components/ui/button"
 import MessageListScreen from "@/components/message-list-screen"
 import Footer from "@/components/shared/footer"
+import { api } from "../app/providers"
+import { useSession } from "next-auth/react"
 
 export default function HomeScreen() {
+  const { data: session } = useSession()
   const [showSearchModal, setShowSearchModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState({ home: true, favorites: true, footprints: true })
@@ -22,6 +25,26 @@ export default function HomeScreen() {
   const [searchText, setSearchText] = useState("検索してみる")
   const [showMyPage, setShowMyPage] = useState(false)
   const [showMessageList, setShowMessageList] = useState(false)
+
+  // キャストのプロフィール情報を取得
+  const { data: castProfile, isLoading: castProfileLoading } = api.cast.getMyProfile.useQuery(
+    undefined,
+    {
+      enabled: !!session?.user?.id,
+    }
+  )
+
+  // 最近の会話一覧を取得
+  const { data: conversations, isLoading: conversationsLoading } = api.message.getConversations.useQuery(
+    { limit: 10, offset: 0 },
+    {
+      enabled: !!session?.user?.id,
+      refetchInterval: 30000, // 30秒ごとに更新
+    }
+  )
+
+  // 未読メッセージ数を計算
+  const unreadCount = conversations?.reduce((count, conv) => count + (conv.unreadCount || 0), 0) || 0
 
   const [showCastDetail, setShowCastDetail] = useState(false)
   const [selectedCast, setSelectedCast] = useState<any>(null)
@@ -130,6 +153,7 @@ export default function HomeScreen() {
     setFilterCount(count)
   }
 
+  // Mock guest data - これは後でAPIに置き換える予定
   const [guestData, setGuestData] = useState([
     {
       id: 1,
@@ -605,7 +629,15 @@ export default function HomeScreen() {
           <div>
             {/* Top Spacer */}
             <div className="h-4 bg-gray-100"></div>
-            {displayedGuests.length === 0 && activeTab === "お気に入り" ? (
+            {/* Loading state */}
+            {(castProfileLoading || conversationsLoading) && (
+              <div className="bg-white p-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-blue mx-auto"></div>
+                <p className="text-gray-600 mt-2">データを読み込み中...</p>
+              </div>
+            )}
+            
+            {displayedGuests.length === 0 && activeTab === "お気に入り" && !castProfileLoading ? (
               <div className="bg-white p-8 text-center">
                 <p className="text-gray-600">お気に入りのゲストがいません</p>
               </div>
@@ -702,7 +734,7 @@ export default function HomeScreen() {
         onSearchClick={handleFooterSearchClick}
         onMessageClick={navigateToMessages}
         onProfileClick={navigateToMyPage}
-        messageCount={17}
+        messageCount={unreadCount}
         activeButton="search"
       />
 
