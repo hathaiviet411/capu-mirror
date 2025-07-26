@@ -50,7 +50,7 @@ export const authOptions: NextAuthOptions = {
       }
       
       // Token refresh logic
-      if (token.exp && token.exp < Date.now() / 1000 + 60 * 60) {
+      if (token.exp && typeof token.exp === 'number' && token.exp < Date.now() / 1000 + 60 * 60) {
         // Refresh token if it expires within 1 hour
         token.exp = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60); // 30 days
       }
@@ -91,47 +91,47 @@ export const authOptions: NextAuthOptions = {
       : []),
     
     // Credentials Provider (for cast users)
-    CredentialsProvider({
-      id: "cast-credentials",
-      name: "Cast Login",
-      credentials: {
-        loginId: { label: "Login ID", type: "text" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.loginId || !credentials?.password) {
-          return null;
-        }
+    // CredentialsProvider({
+    //   id: "cast-credentials",
+    //   name: "Cast Login",
+    //   credentials: {
+    //     loginId: { label: "Login ID", type: "text" },
+    //     password: { label: "Password", type: "password" },
+    //   },
+    //   async authorize(credentials) {
+    //     if (!credentials?.loginId || !credentials?.password) {
+    //       return null;
+    //     }
 
-        // loginIdでユーザーを検索（emailまたはusernameなど）
-        const user = await db.user.findFirst({
-          where: {
-            OR: [
-              { email: credentials.loginId },
-              // 追加のloginId検索条件があれば追加
-            ],
-            userType: "CAST", // キャスト専用
-          },
-        });
+    //     // loginIdでユーザーを検索（emailまたはusernameなど）
+    //     const user = await db.user.findFirst({
+    //       where: {
+    //         OR: [
+    //           { email: credentials.loginId },
+    //           // 追加のloginId検索条件があれば追加
+    //         ],
+    //         userType: "CAST", // キャスト専用
+    //       },
+    //     });
 
-        if (!user || !user.hashedPassword) {
-          return null;
-        }
+    //     if (!user || !user.hashedPassword) {
+    //       return null;
+    //     }
 
-        const isValid = await bcrypt.compare(credentials.password, user.hashedPassword);
+    //     const isValid = await bcrypt.compare(credentials.password, user.hashedPassword);
 
-        if (!isValid) {
-          return null;
-        }
+    //     if (!isValid) {
+    //       return null;
+    //     }
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          userType: user.userType,
-        };
-      },
-    }),
+    //     return {
+    //       id: user.id,
+    //       email: user.email,
+    //       name: user.name,
+    //       userType: user.userType,
+    //     };
+    //   },
+    // }),
   ],
   session: {
     strategy: "jwt",
