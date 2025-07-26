@@ -6,6 +6,7 @@ packages/shared/node_modules
 apps/cast/node_modules
 apps/guest/node_modules
 /node_modules
+**/node_modules/
 /.pnp
 .pnp.js
 
