@@ -50,6 +50,7 @@ model User {
   prefecture             String?
   selfIntro              String?
   tags                   String[]
+  hashedPassword         String?
   accounts               Account[]
   sessions               Session[]
   activityLogs           ActivityLog[]

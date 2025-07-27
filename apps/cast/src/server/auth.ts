@@ -1,17 +1,11 @@
-import { type GetServerSidePropsContext } from "next";
-import {
-  getServerSession,
-  type NextAuthOptions,
-  type DefaultSession,
-} from "next-auth";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import DiscordProvider from "next-auth/providers/discord";
-import LineProvider from "next-auth/providers/line";
-import CredentialsProvider from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
-
 import { env } from "~/env";
 import { db } from "~/server/db";
+import { type GetServerSidePropsContext } from "next";
+import { getServerSession, type NextAuthOptions, type DefaultSession, } from "next-auth";
+import { PrismaAdapter } from "@next-auth/prisma-adapter";
+
+import CredentialsProvider from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
 
 /**
  * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
@@ -23,15 +17,28 @@ declare module "next-auth" {
   interface Session extends DefaultSession {
     user: {
       id: string;
-      userType: "GUEST" | "CAST" | "ADMIN";
-      // ...other properties
+      userType: "CAST";
+      name: string;
+      email: string;
+      image?: string;
+      dob?: Date;
     } & DefaultSession["user"];
   }
 
   interface User {
     id: string;
-    userType: "GUEST" | "CAST" | "ADMIN";
-    // ...other properties
+    userType: "CAST";
+    name: string;
+    email: string;
+    image?: string;
+    dob?: Date;
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    userType?: "CAST";
+    dob?: Date;
   }
 }
 
@@ -42,19 +49,20 @@ declare module "next-auth" {
  */
 export const authOptions: NextAuthOptions = {
   callbacks: {
-    async jwt({ token, user, account }) {
-      // Initial sign in
+    async signIn({ user, account }) {
+      return true;
+    },
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.userType = user.userType;
+        token.dob = user.dob;
       }
-      
-      // Token refresh logic
+
       if (token.exp && typeof token.exp === 'number' && token.exp < Date.now() / 1000 + 60 * 60) {
-        // Refresh token if it expires within 1 hour
-        token.exp = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60); // 30 days
+        token.exp = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60);
       }
-      
+
       return token;
     },
     async session({ session, token }) {
@@ -63,86 +71,115 @@ export const authOptions: NextAuthOptions = {
         user: {
           ...session.user,
           id: token.id as string,
-          userType: token.userType ?? "GUEST",
+          userType: token.userType ?? "CAST",
+          dob: token.dob,
         },
       };
     },
   },
   adapter: PrismaAdapter(db),
   providers: [
-    // Discord Provider (optional)
-    ...(env.DISCORD_CLIENT_ID && env.DISCORD_CLIENT_SECRET
-      ? [
-          DiscordProvider({
-            clientId: env.DISCORD_CLIENT_ID,
-            clientSecret: env.DISCORD_CLIENT_SECRET,
+    ...(env.NEXTAUTH_SECRET
+      ? (() => {
+        console.log("✅ Cast credentials provider configured");
+        return [
+          CredentialsProvider({
+            id: "cast-credentials",
+            name: "Cast Login",
+            credentials: {
+              loginId: { label: "Login ID", type: "text" },
+              password: { label: "Password", type: "password" },
+            },
+            async authorize(credentials) {
+              if (!credentials?.loginId || !credentials?.password) {
+                throw new Error("ログインIDとパスワードを入力してください");
+              }
+
+              try {
+                const user = await db.user.findFirst({
+                  where: {
+                    OR: [
+                      { email: credentials.loginId },
+                      { name: credentials.loginId },
+                      { id: credentials.loginId },
+                    ],
+                    userType: "CAST",
+                  },
+                });
+
+                console.log("user", user);
+
+                if (!user || !user.hashedPassword) {
+                  console.log("User not found or no password:", credentials.loginId);
+                  throw new Error("ユーザーが見つからないか、パスワードが設定されていません");
+                }
+
+                const isValid = await bcrypt.compare(credentials.password, user.hashedPassword);
+
+                if (!isValid) {
+                  console.log("Invalid password for user:", credentials.loginId);
+                  throw new Error("パスワードが正しくありません");
+                }
+
+                return {
+                  id: user.id,
+                  email: user.email,
+                  name: user.name || "Cast User",
+                  userType: "CAST",
+                  image: user.image || undefined,
+                  dob: user.birthDate || undefined,
+                };
+              } catch (error) {
+                console.error("Auth error:", error);
+                throw error;
+              }
+            },
           }),
-        ]
-      : []),
-    
-    // LINE Provider (for guest users)
-    ...(env.LINE_CLIENT_ID && env.LINE_CLIENT_SECRET
-      ? [
-          LineProvider({
-            clientId: env.LINE_CLIENT_ID,
-            clientSecret: env.LINE_CLIENT_SECRET,
-          }),
-        ]
-      : []),
-    
-    // Credentials Provider (for cast users)
-    // CredentialsProvider({
-    //   id: "cast-credentials",
-    //   name: "Cast Login",
-    //   credentials: {
-    //     loginId: { label: "Login ID", type: "text" },
-    //     password: { label: "Password", type: "password" },
-    //   },
-    //   async authorize(credentials) {
-    //     if (!credentials?.loginId || !credentials?.password) {
-    //       return null;
-    //     }
-
-    //     // loginIdでユーザーを検索（emailまたはusernameなど）
-    //     const user = await db.user.findFirst({
-    //       where: {
-    //         OR: [
-    //           { email: credentials.loginId },
-    //           // 追加のloginId検索条件があれば追加
-    //         ],
-    //         userType: "CAST", // キャスト専用
-    //       },
-    //     });
-
-    //     if (!user || !user.hashedPassword) {
-    //       return null;
-    //     }
-
-    //     const isValid = await bcrypt.compare(credentials.password, user.hashedPassword);
-
-    //     if (!isValid) {
-    //       return null;
-    //     }
-
-    //     return {
-    //       id: user.id,
-    //       email: user.email,
-    //       name: user.name,
-    //       userType: user.userType,
-    //     };
-    //   },
-    // }),
+        ];
+      })()
+      : (() => {
+        console.log("❌ Cast credentials provider not configured");
+        return [];
+      })()),
   ],
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 30 * 24 * 60 * 60,
   },
   jwt: {
     secret: env.NEXTAUTH_SECRET,
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 30 * 24 * 60 * 60,
   },
   pages: {
     error: "/auth/error",
+  },
+  cookies: {
+    sessionToken: {
+      name: `cast-session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    callbackUrl: {
+      name: `cast-callback-url`,
+      options: {
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    csrfToken: {
+      name: `cast-csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
   },
 };
 

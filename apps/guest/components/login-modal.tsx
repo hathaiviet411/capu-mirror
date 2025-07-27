@@ -15,21 +15,17 @@ interface LoginModalProps {
 export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
   const [isLoading, setIsLoading] = useState(false)
   
-  console.log("LoginModal isOpen:", isOpen)
   if (!isOpen) return null
 
-  // GUE-01-1: LINEログインボタンクリック処理
   const handleLineLogin = async () => {
     setIsLoading(true)
     try {
-      // LINE OAuth認証を実行
       const result = await signIn("line", { 
         callbackUrl: "/",
         redirect: false 
       })
       
       if (result?.error) {
-        // エラーメッセージを表示
         toast({
           title: "ログインエラー",
           description: "LINEログインに失敗しました。もう一度お試しください。",
@@ -37,7 +33,6 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
         })
         console.error("Login error:", result.error)
       } else if (result?.ok) {
-        // 成功時は親コンポーネントのコールバックを呼び出し
         onLogin()
       }
     } catch (error) {
@@ -52,24 +47,20 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
     }
   }
 
-  // GUE-01-2: 利用規約リンククリック処理
   const handleTermsClick = () => {
     window.open("https://capu-app.notion.site/Capu_-21b42cc81529808d8bbcfab37ec4c2ef", "_blank", "noopener,noreferrer")
   }
 
-  // GUE-01-3: プライバシーポリシーリンククリック処理
   const handlePrivacyClick = () => {
     window.open("https://capu-app.notion.site/Capu_-21b42cc815298053b8f6e818e327c1f1", "_blank", "noopener,noreferrer")
   }
 
-  // GUE-01-4: 閉じるボタンクリック処理
   const handleClose = () => {
     onClose()
   }
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col w-full md:max-w-sm mx-auto">
-      {/* Background Gradient - similar to page.tsx */}
       <div className="absolute inset-0 z-0">
         <div className="w-full h-full bg-gradient-to-br from-white via-gray-50 to-pink-50"></div>
         <div className="absolute inset-0 bg-gradient-to-t from-white/90 via-transparent to-gray-100/60"></div>
@@ -96,9 +87,7 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
             に同意して、
           </p>
 
-          {/* Login Options */}
           <div className="space-y-4">
-            {/* LINE Login */}
             <Button
               onClick={handleLineLogin}
               disabled={isLoading}
@@ -113,7 +102,6 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
         </div>
       </div>
 
-      {/* Close Button */}
       <div className="relative z-10 pb-8 flex justify-center">
         <Button
           onClick={handleClose}

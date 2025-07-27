@@ -98,7 +98,6 @@ export default function CapuApp() {
               </button>
               <button
                 onClick={() => {
-                  console.log("新規登録ボタンがクリックされました")
                   setShowSignupModal(true)
                 }}
                 className="w-full h-11 xs:h-12 iphone:h-12 sm:h-14 bg-white border-2 border-gold-pink-gradient text-gold-pink-gradient hover:bg-gold-pink-gradient/10 hover:border-gold-pink-gradient hover:text-gold-pink-gradient text-sm xs:text-sm iphone:text-base sm:text-base font-semibold rounded-full transition-all duration-300 cursor-pointer transform hover:scale-[1.02] active:scale-[0.98] shadow-md"

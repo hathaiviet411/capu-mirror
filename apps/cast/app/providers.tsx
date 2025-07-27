@@ -1,9 +1,6 @@
 "use client"
 
 import { SessionProvider } from "next-auth/react"
-import { api } from "~/utils/api"
-
-export { api }
 
 export function TRPCReactProvider({
   children,
@@ -11,6 +8,8 @@ export function TRPCReactProvider({
   children: React.ReactNode
 }) {
   return (
-    <SessionProvider>{children}</SessionProvider>
+    <SessionProvider>
+      {children}
+    </SessionProvider>
   )
 }

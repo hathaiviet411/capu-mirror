@@ -16,6 +16,7 @@ import NotificationIcon from "@/components/shared/notification-icon"
 import Footer from "@/components/shared/footer"
 import MessageListScreen from "@/components/message-list-screen"
 import SettingsScreen from "@/components/settings-screen"
+import { useSession } from "next-auth/react"
 
 interface MyPageScreenProps {
   onBack: () => void
@@ -26,6 +27,8 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
     id: index + 1,
     name: `Guest ${index + 1}`,
   }))
+
+  const { data: session, status } = useSession()
 
   const [showProfileEdit, setShowProfileEdit] = useState(false)
   const [showJoinedCasts, setShowJoinedCasts] = useState(false)
@@ -233,8 +236,9 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
 
   // User profile data (would come from state/API in real app)
   const userProfile = {
-    name: "佐藤 健太",
-    age: 25, // Calculated from birth date 1999年3月15日
+    avatar: session?.user?.image || "https://randomuser.me/api/portraits/men/32.jpg",
+    name: session?.user?.name || "佐藤 健太",
+    age: session?.user?.dob ? Math.floor((new Date().getTime() - new Date(session.user.dob).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : 25,
     job: "フィットネストレーナー",
   }
 
@@ -339,7 +343,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
               className="w-32 h-32 rounded-full bg-gray-200 overflow-hidden mx-auto"
             >
               <Image
-                src="https://randomuser.me/api/portraits/men/32.jpg"
+                src={userProfile.avatar}
                 alt="Profile"
                 width={128}
                 height={128}
@@ -370,64 +374,64 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
         {/* Gray Spacer */}
         <div className="h-4 bg-gray-100"></div>
 
-                 {/* Revenue Section */}
-         <div className="bg-white">
-           <button
-             onClick={navigateToRevenueDashboard}
-             className="w-full flex items-center justify-between p-4 border-b border-gray-100"
-           >
-             <div className="flex items-center gap-3">
-               <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                 <path
-                   strokeLinecap="round"
-                   strokeLinejoin="round"
-                   strokeWidth={2}
-                   d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                 />
-               </svg>
-               <span className="text-sm text-black">収益ダッシュボード</span>
-             </div>
-             <ChevronRight className="w-5 h-5 text-gray-400" />
-           </button>
-           
-           {/* Withdrawal Request */}
-           <button
-             onClick={navigateToWithdrawalRequest}
-             className="w-full flex items-center justify-between p-4 border-b border-gray-100"
-           >
-             <div className="flex items-center gap-3">
-               <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                 <path
-                   strokeLinecap="round"
-                   strokeLinejoin="round"
-                   strokeWidth={2}
-                   d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                 />
-               </svg>
-               <span className="text-sm text-black">引き出し申請</span>
-             </div>
-             <ChevronRight className="w-5 h-5 text-gray-400" />
-           </button>
-           
-           {/* Transaction History */}
-           <button
-             onClick={navigateToTransactionHistory}
-             className="w-full flex items-center justify-between p-4 border-b border-gray-100"
-           >
-             <div className="flex items-center gap-3">
-               <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                 <path
-                   strokeLinecap="round"
-                   strokeLinejoin="round"
-                   strokeWidth={2}
-                   d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                 />
-               </svg>
-               <span className="text-sm text-black">取引履歴</span>
-             </div>
-             <ChevronRight className="w-5 h-5 text-gray-400" />
-           </button>
-         </div>
+        {/* Revenue Section */}
+        <div className="bg-white">
+          <button
+            onClick={navigateToRevenueDashboard}
+            className="w-full flex items-center justify-between p-4 border-b border-gray-100"
+          >
+            <div className="flex items-center gap-3">
+              <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                />
+              </svg>
+              <span className="text-sm text-black">収益ダッシュボード</span>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-400" />
+          </button>
+
+          {/* Withdrawal Request */}
+          <button
+            onClick={navigateToWithdrawalRequest}
+            className="w-full flex items-center justify-between p-4 border-b border-gray-100"
+          >
+            <div className="flex items-center gap-3">
+              <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                />
+              </svg>
+              <span className="text-sm text-black">引き出し申請</span>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-400" />
+          </button>
+
+          {/* Transaction History */}
+          <button
+            onClick={navigateToTransactionHistory}
+            className="w-full flex items-center justify-between p-4 border-b border-gray-100"
+          >
+            <div className="flex items-center gap-3">
+              <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              <span className="text-sm text-black">取引履歴</span>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-400" />
+          </button>
+        </div>
 
         {/* Gray Spacer */}
         <div className="h-4 bg-gray-100"></div>
@@ -517,7 +521,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
       <Footer
         onSearchClick={onBack}
         onMessageClick={navigateToMessages}
-        onProfileClick={() => {}}
+        onProfileClick={() => { }}
         messageCount={17}
         activeButton="profile"
       />

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label"
 import { X } from "lucide-react"
 import { useState } from "react"
 import { signIn } from "next-auth/react"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/hooks/use-toast"
 
 interface LoginModalProps {
   isOpen: boolean
@@ -19,7 +19,6 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   
-  console.log("LoginModal isOpen:", isOpen)
   if (!isOpen) return null
 
   const handleLogin = async () => {
@@ -42,11 +41,19 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
         toast({
           title: "ログイン成功",
           description: "ログインしました",
+          variant: "success",
         })
         onLogin()
         onClose()
+      } else {
+        toast({
+          title: "ログインエラー",
+          description: "ログインIDまたはパスワードが正しくありません",
+          variant: "destructive",
+        })
       }
     } catch (error) {
+      console.error("Login error:", error)
       toast({
         title: "エラー",
         description: "ログイン処理中にエラーが発生しました",
@@ -59,7 +66,6 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col w-full md:max-w-sm mx-auto">
-      {/* Background Gradient - Navy gradient */}
       <div className="absolute inset-0 z-0">
         <div className="w-full h-full bg-main-navy-gradient"></div>
       </div>
@@ -70,8 +76,6 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
             ログイン
           </h2>
 
-
-          {/* Login Form */}
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="loginId" className="text-white text-sm font-medium">
@@ -101,7 +105,6 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
               />
             </div>
 
-            {/* 明示的な余白 */}
             <div className="h-12"></div>
 
             <Button
@@ -121,7 +124,6 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
         </div>
       </div>
 
-      {/* Close Button */}
       <div className="relative z-10 pb-8 flex justify-center">
         <Button
           onClick={onClose}

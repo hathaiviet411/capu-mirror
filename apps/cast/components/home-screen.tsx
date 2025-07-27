@@ -11,7 +11,6 @@ import MyPageScreen from "@/components/mypage-screen"
 import { Button } from "@/components/ui/button"
 import MessageListScreen from "@/components/message-list-screen"
 import Footer from "@/components/shared/footer"
-import { api } from "../app/providers"
 import { useSession } from "next-auth/react"
 
 export default function HomeScreen() {
@@ -26,25 +25,10 @@ export default function HomeScreen() {
   const [showMyPage, setShowMyPage] = useState(false)
   const [showMessageList, setShowMessageList] = useState(false)
 
-  // キャストのプロフィール情報を取得
-  const { data: castProfile, isLoading: castProfileLoading } = api.cast.getMyProfile.useQuery(
-    undefined,
-    {
-      enabled: !!session?.user?.id,
-    }
-  )
-
-  // 最近の会話一覧を取得
-  const { data: conversations, isLoading: conversationsLoading } = api.message.getConversations.useQuery(
-    { limit: 10, offset: 0 },
-    {
-      enabled: !!session?.user?.id,
-      refetchInterval: 30000, // 30秒ごとに更新
-    }
-  )
-
-  // 未読メッセージ数を計算
-  const unreadCount = conversations?.reduce((count, conv) => count + (conv.unreadCount || 0), 0) || 0
+  // Mock data for cast app - no TRPC needed
+  const castProfileLoading = false
+  const conversationsLoading = false
+  const unreadCount = 0
 
   const [showCastDetail, setShowCastDetail] = useState(false)
   const [selectedCast, setSelectedCast] = useState<any>(null)

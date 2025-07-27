@@ -70,7 +70,6 @@ export default function CapuApp() {
             <div className="space-y-2 xs:space-y-3 iphone:space-y-3 sm:space-y-4">
               <button
                 onClick={() => {
-                  console.log("新規登録ボタンがクリックされました")
                   setShowLoginModal(true)
                 }}
                 className="w-full h-11 xs:h-12 iphone:h-12 sm:h-14 bg-white border-2 border-accent-blue text-accent-blue hover:bg-accent-blue/10 hover:border-accent-blue hover:text-accent-blue text-sm xs:text-sm iphone:text-base sm:text-base font-semibold rounded-full transition-all duration-300 cursor-pointer transform hover:scale-[1.02] active:scale-[0.98] shadow-md"

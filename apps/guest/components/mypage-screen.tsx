@@ -193,7 +193,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
   const userProfile = {
     avatar: session?.user?.image || "https://randomuser.me/api/portraits/women/32.jpg",
     name: session?.user?.name || "田中 美咲",
-    age: 28,
+    age: session?.user?.dob ? Math.floor((new Date().getTime() - new Date(session.user.dob).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : 28,
     job: "会社員",
   }
 

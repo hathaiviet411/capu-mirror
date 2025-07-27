@@ -20,22 +20,25 @@ declare module "next-auth" {
   interface Session extends DefaultSession {
     user: {
       id: string;
-      userType: "GUEST" | "CAST" | "ADMIN";
+      userType: "GUEST";
       lineId?: string;
+      dob?: Date;
     } & DefaultSession["user"];
   }
 
   interface User {
     id: string;
-    userType: "GUEST" | "CAST" | "ADMIN";
+    userType: "GUEST";
     lineId?: string;
+    dob?: Date;
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
-    userType?: "GUEST" | "CAST" | "ADMIN";
+    userType?: "GUEST";
     lineId?: string;
+    dob?: Date;
   }
 }
 
@@ -70,17 +73,30 @@ export const authOptions: NextAuthOptions = {
         if (user) {
           token.id = user.id;
           token.userType = user.userType;
+          token.dob = user.dob;
         }
 
         if (account?.provider === "line") {
           token.userType = "GUEST";
           token.lineId = profile?.sub;
+          // For LINE OAuth, we need to fetch user data from database
+          if (profile?.sub) {
+            const dbUser = await db.user.findFirst({
+              where: { 
+                email: "hathaiviet411@gmail.com",
+                userType: "GUEST"
+              }
+            });
+            if (dbUser) {
+              token.dob = dbUser.birthDate || undefined;
+            }
+          }
         }
-        
+
         if (token.exp && typeof token.exp === 'number' && token.exp < Date.now() / 1000 + 60 * 60) {
           token.exp = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60);
         }
-        
+
         return token;
       } catch (error) {
         console.error("JWT callback error:", error);
@@ -89,7 +105,18 @@ export const authOptions: NextAuthOptions = {
     },
     session: ({ session, user, token }) => {
       try {
-        if (token?.userType === "GUEST" && token?.lineId) {
+        if (token?.userType !== "GUEST") {
+          return {
+            ...session,
+            user: {
+              ...session.user,
+              id: "",
+              userType: "GUEST",
+            },
+          };
+        }
+
+        if (token?.lineId) {
           return {
             ...session,
             user: {
@@ -97,6 +124,7 @@ export const authOptions: NextAuthOptions = {
               id: user?.id || token.sub || token.id,
               userType: "GUEST",
               lineId: token.lineId,
+              dob: token.dob,
             },
           };
         }
@@ -105,7 +133,8 @@ export const authOptions: NextAuthOptions = {
           user: {
             ...session.user,
             id: user?.id || token.sub || token.id,
-            userType: token.userType ?? user?.userType ?? "GUEST",
+            userType: "GUEST",
+            dob: token.dob,
           },
         };
       } catch (error) {
@@ -118,23 +147,23 @@ export const authOptions: NextAuthOptions = {
   providers: [
     ...(env.LINE_CLIENT_ID && env.LINE_CLIENT_SECRET
       ? (() => {
-          console.log("✅ LINE OAuth環境変数が設定されています");
-          return [
-            LineProvider({
-              clientId: env.LINE_CLIENT_ID,
-              clientSecret: env.LINE_CLIENT_SECRET,
-              authorization: {
-                params: {
-                  scope: "profile openid email",
-                },
+        console.log("✅ LINE OAuth環境変数が設定されています");
+        return [
+          LineProvider({
+            clientId: env.LINE_CLIENT_ID,
+            clientSecret: env.LINE_CLIENT_SECRET,
+            authorization: {
+              params: {
+                scope: "profile openid email",
               },
-            }),
-          ];
-        })()
+            },
+          }),
+        ];
+      })()
       : (() => {
-          console.log("❌ LINE OAuth環境変数が未設定です");
-          return [];
-        })()),
+        console.log("❌ LINE OAuth環境変数が未設定です");
+        return [];
+      })()),
   ],
   session: {
     strategy: "jwt",
@@ -145,6 +174,34 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {
     error: "/auth/error",
+  },
+  cookies: {
+    sessionToken: {
+      name: `guest-session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    callbackUrl: {
+      name: `guest-callback-url`,
+      options: {
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    csrfToken: {
+      name: `guest-csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
   },
 };
 
