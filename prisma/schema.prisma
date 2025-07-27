@@ -34,61 +34,62 @@ model Session {
 }
 
 model User {
-  id                   String                @id @default(cuid())
-  email                String                @unique
-  userType             UserType              @default(GUEST)
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  birthDate            DateTime?
-  city                 String?
-  image                String?
-  isVerified           Boolean               @default(false)
-  name                 String?
-  phoneNumber          String?
-  points               Int                   @default(0)
-  prefecture           String?
-  selfIntro            String?
-  tags                 String[]
-  accounts             Account[]
-  sessions             Session[]
-  activityLogs         ActivityLog[]
-  castBookings         Booking[]             @relation("BookingCast")
-  guestBookings        Booking[]             @relation("BookingGuest")
-  castProfile          CastProfile?
-  deviceTokens         DeviceToken[]
-  favorites            Favorite[]
-  files                File[]
-  guestProfile         GuestProfile?
-  messageReadStatus    MessageReadStatus[]
-  sentMessages         Message[]             @relation("MessageSender")
-  notificationSettings NotificationSetting[]
-  notifications        Notification[]
-  payments             Payment[]             @relation("PaymentPayer")
-  payouts              Payout[]              @relation("PayoutCast")
-  reports              Report[]
-  reviews              Review[]
-  searchHistory        SearchHistory[]
-  conversations        Conversation[]        @relation("ConversationToUser")
-  pointTransactions    PointTransaction[]
-  paymentMethods       PaymentMethod[]
-  bankAccounts         BankAccount[]
-  withdrawalRequests   WithdrawalRequest[]
-  newsReadStatus       NewsReadStatus[]
-  helpArticleRatings   HelpArticleRating[]
-  inquiries            Inquiry[]
-  profileViewsGiven    ProfileView[]        @relation("ProfileViewViewer")
-  profileViewsReceived ProfileView[]        @relation("ProfileViewViewed")
-  blockedUsers         UserBlock[]          @relation("UserBlockBlocker")
-  blockedBy            UserBlock[]          @relation("UserBlockBlocked")
-  reportsSubmitted     UserReport[]         @relation("UserReportReporter")
-  reportsReceived      UserReport[]         @relation("UserReportReported")
-  idVerifications      IdVerification[]
-  privacySettings      PrivacySetting?
-  scheduleProposals    ScheduleProposal[]
-  pinnedThreads        PinnedThread[]
-  messageReactions     MessageReaction[]
+  id                     String                  @id @default(cuid())
+  email                  String                  @unique
+  emailVerified           DateTime?
+  userType               UserType                @default(GUEST)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  birthDate              DateTime?
+  city                   String?
+  image                  String?
+  isVerified             Boolean                 @default(false)
+  name                   String?
+  phoneNumber            String?
+  points                 Int                     @default(0)
+  prefecture             String?
+  selfIntro              String?
+  tags                   String[]
+  accounts               Account[]
+  sessions               Session[]
+  activityLogs           ActivityLog[]
+  bankAccounts           BankAccount[]
+  castBookings           Booking[]               @relation("BookingCast")
+  guestBookings          Booking[]               @relation("BookingGuest")
+  castProfile            CastProfile?
+  deviceTokens           DeviceToken[]
+  favorites              Favorite[]
+  files                  File[]
+  guestProfile           GuestProfile?
+  helpArticleRatings     HelpArticleRating[]
+  idVerifications        IdVerification[]
+  inquiries              Inquiry[]
+  messageReactions       MessageReaction[]
+  messageReadStatus      MessageReadStatus[]
+  sentMessages           Message[]               @relation("MessageSender")
+  newsReadStatus         NewsReadStatus[]
+  notificationSettings   NotificationSetting[]
+  notifications          Notification[]
+  paymentMethods         PaymentMethod[]
+  payments               Payment[]               @relation("PaymentPayer")
+  payouts                Payout[]                @relation("PayoutCast")
+  pinnedThreads          PinnedThread[]
+  pointTransactions      PointTransaction[]
+  privacySettings        PrivacySetting?
+  profileViewsReceived   ProfileView[]           @relation("ProfileViewViewed")
+  profileViewsGiven      ProfileView[]           @relation("ProfileViewViewer")
+  reports                Report[]
+  reviews                Review[]
+  scheduleProposals      ScheduleProposal[]
   scheduledNotifications ScheduledNotification[]
-  securityLogs         SecurityLog[]
+  searchHistory          SearchHistory[]
+  securityLogs           SecurityLog[]
+  blockedBy              UserBlock[]             @relation("UserBlockBlocked")
+  blockedUsers           UserBlock[]             @relation("UserBlockBlocker")
+  reportsReceived        UserReport[]            @relation("UserReportReported")
+  reportsSubmitted       UserReport[]            @relation("UserReportReporter")
+  withdrawalRequests     WithdrawalRequest[]
+  conversations          Conversation[]          @relation("ConversationToUser")
 
   @@index([email])
   @@index([userType])
@@ -181,18 +182,18 @@ model Booking {
 }
 
 model Conversation {
-  id           String    @id @default(cuid())
-  bookingId    String?   @unique
-  title        String?
-  isGroup      Boolean   @default(false)
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  booking           Booking?            @relation(fields: [bookingId], references: [id])
+  id                String             @id @default(cuid())
+  bookingId         String?            @unique
+  title             String?
+  isGroup           Boolean            @default(false)
+  isActive          Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  booking           Booking?           @relation(fields: [bookingId], references: [id])
   messages          Message[]
-  participants      User[]              @relation("ConversationToUser")
-  scheduleProposals ScheduleProposal[]
   pinnedThreads     PinnedThread[]
+  scheduleProposals ScheduleProposal[]
+  participants      User[]             @relation("ConversationToUser")
 
   @@map("conversations")
 }
@@ -209,11 +210,11 @@ model Message {
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
   attachments       MessageAttachment[]
+  reactions         MessageReaction[]
   messageReadStatus MessageReadStatus[]
   conversation      Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender            User                @relation("MessageSender", fields: [senderId], references: [id])
   pinnedThreads     PinnedThread[]
-  reactions         MessageReaction[]
 
   @@index([conversationId, createdAt])
   @@index([senderId])
@@ -533,6 +534,401 @@ model Report {
   @@map("reports")
 }
 
+model PointTransaction {
+  id              String               @id @default(cuid())
+  userId          String
+  points          Int
+  transactionType PointTransactionKind
+  amount          Int?
+  referenceId     String?
+  referenceType   String?
+  description     String?
+  createdAt       DateTime             @default(now())
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([transactionType])
+  @@map("point_transactions")
+}
+
+model PaymentMethod {
+  id                 String              @id @default(cuid())
+  userId             String
+  stripeMethodId     String              @unique
+  type               PaymentMethodKind
+  card               Json?
+  isDefault          Boolean             @default(false)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  withdrawalRequests WithdrawalRequest[]
+
+  @@index([userId])
+  @@map("payment_methods")
+}
+
+model BankAccount {
+  id                 String              @id @default(cuid())
+  castId             String
+  bankName           String
+  branchName         String
+  accountType        BankAccountKind
+  accountNumber      String
+  accountHolderName  String
+  isPrimary          Boolean             @default(false)
+  isVerified         Boolean             @default(false)
+  verifiedAt         DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  user               User                @relation(fields: [castId], references: [id], onDelete: Cascade)
+  withdrawalRequests WithdrawalRequest[]
+
+  @@index([castId])
+  @@map("bank_accounts")
+}
+
+model WithdrawalRequest {
+  id              String                  @id @default(cuid())
+  castId          String
+  bankAccountId   String
+  paymentMethodId String?
+  amount          Int
+  fee             Int                     @default(0)
+  netAmount       Int
+  status          WithdrawalRequestStatus @default(PENDING)
+  requestedAt     DateTime                @default(now())
+  processedAt     DateTime?
+  completedAt     DateTime?
+  failedAt        DateTime?
+  failureReason   String?
+  notes           String?
+  bankAccount     BankAccount             @relation(fields: [bankAccountId], references: [id])
+  cast            User                    @relation(fields: [castId], references: [id])
+  paymentMethod   PaymentMethod?          @relation(fields: [paymentMethodId], references: [id])
+
+  @@index([castId, status])
+  @@index([status, requestedAt])
+  @@map("withdrawal_requests")
+}
+
+model News {
+  id          String              @id @default(cuid())
+  title       String
+  content     String
+  category    NewsTopicCategory
+  importance  NewsImportanceLevel @default(NORMAL)
+  imageUrl    String?
+  isPublished Boolean             @default(false)
+  publishedAt DateTime?
+  viewCount   Int                 @default(0)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  readStatus  NewsReadStatus[]
+
+  @@index([category, isPublished])
+  @@index([importance, publishedAt])
+  @@map("news")
+}
+
+model NewsReadStatus {
+  id     String   @id @default(cuid())
+  newsId String
+  userId String
+  readAt DateTime @default(now())
+  news   News     @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([newsId, userId])
+  @@map("news_read_status")
+}
+
+model HelpArticle {
+  id           String              @id @default(cuid())
+  title        String
+  content      String
+  category     HelpArticleCategory
+  tags         String[]
+  sortOrder    Int                 @default(0)
+  isPublished  Boolean             @default(false)
+  viewCount    Int                 @default(0)
+  helpfulCount Int                 @default(0)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  ratings      HelpArticleRating[]
+
+  @@index([category, isPublished])
+  @@index([tags])
+  @@map("help_articles")
+}
+
+model HelpArticleRating {
+  id        String      @id @default(cuid())
+  articleId String
+  userId    String
+  isHelpful Boolean
+  comment   String?
+  createdAt DateTime    @default(now())
+  article   HelpArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, userId])
+  @@map("help_article_ratings")
+}
+
+model Inquiry {
+  id          String               @id @default(cuid())
+  userId      String
+  category    InquiryTopicCategory
+  subject     String
+  message     String
+  attachments Json?
+  status      InquiryRequestStatus @default(PENDING)
+  priority    InquiryPriorityLevel @default(NORMAL)
+  assignedTo  String?
+  resolvedAt  DateTime?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  user        User                 @relation(fields: [userId], references: [id])
+
+  @@index([userId, status])
+  @@index([status, priority])
+  @@map("inquiries")
+}
+
+model Bank {
+  id        String       @id @default(cuid())
+  code      String       @unique
+  name      String
+  nameKana  String?
+  nameEn    String?
+  isActive  Boolean      @default(true)
+  sortOrder Int          @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  branches  BankBranch[]
+
+  @@map("banks")
+}
+
+model BankBranch {
+  id        String   @id @default(cuid())
+  bankId    String
+  code      String
+  name      String
+  nameKana  String?
+  nameEn    String?
+  address   String?
+  phone     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  bank      Bank     @relation(fields: [bankId], references: [id])
+
+  @@unique([bankId, code])
+  @@map("bank_branches")
+}
+
+model Skill {
+  id          String             @id @default(cuid())
+  name        String             @unique
+  nameEn      String?
+  category    SkillTopicCategory
+  description String?
+  iconUrl     String?
+  sortOrder   Int                @default(0)
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@map("skills")
+}
+
+model ProfileView {
+  id       String   @id @default(cuid())
+  viewerId String
+  viewedId String
+  viewedAt DateTime @default(now())
+  viewed   User     @relation("ProfileViewViewed", fields: [viewedId], references: [id], onDelete: Cascade)
+  viewer   User     @relation("ProfileViewViewer", fields: [viewerId], references: [id], onDelete: Cascade)
+
+  @@unique([viewerId, viewedId, viewedAt])
+  @@index([viewedId, viewedAt])
+  @@index([viewerId, viewedAt])
+  @@map("profile_views")
+}
+
+model UserBlock {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  reason    String?
+  createdAt DateTime @default(now())
+  blocked   User     @relation("UserBlockBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  blocker   User     @relation("UserBlockBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+  @@map("user_blocks")
+}
+
+model UserReport {
+  id           String           @id @default(cuid())
+  reporterId   String
+  reportedId   String
+  reason       UserReportReason
+  description  String?
+  evidenceUrls String[]
+  status       UserReportStatus @default(PENDING)
+  reviewedBy   String?
+  reviewedAt   DateTime?
+  reviewNotes  String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  reported     User             @relation("UserReportReported", fields: [reportedId], references: [id])
+  reporter     User             @relation("UserReportReporter", fields: [reporterId], references: [id])
+
+  @@index([reporterId])
+  @@index([reportedId])
+  @@index([status, createdAt])
+  @@map("user_reports")
+}
+
+model IdVerification {
+  id            String               @id @default(cuid())
+  userId        String
+  documentType  IdDocumentType
+  documentUrls  String[]
+  extractedData Json?
+  status        IdVerificationStatus @default(PENDING)
+  submittedAt   DateTime             @default(now())
+  reviewedAt    DateTime?
+  reviewedBy    String?
+  reviewerNotes String?
+  failureReason String?
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([status, submittedAt])
+  @@map("id_verifications")
+}
+
+model PrivacySetting {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  showFootprints      Boolean  @default(true)
+  allowSearch         Boolean  @default(true)
+  showOnlineStatus    Boolean  @default(true)
+  allowDirectMessages Boolean  @default(true)
+  showLastActiveTime  Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("privacy_settings")
+}
+
+model ScheduleProposal {
+  id               String                 @id @default(cuid())
+  conversationId   String
+  proposerId       String
+  proposedDateTime DateTime
+  durationMinutes  Int
+  message          String?
+  status           ScheduleProposalStatus @default(PENDING)
+  respondedAt      DateTime?
+  createdAt        DateTime               @default(now())
+  conversation     Conversation           @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  proposer         User                   @relation(fields: [proposerId], references: [id])
+
+  @@index([conversationId, status])
+  @@index([proposerId])
+  @@map("schedule_proposals")
+}
+
+model PinnedThread {
+  id             String       @id @default(cuid())
+  conversationId String
+  messageId      String
+  pinnedBy       String
+  pinnedAt       DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  message        Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [pinnedBy], references: [id])
+
+  @@unique([conversationId, messageId])
+  @@index([conversationId])
+  @@map("pinned_threads")
+}
+
+model MessageReaction {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+  @@map("message_reactions")
+}
+
+model NotificationTemplate {
+  id        String           @id @default(cuid())
+  name      String           @unique
+  type      NotificationType
+  title     String
+  body      String
+  variables String[]
+  isActive  Boolean          @default(true)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@map("notification_templates")
+}
+
+model ScheduledNotification {
+  id            String                      @id @default(cuid())
+  userId        String
+  templateId    String?
+  title         String
+  body          String
+  data          Json?
+  scheduledFor  DateTime
+  status        ScheduledNotificationStatus @default(PENDING)
+  sentAt        DateTime?
+  failedAt      DateTime?
+  failureReason String?
+  createdAt     DateTime                    @default(now())
+  user          User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, scheduledFor])
+  @@index([status, scheduledFor])
+  @@map("scheduled_notifications")
+}
+
+model SecurityLog {
+  id          String         @id @default(cuid())
+  userId      String?
+  action      SecurityAction
+  entity      String?
+  entityId    String?
+  description String?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  severity    LogSeverity    @default(INFO)
+  createdAt   DateTime       @default(now())
+  user        User?          @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([severity, createdAt])
+  @@map("security_logs")
+}
+
 enum UserType {
   GUEST
   CAST
@@ -658,215 +1054,6 @@ enum ReportFormat {
   PDF
 }
 
-model PointTransaction {
-  id              String                @id @default(cuid())
-  userId          String
-  points          Int
-  transactionType PointTransactionKind
-  amount          Int?
-  referenceId     String?
-  referenceType   String?
-  description     String?
-  createdAt       DateTime              @default(now())
-  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, createdAt])
-  @@index([transactionType])
-  @@map("point_transactions")
-}
-
-model PaymentMethod {
-  id               String               @id @default(cuid())
-  userId           String
-  stripeMethodId   String               @unique
-  type             PaymentMethodKind
-  card             Json?
-  isDefault        Boolean              @default(false)
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  withdrawalRequests WithdrawalRequest[]
-
-  @@index([userId])
-  @@map("payment_methods")
-}
-
-model BankAccount {
-  id                 String               @id @default(cuid())
-  castId             String
-  bankName           String
-  branchName         String
-  accountType        BankAccountKind
-  accountNumber      String
-  accountHolderName  String
-  isPrimary          Boolean              @default(false)
-  isVerified         Boolean              @default(false)
-  verifiedAt         DateTime?
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
-  user               User                 @relation(fields: [castId], references: [id], onDelete: Cascade)
-  withdrawalRequests WithdrawalRequest[]
-
-  @@index([castId])
-  @@map("bank_accounts")
-}
-
-model WithdrawalRequest {
-  id              String               @id @default(cuid())
-  castId          String
-  bankAccountId   String
-  paymentMethodId String?
-  amount          Int
-  fee             Int                  @default(0)
-  netAmount       Int
-  status          WithdrawalRequestStatus     @default(PENDING)
-  requestedAt     DateTime             @default(now())
-  processedAt     DateTime?
-  completedAt     DateTime?
-  failedAt        DateTime?
-  failureReason   String?
-  notes           String?
-  bankAccount     BankAccount          @relation(fields: [bankAccountId], references: [id])
-  cast            User                 @relation(fields: [castId], references: [id])
-  paymentMethod   PaymentMethod?       @relation(fields: [paymentMethodId], references: [id])
-
-  @@index([castId, status])
-  @@index([status, requestedAt])
-  @@map("withdrawal_requests")
-}
-
-model News {
-  id           String        @id @default(cuid())
-  title        String
-  content      String        @db.Text
-  category     NewsTopicCategory
-  importance   NewsImportanceLevel @default(NORMAL)
-  imageUrl     String?
-  isPublished  Boolean       @default(false)
-  publishedAt  DateTime?
-  viewCount    Int           @default(0)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  readStatus   NewsReadStatus[]
-
-  @@index([category, isPublished])
-  @@index([importance, publishedAt])
-  @@map("news")
-}
-
-model NewsReadStatus {
-  id       String   @id @default(cuid())
-  newsId   String
-  userId   String
-  readAt   DateTime @default(now())
-  news     News     @relation(fields: [newsId], references: [id], onDelete: Cascade)
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([newsId, userId])
-  @@map("news_read_status")
-}
-
-model HelpArticle {
-  id          String           @id @default(cuid())
-  title       String
-  content     String           @db.Text
-  category    HelpArticleCategory
-  tags        String[]
-  sortOrder   Int              @default(0)
-  isPublished Boolean          @default(false)
-  viewCount   Int              @default(0)
-  helpfulCount Int             @default(0)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  ratings     HelpArticleRating[]
-
-  @@index([category, isPublished])
-  @@index([tags])
-  @@map("help_articles")
-}
-
-model HelpArticleRating {
-  id          String      @id @default(cuid())
-  articleId   String
-  userId      String
-  isHelpful   Boolean
-  comment     String?
-  createdAt   DateTime    @default(now())
-  article     HelpArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([articleId, userId])
-  @@map("help_article_ratings")
-}
-
-model Inquiry {
-  id          String        @id @default(cuid())
-  userId      String
-  category    InquiryTopicCategory
-  subject     String
-  message     String        @db.Text
-  attachments Json?
-  status      InquiryRequestStatus @default(PENDING)
-  priority    InquiryPriorityLevel @default(NORMAL)
-  assignedTo  String?
-  resolvedAt  DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  user        User          @relation(fields: [userId], references: [id])
-
-  @@index([userId, status])
-  @@index([status, priority])
-  @@map("inquiries")
-}
-
-model Bank {
-  id         String       @id @default(cuid())
-  code       String       @unique
-  name       String
-  nameKana   String?
-  nameEn     String?
-  isActive   Boolean      @default(true)
-  sortOrder  Int          @default(0)
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-  branches   BankBranch[]
-
-  @@map("banks")
-}
-
-model BankBranch {
-  id         String   @id @default(cuid())
-  bankId     String
-  code       String
-  name       String
-  nameKana   String?
-  nameEn     String?
-  address    String?
-  phone      String?
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  bank       Bank     @relation(fields: [bankId], references: [id])
-
-  @@unique([bankId, code])
-  @@map("bank_branches")
-}
-
-model Skill {
-  id          String       @id @default(cuid())
-  name        String       @unique
-  nameEn      String?
-  category    SkillTopicCategory
-  description String?
-  iconUrl     String?
-  sortOrder   Int          @default(0)
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-
-  @@map("skills")
-}
-
 enum PointTransactionKind {
   PURCHASE
   USE
@@ -953,196 +1140,6 @@ enum SkillTopicCategory {
   LIFESTYLE
   OTHER
 }
-
-// Phase 3: Advanced User Features Models
-
-model ProfileView {
-  id        String   @id @default(cuid())
-  viewerId  String
-  viewedId  String
-  viewedAt  DateTime @default(now())
-  viewer    User     @relation("ProfileViewViewer", fields: [viewerId], references: [id], onDelete: Cascade)
-  viewed    User     @relation("ProfileViewViewed", fields: [viewedId], references: [id], onDelete: Cascade)
-
-  @@unique([viewerId, viewedId, viewedAt])
-  @@index([viewedId, viewedAt])
-  @@index([viewerId, viewedAt])
-  @@map("profile_views")
-}
-
-model UserBlock {
-  id        String   @id @default(cuid())
-  blockerId String
-  blockedId String
-  reason    String?
-  createdAt DateTime @default(now())
-  blocker   User     @relation("UserBlockBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
-  blocked   User     @relation("UserBlockBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
-
-  @@unique([blockerId, blockedId])
-  @@index([blockerId])
-  @@index([blockedId])
-  @@map("user_blocks")
-}
-
-model UserReport {
-  id           String           @id @default(cuid())
-  reporterId   String
-  reportedId   String
-  reason       UserReportReason
-  description  String?          @db.Text
-  evidenceUrls String[]
-  status       UserReportStatus @default(PENDING)
-  reviewedBy   String?
-  reviewedAt   DateTime?
-  reviewNotes  String?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  reporter     User             @relation("UserReportReporter", fields: [reporterId], references: [id])
-  reported     User             @relation("UserReportReported", fields: [reportedId], references: [id])
-
-  @@index([reporterId])
-  @@index([reportedId])
-  @@index([status, createdAt])
-  @@map("user_reports")
-}
-
-model IdVerification {
-  id             String                 @id @default(cuid())
-  userId         String
-  documentType   IdDocumentType
-  documentUrls   String[]
-  extractedData  Json?
-  status         IdVerificationStatus   @default(PENDING)
-  submittedAt    DateTime               @default(now())
-  reviewedAt     DateTime?
-  reviewedBy     String?
-  reviewerNotes  String?
-  failureReason  String?
-  user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, status])
-  @@index([status, submittedAt])
-  @@map("id_verifications")
-}
-
-model PrivacySetting {
-  id                    String   @id @default(cuid())
-  userId                String   @unique
-  showFootprints        Boolean  @default(true)
-  allowSearch           Boolean  @default(true)
-  showOnlineStatus      Boolean  @default(true)
-  allowDirectMessages   Boolean  @default(true)
-  showLastActiveTime    Boolean  @default(true)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("privacy_settings")
-}
-
-model ScheduleProposal {
-  id               String                   @id @default(cuid())
-  conversationId   String
-  proposerId       String
-  proposedDateTime DateTime
-  durationMinutes  Int
-  message          String?
-  status           ScheduleProposalStatus   @default(PENDING)
-  respondedAt      DateTime?
-  createdAt        DateTime                 @default(now())
-  conversation     Conversation             @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  proposer         User                     @relation(fields: [proposerId], references: [id])
-
-  @@index([conversationId, status])
-  @@index([proposerId])
-  @@map("schedule_proposals")
-}
-
-model PinnedThread {
-  id             String       @id @default(cuid())
-  conversationId String
-  messageId      String
-  pinnedBy       String
-  pinnedAt       DateTime     @default(now())
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  message        Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [pinnedBy], references: [id])
-
-  @@unique([conversationId, messageId])
-  @@index([conversationId])
-  @@map("pinned_threads")
-}
-
-model MessageReaction {
-  id        String   @id @default(cuid())
-  messageId String
-  userId    String
-  emoji     String
-  createdAt DateTime @default(now())
-  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([messageId, userId, emoji])
-  @@index([messageId])
-  @@map("message_reactions")
-}
-
-model NotificationTemplate {
-  id          String               @id @default(cuid())
-  name        String               @unique
-  type        NotificationType
-  title       String
-  body        String
-  variables   String[]
-  isActive    Boolean              @default(true)
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
-
-  @@map("notification_templates")
-}
-
-model ScheduledNotification {
-  id           String                       @id @default(cuid())
-  userId       String
-  templateId   String?
-  title        String
-  body         String
-  data         Json?
-  scheduledFor DateTime
-  status       ScheduledNotificationStatus  @default(PENDING)
-  sentAt       DateTime?
-  failedAt     DateTime?
-  failureReason String?
-  createdAt    DateTime                     @default(now())
-  user         User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, scheduledFor])
-  @@index([status, scheduledFor])
-  @@map("scheduled_notifications")
-}
-
-model SecurityLog {
-  id          String         @id @default(cuid())
-  userId      String?
-  action      SecurityAction
-  entity      String?
-  entityId    String?
-  description String?
-  metadata    Json?
-  ipAddress   String?
-  userAgent   String?
-  severity    LogSeverity    @default(INFO)
-  createdAt   DateTime       @default(now())
-  user        User?          @relation(fields: [userId], references: [id])
-
-  @@index([userId, createdAt])
-  @@index([action, createdAt])
-  @@index([severity, createdAt])
-  @@map("security_logs")
-}
-
-// Phase 3 Enums
 
 enum UserReportReason {
   INAPPROPRIATE_BEHAVIOR

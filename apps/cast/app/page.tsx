@@ -1,20 +1,31 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import LoginModal from "@/components/login-modal"
 import SignupModal from "@/components/signup-modal"
 import HomeScreen from "@/components/home-screen"
 
 export default function CapuApp() {
+  const { data: session, status } = useSession()
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [showSignupModal, setShowSignupModal] = useState(false)
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   // デバッグ用ログ
-  console.log("CapuApp state:", { showLoginModal, showSignupModal, isLoggedIn })
+  console.log("CapuApp state:", { showLoginModal, showSignupModal, session, status })
 
-  if (isLoggedIn) {
+  // ローディング中
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white">読み込み中...</div>
+      </div>
+    )
+  }
+
+  // ログイン済み
+  if (session) {
     return (
       <div className="h-screen bg-black flex justify-center overflow-hidden">
         <div className="w-full md:max-w-sm h-full overflow-hidden">
@@ -84,7 +95,10 @@ export default function CapuApp() {
         <LoginModal
           isOpen={showLoginModal}
           onClose={() => setShowLoginModal(false)}
-          onLogin={() => setIsLoggedIn(true)}
+          onLogin={() => {
+            // NextAuth will handle the session update
+            setShowLoginModal(false)
+          }}
         />
       </div>
     </div>

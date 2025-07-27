@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { X } from "lucide-react"
 import { useState } from "react"
+import { signIn } from "next-auth/react"
+import { toast } from "@/components/ui/use-toast"
 
 interface LoginModalProps {
   isOpen: boolean
@@ -15,15 +17,44 @@ interface LoginModalProps {
 export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
   const [loginId, setLoginId] = useState("")
   const [password, setPassword] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
   
   console.log("LoginModal isOpen:", isOpen)
   if (!isOpen) return null
 
-  const handleLogin = () => {
-    // ここで実際の認証処理を行う
-    console.log("Login attempt with:", { loginId, password })
-    onLogin()
-    onClose()
+  const handleLogin = async () => {
+    setIsLoading(true)
+    
+    try {
+      const result = await signIn("cast-credentials", {
+        loginId,
+        password,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        toast({
+          title: "ログインエラー",
+          description: "ログインIDまたはパスワードが正しくありません",
+          variant: "destructive",
+        })
+      } else if (result?.ok) {
+        toast({
+          title: "ログイン成功",
+          description: "ログインしました",
+        })
+        onLogin()
+        onClose()
+      }
+    } catch (error) {
+      toast({
+        title: "エラー",
+        description: "ログイン処理中にエラーが発生しました",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -75,10 +106,10 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
 
             <Button
               onClick={handleLogin}
-              disabled={!loginId || !password}
+              disabled={!loginId || !password || isLoading}
               className="w-full h-14 bg-main-navy-gradient hover:bg-main-blue text-white text-base font-semibold rounded-full shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              ログイン
+              {isLoading ? "ログイン中..." : "ログイン"}
             </Button>
             
             <div className="text-center mt-4">

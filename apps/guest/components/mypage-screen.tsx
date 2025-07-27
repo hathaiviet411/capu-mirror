@@ -15,6 +15,7 @@ import NotificationIcon from "@/components/shared/notification-icon"
 import Footer from "@/components/shared/footer"
 import MessageListScreen from "@/components/message-list-screen"
 import SettingsScreen from "@/components/settings-screen"
+import { useSession } from "next-auth/react"
 
 interface MyPageScreenProps {
   onBack: () => void
@@ -25,6 +26,8 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
     id: index + 1,
     name: `Cast ${index + 1}`,
   }))
+
+  const { data: session, status } = useSession()
 
   const [showProfileEdit, setShowProfileEdit] = useState(false)
   const [showJoinedCasts, setShowJoinedCasts] = useState(false)
@@ -188,8 +191,9 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
 
   // User profile data (would come from state/API in real app)
   const userProfile = {
-    name: "田中 美咲",
-    age: 28, // Calculated from birth date 1996年10月22日
+    avatar: session?.user?.image || "https://randomuser.me/api/portraits/women/32.jpg",
+    name: session?.user?.name || "田中 美咲",
+    age: 28,
     job: "会社員",
   }
 
@@ -267,7 +271,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
               className="w-32 h-32 rounded-full bg-gray-200 overflow-hidden mx-auto"
             >
               <Image
-                src="https://randomuser.me/api/portraits/women/32.jpg"
+                src={userProfile.avatar}
                 alt="Profile"
                 width={128}
                 height={128}

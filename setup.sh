@@ -1,17 +1,17 @@
 #!/bin/bash
 
 # Capu-app T3 Stack Development Setup Script
-# 天才エンジニアによる最高の開発環境構築スクリプト 🚀
+# The ultimate development environment setup script by a genius engineer 🚀
 
-echo "🎉 Capu-app T3 Stack 開発環境セットアップを開始します！"
+echo "🎉 Starting the Capu-app T3 Stack development environment setup!"
 echo "=============================================="
 
-# 1. 依存関係のインストール
-echo "📦 依存関係をインストールしています..."
+# 1. Installing dependencies
+echo "📦 Installing dependencies..."
 pnpm install
 
-# 2. 環境変数ファイルの作成
-echo "🔧 環境変数ファイルを作成しています..."
+# 2. Creating the environment variables file
+echo "🔧 Creating environment variables file..."
 if [ ! -f .env ]; then
     cat > .env << 'EOF'
 # Database
@@ -28,7 +28,7 @@ DISCORD_CLIENT_SECRET=""
 # Redis (optional)
 REDIS_URL="redis://localhost:6379"
 
-# Stripe (決済処理用)
+# Stripe (for payment processing)
 STRIPE_SECRET_KEY=""
 STRIPE_PUBLISHABLE_KEY=""
 STRIPE_WEBHOOK_SECRET=""
@@ -40,38 +40,38 @@ R2_SECRET_ACCESS_KEY=""
 R2_BUCKET_NAME=""
 R2_PUBLIC_URL=""
 
-# Node環境
+# Node environment
 NODE_ENV="development"
 EOF
-    echo "✅ .env ファイルが作成されました"
+    echo "✅ .env file has been created"
 else
-    echo "⚠️  .env ファイルが既に存在します"
+    echo "⚠️ .env file already exists"
 fi
 
-# 3. Dockerコンテナの起動
-echo "🐳 Dockerコンテナを起動しています..."
+# 3. Starting Docker containers
+echo "🐳 Starting Docker containers..."
 docker-compose up -d db redis
 
-# 4. データベースの初期化を待機
-echo "⏳ データベースの準備を待機しています..."
+# 4. Waiting for the database initialization
+echo "⏳ Waiting for the database to be ready..."
 sleep 10
 
-# 5. Prismaのセットアップ
-echo "🗄️  Prismaデータベースをセットアップしています..."
+# 5. Setting up Prisma
+echo "🗄️ Setting up Prisma database..."
 pnpm prisma generate
 pnpm prisma db push
 
-# 6. 開発サーバーの起動
-echo "🚀 開発サーバーを起動しています..."
+# 6. Starting the development server
+echo "🚀 Starting the development server..."
 echo "=============================================="
-echo "✅ セットアップが完了しました！"
+echo "✅ Setup is complete!"
 echo ""
-echo "📱 アプリケーション: http://localhost:3000"
-echo "🗄️  Prisma Studio: http://localhost:5555"
+echo "📱 Application: http://localhost:3000"
+echo "🗄️ Prisma Studio: http://localhost:5555"
 echo "🐘 PostgreSQL: localhost:5432"
 echo "🔴 Redis: localhost:6379"
 echo ""
-echo "開発を開始するには以下のコマンドを実行してください："
+echo "To start development, run the following command:"
 echo "pnpm dev"
 echo ""
-echo "Happy coding! 🎨✨" 
+echo "Happy coding! 🎨✨"
