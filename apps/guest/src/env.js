@@ -58,7 +58,7 @@ export const env = createEnv({
     DATABASE_URL: "postgres://postgres.ioelmtxryutqbbbvoolz:8aMub0SCYEbkoHMw@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres?sslmode=require",
     NODE_ENV: process.env.NODE_ENV,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
-    NEXTAUTH_URL: "http://localhost:3001",
+    NEXTAUTH_URL: "http://localhost:3000",
     DISCORD_CLIENT_ID: process.env.DISCORD_CLIENT_ID,
     DISCORD_CLIENT_SECRET: process.env.DISCORD_CLIENT_SECRET,
     LINE_CLIENT_ID: process.env.LINE_CLIENT_ID,
