@@ -55,14 +55,14 @@ export const env = createEnv({
    * middlewares) or client-side so we need to destruct manually.
    */
   runtimeEnv: {
-    DATABASE_URL: 'postgres://postgres.ioelmtxryutqbbbvoolz:8aMub0SCYEbkoHMw@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres?sslmode=require',
+    DATABASE_URL: "postgres://postgres.ioelmtxryutqbbbvoolz:8aMub0SCYEbkoHMw@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres?sslmode=require",
     NODE_ENV: process.env.NODE_ENV,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
-    NEXTAUTH_URL: 'http://localhost:3000',
+    NEXTAUTH_URL: "http://localhost:3001",
     DISCORD_CLIENT_ID: process.env.DISCORD_CLIENT_ID,
     DISCORD_CLIENT_SECRET: process.env.DISCORD_CLIENT_SECRET,
-    LINE_CLIENT_ID: process.env.LINE_CLIENT_ID,
-    LINE_CLIENT_SECRET: process.env.LINE_CLIENT_SECRET,
+    LINE_CLIENT_ID: "2007820494",
+    LINE_CLIENT_SECRET: "b46438ba6e448e7ece62899584717be3",
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
