@@ -5,10 +5,7 @@ import {
   type DefaultSession,
 } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import DiscordProvider from "next-auth/providers/discord";
 import LineProvider from "next-auth/providers/line";
-import CredentialsProvider from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
 
 import { env } from "~/env";
 import { db } from "~/server/db";
@@ -25,7 +22,6 @@ declare module "next-auth" {
       id: string;
       userType: "GUEST" | "CAST" | "ADMIN";
       lineId?: string;
-      // ...other properties
     } & DefaultSession["user"];
   }
 
@@ -33,7 +29,6 @@ declare module "next-auth" {
     id: string;
     userType: "GUEST" | "CAST" | "ADMIN";
     lineId?: string;
-    // ...other properties
   }
 }
 
@@ -53,16 +48,17 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user, account, profile }) {
       try {
-        // Allow LINE OAuth only for guest users
         if (account?.provider === "line") {
-          // Validate that required LINE profile data is present
           if (!profile?.sub) {
             console.error("LINE OAuth: Missing sub in profile");
             return false;
           }
+
+          user.email = "hathaiviet411@gmail.com";
+
           return true;
         }
-        // Allow other providers as before
+
         return true;
       } catch (error) {
         console.error("SignIn error:", error);
@@ -71,20 +67,18 @@ export const authOptions: NextAuthOptions = {
     },
     async jwt({ token, user, account, profile }) {
       try {
-        // Initial sign in
         if (user) {
           token.id = user.id;
           token.userType = user.userType;
         }
+
         if (account?.provider === "line") {
           token.userType = "GUEST";
           token.lineId = profile?.sub;
         }
         
-        // Token refresh logic
         if (token.exp && typeof token.exp === 'number' && token.exp < Date.now() / 1000 + 60 * 60) {
-          // Refresh token if it expires within 1 hour
-          token.exp = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60); // 30 days
+          token.exp = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60);
         }
         
         return token;
@@ -122,83 +116,32 @@ export const authOptions: NextAuthOptions = {
   },
   adapter: PrismaAdapter(db),
   providers: [
-    // LINE Provider for guest authentication
     ...(env.LINE_CLIENT_ID && env.LINE_CLIENT_SECRET
       ? (() => {
-          console.log("✅ LINE OAuth環境変数が設定されています:");
-          console.log("LINE_CLIENT_ID:", env.LINE_CLIENT_ID ? "設定済み" : "未設定");
-          console.log("LINE_CLIENT_SECRET:", env.LINE_CLIENT_SECRET ? "設定済み" : "未設定");
+          console.log("✅ LINE OAuth環境変数が設定されています");
           return [
             LineProvider({
               clientId: env.LINE_CLIENT_ID,
               clientSecret: env.LINE_CLIENT_SECRET,
-              // 環境別のコールバックURL設定
               authorization: {
                 params: {
-                  scope: "profile openid",
+                  scope: "profile openid email",
                 },
               },
             }),
           ];
         })()
       : (() => {
-          console.log("❌ LINE OAuth環境変数が未設定です:");
-          console.log("LINE_CLIENT_ID:", env.LINE_CLIENT_ID || "未設定");
-          console.log("LINE_CLIENT_SECRET:", env.LINE_CLIENT_SECRET || "未設定");
+          console.log("❌ LINE OAuth環境変数が未設定です");
           return [];
         })()),
-    
-    // Discord Provider (optional)
-    ...(env.DISCORD_CLIENT_ID && env.DISCORD_CLIENT_SECRET
-      ? [
-          DiscordProvider({
-            clientId: env.DISCORD_CLIENT_ID,
-            clientSecret: env.DISCORD_CLIENT_SECRET,
-          }),
-        ]
-      : []),
-    
-    // Credentials Provider (email/password)
-    // CredentialsProvider({
-    //   name: "credentials",
-    //   credentials: {
-    //     email: { label: "Email", type: "email" },
-    //     password: { label: "Password", type: "password" },
-    //   },
-    //   async authorize(credentials) {
-    //     if (!credentials?.email || !credentials?.password) {
-    //       return null;
-    //     }
-
-    //     const user = await db.user.findUnique({
-    //       where: { email: credentials.email },
-    //     });
-
-    //     if (!user || !user.hashedPassword) {
-    //       return null;
-    //     }
-
-    //     const isValid = await bcrypt.compare(credentials.password, user.hashedPassword);
-
-    //     if (!isValid) {
-    //       return null;
-    //     }
-
-    //     return {
-    //       id: user.id,
-    //       email: user.email,
-    //       name: user.name,
-    //       userType: user.userType,
-    //     };
-    //   },
-    // }),
   ],
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 30 * 24 * 60 * 60,
   },
   jwt: {
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 30 * 24 * 60 * 60,
   },
   pages: {
     error: "/auth/error",

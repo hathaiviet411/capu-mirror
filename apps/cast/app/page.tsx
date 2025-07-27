@@ -19,7 +19,7 @@ export default function CapuApp() {
   if (status === "loading") {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-white">Loading...</div>
+        <div className="text-white">読み込み中...</div>
       </div>
     )
   }

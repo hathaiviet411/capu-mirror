@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { ArrowLeft, ChevronRight, HelpCircle, Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useLogout } from "~/hooks/useLogout"
 
 interface HelpScreenProps {
   onBack: () => void
@@ -11,6 +12,7 @@ interface HelpScreenProps {
 export default function HelpScreen({ onBack }: HelpScreenProps) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false)
+  const { logout, isLoading } = useLogout()
 
   const helpItems = [
     {
@@ -69,6 +71,15 @@ export default function HelpScreen({ onBack }: HelpScreenProps) {
       onClick: () => window.open("https://capu-app.notion.site/20d42cc81529801fa98feada59226c01?pvs=74", "_blank", "noopener,noreferrer"),
     },
   ]
+
+  const handleLogout = async () => {
+    try {
+      await logout()
+      setShowLogoutConfirm(false)
+    } catch (error) {
+      console.error('Logout failed:', error)
+    }
+  }
 
   return (
     <div className="min-h-screen w-full md:max-w-sm mx-auto bg-gray-100 flex flex-col relative">
@@ -162,19 +173,16 @@ export default function HelpScreen({ onBack }: HelpScreenProps) {
                 onClick={() => setShowLogoutConfirm(false)}
                 variant="outline"
                 className="flex-1 h-12 border-gray-300 text-gray-700 hover:bg-gray-50"
+                disabled={isLoading}
               >
                 キャンセル
               </Button>
               <Button
-                onClick={() => {
-                  // ログアウト処理をここに実装
-                  console.log("ログアウト実行")
-                  setShowLogoutConfirm(false)
-                  // 実際のアプリではログイン画面に戻る処理を追加
-                }}
+                onClick={handleLogout}
                 className="flex-1 h-12 bg-red-500 hover:bg-red-600 text-white"
+                disabled={isLoading}
               >
-                ログアウト
+                {isLoading ? "ログアウト中..." : "ログアウト"}
               </Button>
             </div>
           </div>
