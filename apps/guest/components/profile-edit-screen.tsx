@@ -1,24 +1,31 @@
 "use client"
 
-import { useState, useRef } from "react"
-import { ArrowLeft, ChevronRight, Plus } from "lucide-react"
+import { useState, useRef, useEffect, useMemo } from "react"
+import { ArrowLeft, ChevronRight, Plus, Loader2, Save } from "lucide-react"
 import Image from "next/image"
 import BasicInfoScreen from "@/components/basic-info-screen"
 import FieldEditScreen from "@/components/field-edit-screen"
 import ProfilePreviewScreen from "@/components/profile-preview-screen"
 import SimpleProfileTagModal from "@/components/simple-profile-tag-modal"
+import { api } from "~/utils/api"
+import { useToast } from "@/components/ui/use-toast"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useSession } from "next-auth/react"
 
 interface ProfileEditScreenProps {
   onBack: () => void
 }
 
 export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
+  const { data: session, status } = useSession()
+  const { toast } = useToast()
+  
   const [formData, setFormData] = useState({
-    nickname: "さくら🌸",
-    todayWord: "素敵な時間を過ごしたいです♪",
-    simpleProfile: "映画鑑賞とカフェ巡りが趣味です。明るくて優しい性格だと言われます。一緒に楽しい時間を過ごしませんか？",
-    simpleProfileTags: ["映画鑑賞", "カフェ巡り", "明るい", "優しい"],
-    selfIntroduction: "初めまして、さくらです🌸\n\n映画とカフェ巡りが大好きで、特に恋愛映画や隠れ家カフェを探すのが趣味です。休日は新しいお店を開拓したり、おしゃれなカフェで読書をしています。\n\n人と話すことが好きで、聞き上手だと言われます。どんな話題でも楽しく会話できると思います。\n\n一緒に素敵な時間を過ごしましょう♪",
+    nickname: "",
+    todayWord: "",
+    simpleProfile: "",
+    simpleProfileTags: [] as string[],
+    selfIntroduction: "",
   })
 
   const [basicInfo, setBasicInfo] = useState({
@@ -34,11 +41,8 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
     birthDate: "1996年4月12日",
   })
 
-  const [images, setImages] = useState([
-    "/placeholder.svg?height=400&width=400",
-    "/placeholder.svg?height=400&width=400",
-    "/placeholder.svg?height=400&width=400",
-  ])
+  const [images, setImages] = useState<string[]>([])
+  const [hasChanges, setHasChanges] = useState(false)
 
   const [showBasicInfo, setShowBasicInfo] = useState(false)
   const [showFieldEdit, setShowFieldEdit] = useState<string | null>(null)
