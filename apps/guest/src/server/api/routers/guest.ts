@@ -71,70 +71,68 @@ export const guestRouter = createTRPCRouter({
     }),
 
   // ゲストプロフィール取得（ID指定）
-  getById: publicProcedure
-    .input(z.object({ id: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const guestProfile = await ctx.db.guestProfile.findUnique({
-        where: { id: input.id },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              image: true,
-            },
-          },
-          bookings: {
-            include: {
-              cast: {
-                include: {
-                  user: {
-                    select: {
-                      name: true,
-                      image: true,
-                    },
-                  },
-                },
-              },
-            },
-            orderBy: {
-              createdAt: "desc",
-            },
-            take: 10,
-          },
-          reviews: {
-            include: {
-              cast: {
-                include: {
-                  user: {
-                    select: {
-                      name: true,
-                      image: true,
-                    },
-                  },
-                },
-              },
-            },
-            orderBy: {
-              createdAt: "desc",
-            },
-            take: 10,
+  getById: publicProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
+    const guestProfile = await ctx.db.guestProfile.findUnique({
+      where: { id: input.id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
           },
         },
+        bookings: {
+          include: {
+            cast: {
+              include: {
+                user: {
+                  select: {
+                    name: true,
+                    image: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+          take: 10,
+        },
+        reviews: {
+          include: {
+            cast: {
+              include: {
+                user: {
+                  select: {
+                    name: true,
+                    image: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+          take: 10,
+        },
+      },
+    });
+
+    if (!guestProfile) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "ゲストプロフィールが見つかりません",
       });
+    }
 
-      if (!guestProfile) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "ゲストプロフィールが見つかりません",
-        });
-      }
-
-      return {
-        ...guestProfile,
-        preferences: guestProfile.preferences ? JSON.parse(guestProfile.preferences as string) : null,
-      };
-    }),
+    return {
+      ...guestProfile,
+      preferences: guestProfile.preferences ? JSON.parse(guestProfile.preferences as string) : null,
+    };
+  }),
 
   // 自分のゲストプロフィール取得
   getMyProfile: protectedProcedure.query(async ({ ctx }) => {
@@ -174,55 +172,50 @@ export const guestRouter = createTRPCRouter({
   }),
 
   // ゲストプロフィール更新
-  update: protectedProcedure
-    .input(z.object({
-      id: z.string(),
-      data: guestProfileSchema.partial(),
-    }))
-    .mutation(async ({ ctx, input }) => {
-      if (ctx.session.user.userType !== "GUEST") {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "ゲストユーザーのみプロフィールを更新できます",
-        });
-      }
-
-      const existingProfile = await ctx.db.guestProfile.findUnique({
-        where: { id: input.id },
+  update: protectedProcedure.input(z.object({ id: z.string(), data: guestProfileSchema.partial(), })).mutation(async ({ ctx, input }) => {
+    if (ctx.session.user.userType !== "GUEST") {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "ゲストユーザーのみプロフィールを更新できます",
       });
+    }
 
-      if (!existingProfile) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "ゲストプロフィールが見つかりません",
-        });
-      }
+    const existingProfile = await ctx.db.guestProfile.findUnique({
+      where: { id: input.id },
+    });
 
-      if (existingProfile.userId !== ctx.session.user.id) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "自分のプロフィールのみ更新できます",
-        });
-      }
+    if (!existingProfile) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "ゲストプロフィールが見つかりません",
+      });
+    }
 
-      return ctx.db.guestProfile.update({
-        where: { id: input.id },
-        data: {
-          ...input.data,
-          preferences: input.data.preferences ? JSON.stringify(input.data.preferences) : undefined,
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              image: true,
-            },
+    if (existingProfile.userId !== ctx.session.user.id) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "自分のプロフィールのみ更新できます",
+      });
+    }
+
+    return ctx.db.guestProfile.update({
+      where: { id: input.id },
+      data: {
+        ...input.data,
+        preferences: input.data.preferences ? JSON.stringify(input.data.preferences) : undefined,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
           },
         },
-      });
-    }),
+      },
+    });
+  }),
 
   // 予約履歴取得
   getBookings: protectedProcedure
@@ -359,66 +352,61 @@ export const guestRouter = createTRPCRouter({
       });
     }),
 
-  // お気に入り追加
-  addFavorite: protectedProcedure
-    .input(z.object({ castId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      if (ctx.session.user.userType !== "GUEST") {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "ゲストユーザーのみお気に入りを追加できます",
-        });
-      }
-
-      // キャストの存在確認
-      const cast = await ctx.db.castProfile.findUnique({
-        where: { id: input.castId },
+  addFavorite: protectedProcedure.input(z.object({ castId: z.string() })).mutation(async ({ ctx, input }) => {
+    if (ctx.session.user.userType !== "GUEST") {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "ゲストユーザーのみお気に入りを追加できます",
       });
+    }
 
-      if (!cast) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "キャストが見つかりません",
-        });
-      }
+    const cast = await ctx.db.castProfile.findUnique({
+      where: { id: input.castId },
+    });
 
-      // 既存のお気に入りチェック
-      const existingFavorite = await ctx.db.favorite.findUnique({
-        where: {
-          guestId_castId: {
-            guestId: ctx.session.user.id,
-            castId: input.castId,
-          },
-        },
+    if (!cast) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "キャストが見つかりません",
       });
+    }
 
-      if (existingFavorite) {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "既にお気に入りに追加されています",
-        });
-      }
-
-      return ctx.db.favorite.create({
-        data: {
+    const existingFavorite = await ctx.db.favorite.findUnique({
+      where: {
+        guestId_castId: {
           guestId: ctx.session.user.id,
           castId: input.castId,
         },
-        include: {
-          cast: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  image: true,
-                },
+      },
+    });
+
+    if (existingFavorite) {
+      throw new TRPCError({
+        code: "CONFLICT",
+        message: "既にお気に入りに追加されています",
+      });
+    }
+
+    return ctx.db.favorite.create({
+      data: {
+        guestId: ctx.session.user.id,
+        castId: input.castId,
+      },
+      include: {
+        cast: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
               },
             },
           },
         },
-      });
-    }),
+      },
+    });
+  }),
 
   // お気に入り削除
   removeFavorite: protectedProcedure
@@ -1139,12 +1127,10 @@ export const guestRouter = createTRPCRouter({
 
   // ポイントを購入
   purchasePoints: protectedProcedure
-    .input(
-      z.object({
-        amount: z.number().min(100, "最低100円から購入可能です"),
-        paymentMethodId: z.string().optional(),
-      })
-    )
+    .input(z.object({
+      amount: z.number().min(100, "最低100円から購入可能です"),
+      paymentMethodId: z.string().optional(),
+    }))
     .mutation(async ({ ctx, input }) => {
       if (ctx.session.user.userType !== "GUEST") {
         throw new TRPCError({
@@ -1316,7 +1302,6 @@ export const guestRouter = createTRPCRouter({
           receiptUrl: `/api/receipts/points/${pointTransaction.id}`,
         };
       } else {
-        // 既存の決済履歴の領収書（既存のコードを維持）
         const payment = await ctx.db.payment.findUnique({
           where: {
             id: input.paymentId!,
@@ -1384,5 +1369,82 @@ export const guestRouter = createTRPCRouter({
           receiptUrl: `/api/receipts/${payment.id}`,
         };
       }
+    }),
+
+  getListCastUser: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(20),
+        offset: z.number().min(0).default(0),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      if (ctx.session.user.userType !== "GUEST") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "ゲストユーザーのみアクセス可能です",
+        });
+      }
+
+      const castUsers = await ctx.db.user.findMany({
+        where: {
+          gender: 0,
+          userType: "CAST",
+          castProfile: {
+            isActive: true,
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+          gender: true,
+          createdAt: true,
+          castProfile: {
+            select: {
+              id: true,
+              displayName: true,
+              bio: true,
+              avatar: true,
+              hourlyRate: true,
+              isVerified: true,
+              specialties: true,
+              area: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+              tags: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+              reviews: {
+                select: {
+                  rating: true,
+                },
+                take: 10,
+              },
+              _count: {
+                select: {
+                  reviews: true,
+                  favorites: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: [
+          { castProfile: { isVerified: "desc" } },
+          { createdAt: "desc" },
+        ],
+        take: input.limit,
+        skip: input.offset,
+      });
+
+      return castUsers;
     }),
 });

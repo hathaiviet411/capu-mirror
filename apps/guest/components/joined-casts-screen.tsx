@@ -1,12 +1,13 @@
 "use client"
 
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import Image from "next/image"
 import CastDetailModal from "@/components/cast-detail-modal"
 import { useState, useMemo } from "react"
 import { api } from "~/utils/api"
 import { useToast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useSession } from "next-auth/react"
 
 interface JoinedCastsScreenProps {
   onBack: () => void
@@ -14,6 +15,7 @@ interface JoinedCastsScreenProps {
 
 export default function JoinedCastsScreen({ onBack }: JoinedCastsScreenProps) {
   const { toast } = useToast()
+  const { data: session } = useSession()
   const [showCastDetail, setShowCastDetail] = useState(false)
   const [selectedCast, setSelectedCast] = useState<any>(null)
 
@@ -23,24 +25,17 @@ export default function JoinedCastsScreen({ onBack }: JoinedCastsScreenProps) {
     isLoading: isLoadingBookings,
     error: bookingsError,
     refetch: refetchBookings,
-  } = api.booking.getBookingHistory.useQuery(
-    {
-      guestId: "", // TODO: Get from auth context
-      status: "COMPLETED",
-      limit: 50,
-      offset: 0,
-    },
-    {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      retry: 1,
-    }
-  )
+  } = api.booking.getUserBookings.useQuery(undefined, {
+    enabled: !!session?.user?.id,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    retry: 1,
+  })
 
   // Process bookings data
   const joinedCasts = useMemo(() => {
     if (!bookingsData) return []
 
-    return bookingsData.map(booking => {
+    return bookingsData.map((booking: any) => {
       const cast = booking.cast
       const castProfile = cast.castProfile
       

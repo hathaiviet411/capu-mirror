@@ -189,6 +189,8 @@ async function main() {
       create: {
         email: 'cast1@example.com',
         userType: UserType.CAST,
+        gender: 0, // Female
+        name: 'エンタメキャスト太郎',
         castProfile: {
           create: {
             displayName: 'エンタメキャスト太郎',
@@ -209,11 +211,121 @@ async function main() {
       },
     }),
     prisma.user.upsert({
+      where: { email: 'cast2@example.com' },
+      update: {},
+      create: {
+        email: 'cast2@example.com',
+        userType: UserType.CAST,
+        gender: 0, // Female
+        name: 'ゲーミングキャスト花子',
+        castProfile: {
+          create: {
+            displayName: 'ゲーミングキャスト花子',
+            bio: 'ゲーム実況とコメディが得意です！一緒に楽しい時間を過ごしましょう！',
+            hourlyRate: 2500,
+            availability: {},
+            specialties: ['ゲーム実況', 'コメディ', '雑談'],
+            experience: '5年の配信経験',
+            isActive: true,
+            isVerified: true,
+            areaId: areas[1].id,
+            categoryId: categories[1].id,
+            tags: {
+              connect: [{ id: tags[0].id }, { id: tags[2].id }]
+            }
+          },
+        },
+      },
+    }),
+    prisma.user.upsert({
+      where: { email: 'cast3@example.com' },
+      update: {},
+      create: {
+        email: 'cast3@example.com',
+        userType: UserType.CAST,
+        gender: 0, // Female
+        name: 'コンサルキャスト美咲',
+        castProfile: {
+          create: {
+            displayName: 'コンサルキャスト美咲',
+            bio: '恋愛相談から人生相談まで、どんなお悩みも親身に聞かせていただきます。',
+            hourlyRate: 4000,
+            availability: {},
+            specialties: ['恋愛相談', '人生相談', '心理カウンセリング'],
+            experience: '8年のカウンセリング経験',
+            isActive: true,
+            isVerified: true,
+            areaId: areas[2].id,
+            categoryId: categories[2].id,
+            tags: {
+              connect: [{ id: tags[1].id }, { id: tags[2].id }]
+            }
+          },
+        },
+      },
+    }),
+    prisma.user.upsert({
+      where: { email: 'cast4@example.com' },
+      update: {},
+      create: {
+        email: 'cast4@example.com',
+        userType: UserType.CAST,
+        gender: 0, // Female
+        name: 'アートキャスト彩',
+        castProfile: {
+          create: {
+            displayName: 'アートキャスト彩',
+            bio: '絵画やアートについて語り合いましょう！創作活動の相談も受け付けています。',
+            hourlyRate: 3500,
+            availability: {},
+            specialties: ['アート', '絵画', '創作活動'],
+            experience: '12年のアート活動',
+            isActive: true,
+            isVerified: true,
+            areaId: areas[0].id,
+            categoryId: categories[0].id,
+            tags: {
+              connect: [{ id: tags[0].id }, { id: tags[1].id }]
+            }
+          },
+        },
+      },
+    }),
+    prisma.user.upsert({
+      where: { email: 'cast5@example.com' },
+      update: {},
+      create: {
+        email: 'cast5@example.com',
+        userType: UserType.CAST,
+        gender: 0, // Female
+        name: '料理キャスト香',
+        castProfile: {
+          create: {
+            displayName: '料理キャスト香',
+            bio: '料理のコツやレシピを教えます！一緒に美味しい料理を作りましょう。',
+            hourlyRate: 2800,
+            availability: {},
+            specialties: ['料理', 'レシピ', '食育'],
+            experience: '15年の料理経験',
+            isActive: true,
+            isVerified: true,
+            areaId: areas[1].id,
+            categoryId: categories[2].id,
+            tags: {
+              connect: [{ id: tags[0].id }, { id: tags[2].id }]
+            }
+          },
+        },
+      },
+    }),
+    prisma.user.upsert({
       where: { email: 'guest1@example.com' },
       update: {},
       create: {
         email: 'guest1@example.com',
         userType: UserType.GUEST,
+        gender: 1, // Male
+        name: 'ゲスト花子',
         guestProfile: {
           create: {
             displayName: 'ゲスト花子',

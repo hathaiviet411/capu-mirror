@@ -57,9 +57,52 @@ export const authOptions: NextAuthOptions = {
             return false;
           }
 
-          user.email = "hathaiviet411@gmail.com";
+          // Use LINE profile sub as unique identifier instead of hardcoded email
+          const lineId = profile.sub;
+          
+          // Check if user already exists with this LINE ID
+          const existingUser = await db.user.findFirst({
+            where: {
+              accounts: {
+                some: {
+                  provider: "line",
+                  providerAccountId: lineId
+                }
+              }
+            }
+          });
 
-          return true;
+          if (existingUser) {
+            // User exists, update the user object
+            user.id = existingUser.id;
+            user.email = existingUser.email;
+            user.userType = existingUser.userType as "GUEST";
+            return true;
+          }
+
+          // Create new user with unique email based on LINE ID
+          const newEmail = `line_${lineId}@capu.app`;
+          
+          try {
+            const newUser = await db.user.create({
+              data: {
+                email: newEmail,
+                userType: "GUEST",
+                name: profile.name || `LINE User ${lineId.slice(-6)}`,
+                image: (profile as any).picture || null,
+              }
+            });
+            
+            user.id = newUser.id;
+            user.email = newUser.email;
+            user.userType = newUser.userType as "GUEST";
+            
+            console.log("Created new user for LINE login:", newUser.id);
+            return true;
+          } catch (error) {
+            console.error("Error creating new user for LINE login:", error);
+            return false;
+          }
         }
 
         return true;
@@ -79,13 +122,11 @@ export const authOptions: NextAuthOptions = {
         if (account?.provider === "line") {
           token.userType = "GUEST";
           token.lineId = profile?.sub;
-          // For LINE OAuth, we need to fetch user data from database
-          if (profile?.sub) {
-            const dbUser = await db.user.findFirst({
-              where: { 
-                email: "hathaiviet411@gmail.com",
-                userType: "GUEST"
-              }
+          
+          // Fetch user data from database using the user ID
+          if (token.id) {
+            const dbUser = await db.user.findUnique({
+              where: { id: token.id as string }
             });
             if (dbUser) {
               token.dob = dbUser.birthDate || undefined;

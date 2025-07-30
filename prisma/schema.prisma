@@ -38,6 +38,7 @@ model User {
   email                  String                  @unique
   emailVerified           DateTime?
   userType               UserType                @default(GUEST)
+  gender                 Int?                    @default(0) // 0 for female, 1 for male, null for unspecified
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
   birthDate              DateTime?
@@ -94,6 +95,7 @@ model User {
 
   @@index([email])
   @@index([userType])
+  @@index([gender])
   @@map("users")
 }
 

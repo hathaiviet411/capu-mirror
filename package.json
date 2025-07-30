@@ -19,9 +19,14 @@
     "db:studio": "turbo run db:studio",
     "test:line-oauth": "node scripts/test-line-oauth.js"
   },
+  "prisma": {
+    "seed": "node --loader ts-node/esm prisma/seed.ts"
+  },
   "devDependencies": {
     "@prisma/client": "^5.19.1",
+    "@types/node": "^22",
     "prisma": "^5.19.1",
+    "ts-node": "^10.9.2",
     "tsx": "^4.19.1",
     "turbo": "^2.0.0",
     "typescript": "^5"

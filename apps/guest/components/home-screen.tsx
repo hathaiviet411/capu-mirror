@@ -2,21 +2,25 @@
 
 import type React from "react"
 
-import { useState, useCallback, useEffect } from "react"
-import { Star, Search, Heart } from "lucide-react"
-import Image from "next/image"
 import SearchModal, { type SearchFilters } from "@/components/search-modal"
-import CastDetailModal from "@/components/cast-detail-modal"
-import MyPageScreen from "@/components/mypage-screen"
-import { Button } from "@/components/ui/button"
-import MessageListScreen from "@/components/message-list-screen"
-import Footer from "@/components/shared/footer"
+
 import { api } from "~/utils/api"
+import { useSession } from "next-auth/react"
+import { Button } from "@/components/ui/button"
+import { Star, Search, Heart } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/use-toast"
+import { useState, useCallback, useEffect } from "react"
+
+import Image from "next/image"
+import Footer from "@/components/shared/footer"
+import MyPageScreen from "@/components/mypage-screen"
+import CastDetailModal from "@/components/cast-detail-modal"
+import MessageListScreen from "@/components/message-list-screen"
 
 export default function HomeScreen() {
   const { toast } = useToast()
+  const { data: session } = useSession()
   const [showSearchModal, setShowSearchModal] = useState(false)
   const [hasMore, setHasMore] = useState({ home: true, favorites: true, footprints: true })
   const [page, setPage] = useState({ home: 0, favorites: 0, footprints: 0 })
@@ -29,74 +33,56 @@ export default function HomeScreen() {
   const [selectedCast, setSelectedCast] = useState<any>(null)
   const [filterCount, setFilterCount] = useState(0)
 
-  // API Queries
-  const { data: myProfile, error: profileError } = api.guest.getMyProfile.useQuery(undefined, {
-    enabled: true,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    retry: 1,
-  })
+  // API Queries - removed problematic getMyProfile call
+  // Use session data instead
 
-  // Recommended casts with infinite query
+  // Get list of female cast users
   const {
-    data: recommendedCastsData,
-    isLoading: isLoadingRecommended,
-    isFetchingNextPage: isFetchingMoreRecommended,
-    hasNextPage: hasMoreRecommended,
-    fetchNextPage: fetchMoreRecommended,
-  } = api.guest.getRecommendedCasts.useInfiniteQuery(
+    data: castUsersData,
+    isLoading: isLoadingCastUsers,
+    error: castUsersError,
+  } = api.guest.getListCastUser.useQuery(
     {
       limit: 20,
       offset: 0,
     },
     {
-      getNextPageParam: (lastPage, allPages) => {
-        // If we got less than the limit, there are no more pages
-        if (!lastPage || lastPage.length < 20) return undefined
-        // Calculate the offset for the next page
-        return allPages.length * 20
-      },
-      enabled: activeTab === "オススメ" && !profileError,
+      enabled: activeTab === "オススメ",
       staleTime: 1000 * 60 * 5, // 5 minutes
       retry: 1,
     }
   )
 
-  // Favorites
+  // Favorites - temporarily disabled
   const {
     data: favoritesData,
     isLoading: isLoadingFavorites,
     refetch: refetchFavorites,
   } = api.guest.getFavorites.useQuery(
     {
-      guestId: myProfile?.userId || "",
+      guestId: session?.user?.id || "",
       limit: 100,
       offset: 0,
     },
     {
-      enabled: !!myProfile?.userId && !profileError,
+      enabled: !!session?.user?.id,
       staleTime: 1000 * 60 * 5, // 5 minutes
       retry: 1,
     }
   )
 
-  // Footprints
+  // Footprints - temporarily disabled
   const {
     data: footprintsData,
     isLoading: isLoadingFootprints,
-    isFetchingNextPage: isFetchingMoreFootprints,
-    hasNextPage: hasMoreFootprints,
-    fetchNextPage: fetchMoreFootprints,
-  } = api.user.getFootprints.useInfiniteQuery(
+    error: footprintsError,
+  } = api.user.getFootprints.useQuery(
     {
       limit: 20,
       offset: 0,
     },
     {
-      getNextPageParam: (lastPage, allPages) => {
-        if (!lastPage || lastPage.length < 20) return undefined
-        return allPages.length * 20
-      },
-      enabled: activeTab === "足あと" && !profileError,
+      enabled: activeTab === "足あと",
       staleTime: 1000 * 60 * 5, // 5 minutes
       retry: 1,
     }
@@ -146,6 +132,46 @@ export default function HomeScreen() {
   // Create favorites set from API data
   const favoriteIds = new Set(favoritesData?.map(fav => fav.castId) || [])
 
+  // Get current tab data
+  const getCurrentTabData = () => {
+    switch (activeTab) {
+      case "オススメ":
+        return {
+          data: castUsersData || [],
+          isLoading: isLoadingCastUsers,
+          hasMore: false,
+          fetchMore: () => {},
+          isFetchingMore: false,
+        }
+      case "お気に入り":
+        return {
+          data: favoritesData || [],
+          isLoading: isLoadingFavorites,
+          hasMore: false,
+          fetchMore: () => {},
+          isFetchingMore: false,
+        }
+      case "足あと":
+        return {
+          data: footprintsData || [],
+          isLoading: isLoadingFootprints,
+          hasMore: false,
+          fetchMore: () => {},
+          isFetchingMore: false,
+        }
+      default:
+        return {
+          data: [],
+          isLoading: false,
+          hasMore: false,
+          fetchMore: () => {},
+          isFetchingMore: false,
+        }
+    }
+  }
+
+  const currentTabData = getCurrentTabData()
+
   // ブラウザ履歴を使った画面遷移管理
   useEffect(() => {
     // 初期状態をブラウザ履歴に追加
@@ -159,63 +185,47 @@ export default function HomeScreen() {
       if (state) {
         switch (state.screen) {
           case 'home':
+            setShowSearchModal(false)
             setShowMyPage(false)
             setShowMessageList(false)
             setShowCastDetail(false)
-            setShowSearchModal(false)
-            break
-          case 'mypage':
-            setShowMyPage(true)
-            setShowMessageList(false)
-            setShowCastDetail(false)
-            setShowSearchModal(false)
-            break
-          case 'messages':
-            setShowMessageList(true)
-            setShowMyPage(false)
-            setShowCastDetail(false)
-            setShowSearchModal(false)
-            break
-          case 'cast-detail':
-            setShowCastDetail(true)
-            setShowMyPage(false)
-            setShowMessageList(false)
-            setShowSearchModal(false)
+            setSelectedCast(null)
             break
           case 'search':
             setShowSearchModal(true)
             break
-          default:
-            // デフォルトはホーム画面
-            setShowMyPage(false)
-            setShowMessageList(false)
-            setShowCastDetail(false)
-            setShowSearchModal(false)
+          case 'mypage':
+            setShowMyPage(true)
             break
+          case 'messages':
+            setShowMessageList(true)
+            break
+          case 'cast-detail':
+            setShowCastDetail(true)
+            break
+          default:
+            // ホームから戻る場合は親のonBackを呼ぶ
+            if (state.screen === 'home' || state.screen === 'mypage') {
+              goBack()
+            }
         }
       } else {
-        // 状態がない場合はホーム画面に戻す
-        setShowMyPage(false)
-        setShowMessageList(false)
-        setShowCastDetail(false)
-        setShowSearchModal(false)
+        // ブラウザの戻るボタンが押された場合
+        goBack()
       }
     }
 
-    if (typeof window !== 'undefined') {
-      window.addEventListener('popstate', handlePopState)
-      return () => window.removeEventListener('popstate', handlePopState)
-    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
   // 画面遷移時にブラウザ履歴を追加する関数
   const pushToHistory = (screen: string, data?: any) => {
     if (typeof window !== 'undefined') {
-      window.history.pushState({ screen, ...data }, '', window.location.href)
+      window.history.pushState({ screen, data }, '', window.location.href)
     }
   }
 
-  // 各画面への遷移関数を更新
   const navigateToMyPage = () => {
     setShowMyPage(true)
     pushToHistory('mypage')
@@ -234,49 +244,72 @@ export default function HomeScreen() {
   const navigateToCastDetail = (cast: any) => {
     setSelectedCast(cast)
     setShowCastDetail(true)
-    pushToHistory('cast-detail', { castId: cast.id })
+    pushToHistory('cast-detail', cast)
   }
 
-  // 戻る処理
   const goBack = () => {
     if (typeof window !== 'undefined') {
       window.history.back()
     }
   }
 
-  // フィルター条件数の変更をハンドルする関数
   const handleFilterCountChange = (count: number) => {
     setFilterCount(count)
   }
-
-  // Toggle favorite function
-  const toggleFavorite = useCallback((castId: string) => {
-    if (favoriteIds.has(castId)) {
-      removeFavoriteMutation.mutate({ castId })
-    } else {
-      addFavoriteMutation.mutate({ castId })
-    }
-  }, [favoriteIds, addFavoriteMutation, removeFavoriteMutation])
 
   const handleCastClick = (cast: any) => {
     navigateToCastDetail(cast)
   }
 
-  // Process API data
-  const recommendedCasts = recommendedCastsData?.pages.flatMap(page => page) || []
-  const footprints = footprintsData?.pages.flatMap(page => page) || []
-  const favoriteCasts = favoritesData?.map(fav => fav.cast).filter(Boolean) || []
-
-  // Calculate average rating for a cast
   const calculateAverageRating = (reviews: any[]) => {
     if (!reviews || reviews.length === 0) return 0
-    return reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+    const sum = reviews.reduce((acc, review) => acc + review.rating, 0)
+    return Math.round((sum / reviews.length) * 10) / 10
   }
 
-  // Format price display
   const formatPrice = (hourlyRate: number) => {
     return `${hourlyRate.toLocaleString()}P / 30分`
   }
+
+  // Get data for current tab
+  const getTabData = () => {
+    switch (activeTab) {
+      case "オススメ":
+        return {
+          data: castUsersData || [],
+          isLoading: isLoadingCastUsers,
+          hasMore: false,
+          fetchMore: () => {},
+          isFetchingMore: false,
+        }
+      case "お気に入り":
+        return {
+          data: favoritesData || [],
+          isLoading: isLoadingFavorites,
+          hasMore: false,
+          fetchMore: () => {},
+          isFetchingMore: false,
+        }
+      case "足あと":
+        return {
+          data: footprintsData || [],
+          isLoading: isLoadingFootprints,
+          hasMore: false,
+          fetchMore: () => {},
+          isFetchingMore: false,
+        }
+      default:
+        return {
+          data: [],
+          isLoading: false,
+          hasMore: false,
+          fetchMore: () => {},
+          isFetchingMore: false,
+        }
+    }
+  }
+
+  const tabData = getTabData()
 
   // Scroll handler
   const handleScroll = useCallback(
@@ -285,18 +318,15 @@ export default function HomeScreen() {
 
       // Load more when user is 200px from bottom
       if (scrollHeight - scrollTop <= clientHeight + 200) {
-        if (activeTab === "オススメ" && hasMoreRecommended && !isFetchingMoreRecommended) {
-          fetchMoreRecommended()
-        } else if (activeTab === "足あと" && hasMoreFootprints && !isFetchingMoreFootprints) {
-          fetchMoreFootprints()
-        }
+        // For now, we don't have pagination implemented
+        console.log("Load more triggered but not implemented yet")
       }
     },
-    [activeTab, hasMoreRecommended, isFetchingMoreRecommended, fetchMoreRecommended, hasMoreFootprints, isFetchingMoreFootprints, fetchMoreFootprints],
+    [],
   )
 
   // Get displayed casts based on active tab
-  const displayedCasts = activeTab === "お気に入り" ? favoriteCasts : recommendedCasts
+  const displayedCasts = activeTab === "お気に入り" ? (favoritesData || []) : (castUsersData || [])
 
   // Handle search functionality
   const handleSearchSubmit = useCallback((searchText: string, filters: SearchFilters) => {
@@ -314,6 +344,15 @@ export default function HomeScreen() {
   // Handle footer search button click - no action needed as it's just a tab indicator
   const handleFooterSearchClick = () => {
     // フッターの「探す」ボタンは状態表示のみで、実際の検索モーダルは開かない
+  }
+
+  // Toggle favorite function
+  const toggleFavorite = (castId: string) => {
+    if (favoriteIds.has(castId)) {
+      removeFavoriteMutation.mutate({ castId })
+    } else {
+      addFavoriteMutation.mutate({ castId })
+    }
   }
 
   // Show MyPage if selected
@@ -383,7 +422,7 @@ export default function HomeScreen() {
             <div className="h-4 bg-gray-100"></div>
             
             {/* Loading skeleton */}
-            {isLoadingFootprints && footprints.length === 0 ? (
+            {isLoadingFootprints && tabData.data.length === 0 ? (
               <div className="bg-white">
                 {[...Array(3)].map((_, index) => (
                   <div key={`skeleton-${index}`}>
@@ -402,14 +441,14 @@ export default function HomeScreen() {
                   </div>
                 ))}
               </div>
-            ) : footprints.length === 0 ? (
+            ) : tabData.data.length === 0 ? (
               <div className="bg-white p-8 text-center">
                 <p className="text-gray-600">まだ足あとがついていません</p>
               </div>
             ) : (
               /* Footprint Items */
               <div className="bg-white">
-                {footprints.map((footprint, index) => {
+                {tabData.data.map((footprint: any, index: number) => {
                   const viewer = footprint.viewer
                   const profile = viewer.userType === "CAST" ? viewer.castProfile : viewer.guestProfile
                   const displayName = profile?.displayName || viewer.name || "ユーザー"
@@ -487,7 +526,7 @@ export default function HomeScreen() {
                         </div>
                       </div>
                       {/* Divider between items */}
-                      {index < footprints.length - 1 && <div className="h-px bg-gray-200 mx-4"></div>}
+                      {index < tabData.data.length - 1 && <div className="h-px bg-gray-200 mx-4"></div>}
                     </div>
                   )
                 })}
@@ -495,7 +534,7 @@ export default function HomeScreen() {
             )}
 
             {/* Loading Section */}
-            {isFetchingMoreFootprints && (
+            {tabData.isFetchingMore && (
               <>
                 <div className="h-2 bg-gray-100"></div>
                 <div className="bg-white p-4 flex justify-center">
@@ -504,8 +543,23 @@ export default function HomeScreen() {
               </>
             )}
 
+            {/* Load More Button */}
+            {tabData.hasMore && !tabData.isFetchingMore && (
+              <>
+                <div className="h-2 bg-gray-100"></div>
+                <div className="bg-white p-4">
+                  <Button
+                    onClick={tabData.fetchMore}
+                    className="w-full h-12 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg"
+                  >
+                    もっと見る
+                  </Button>
+                </div>
+              </>
+            )}
+
             {/* End of data Section */}
-            {!hasMoreFootprints && footprints.length > 0 && (
+            {!tabData.hasMore && tabData.data.length > 0 && (
               <>
                 <div className="h-2 bg-gray-100"></div>
                 <div className="bg-white p-4 text-center">
@@ -524,7 +578,7 @@ export default function HomeScreen() {
             <div className="h-4 bg-gray-100"></div>
             
             {/* Loading skeleton */}
-            {(isLoadingRecommended || isLoadingFavorites) && displayedCasts.length === 0 ? (
+            {(isLoadingCastUsers || isLoadingFavorites) && displayedCasts.length === 0 ? (
               <div className="bg-white px-2 pb-4 pt-2">
                 <div className="grid grid-cols-2 gap-2">
                   {[...Array(6)].map((_, index) => (
@@ -549,21 +603,36 @@ export default function HomeScreen() {
               /* Cast Masonry Grid Section */
               <div className="bg-white px-2 pb-4 pt-2">
                 <div className="grid grid-cols-2 gap-2">
-                  {displayedCasts.map((cast, index) => {
-                    const castProfile = activeTab === "お気に入り" ? cast.castProfile : cast
-                    const averageRating = calculateAverageRating(castProfile.reviews || [])
-                    const reviewCount = castProfile._count?.reviews || 0
-                    const favoriteCount = castProfile._count?.favorites || 0
+                  {displayedCasts.map((cast: any, index: number) => {
+                    // Handle different data structures for favorites vs recommended
+                    let castProfile, avatar, userImage
+                    
+                    if (activeTab === "お気に入り") {
+                      // Favorites structure: { cast: { ... }, user: { ... } }
+                      castProfile = cast.cast
+                      userImage = cast.cast?.user?.image
+                      avatar = castProfile?.avatar || userImage || "/placeholder-user.jpg"
+                    } else {
+                      // Recommended structure: { castProfile: { ... }, image: ... }
+                      castProfile = cast.castProfile
+                      userImage = cast.image
+                      avatar = castProfile?.avatar || userImage || "/placeholder-user.jpg"
+                    }
+                    
+                    console.log("Cast data:", { cast, castProfile, activeTab, avatar })
+                    const averageRating = calculateAverageRating(castProfile?.reviews || [])
+                    const reviewCount = castProfile?._count?.reviews || 0
+                    const favoriteCount = castProfile?._count?.favorites || 0
                     
                     return (
                       <div
-                        key={`cast-${activeTab}-${castProfile.id}-${index}`}
+                        key={`cast-${activeTab}-${castProfile?.id}-${index}`}
                         onClick={() => handleCastClick(castProfile)}
                         className="relative mb-2 cursor-pointer group"
                       >
                         {/* Cast Image */}
                         <Image
-                          src={castProfile.avatar || "/placeholder-user.jpg"}
+                          src={avatar}
                           alt="Cast member"
                           width={320}
                           height={600}
@@ -577,11 +646,11 @@ export default function HomeScreen() {
                         <div className="mt-1 px-1">
                           {/* Name as title */}
                           <p className="text-sm font-semibold text-gray-900 leading-tight truncate">
-                            {castProfile.displayName}
+                            {castProfile?.displayName}
                           </p>
                           {/* Bio (limited to 2 lines) */}
                           <p className="text-xs text-gray-600 line-clamp-2">
-                            {castProfile.bio || "プロフィールメッセージなし"}
+                            {castProfile?.bio || "プロフィールメッセージなし"}
                           </p>
 
                           {/* Price Row */}
@@ -597,7 +666,7 @@ export default function HomeScreen() {
                                 <span className="text-xs text-gray-500">({reviewCount})</span>
                               )}
                             </div>
-                            <span className="text-xs text-gray-500">{formatPrice(castProfile.hourlyRate)}</span>
+                            <span className="text-xs text-gray-500">{formatPrice(castProfile?.hourlyRate || 0)}</span>
                           </div>
                         </div>
 
@@ -605,18 +674,18 @@ export default function HomeScreen() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            toggleFavorite(castProfile.id)
+                            toggleFavorite(castProfile?.id)
                           }}
                           className="absolute top-2 right-2 md:hover:scale-110 transition-transform z-10"
                           disabled={addFavoriteMutation.isLoading || removeFavoriteMutation.isLoading}
                         >
                           <Star
-                            className={`w-5 h-5 drop-shadow ${favoriteIds.has(castProfile.id) ? "text-yellow-400 fill-yellow-400" : "text-white fill-white"}`}
+                            className={`w-5 h-5 drop-shadow ${favoriteIds.has(castProfile?.id) ? "text-yellow-400 fill-yellow-400" : "text-white fill-white"}`}
                           />
                         </button>
 
                         {/* Verified Badge */}
-                        {castProfile.isVerified && (
+                        {castProfile?.isVerified && (
                           <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
                             認証済
                           </div>
@@ -629,7 +698,7 @@ export default function HomeScreen() {
             )}
 
             {/* Loading Section */}
-            {(isFetchingMoreRecommended || (activeTab === "お気に入り" && isLoadingFavorites)) && (
+            {tabData.isFetchingMore && (
               <>
                 <div className="h-2 bg-gray-100"></div>
                 <div className="bg-white p-4 flex justify-center">
@@ -639,7 +708,7 @@ export default function HomeScreen() {
             )}
 
             {/* End of data Section */}
-            {!hasMoreRecommended && activeTab === "オススメ" && recommendedCasts.length > 0 && (
+            {!tabData.hasMore && activeTab === "オススメ" && displayedCasts.length > 0 && (
               <>
                 <div className="h-2 bg-gray-100"></div>
                 <div className="bg-white p-4 text-center">
