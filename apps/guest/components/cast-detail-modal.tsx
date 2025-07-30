@@ -1,33 +1,133 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Star, MessageCircle, Heart } from "lucide-react"
+import { ArrowLeft, Star, MessageCircle, Heart, Loader2 } from "lucide-react"
 import Image from "next/image"
+import { api } from "~/utils/api"
+import { useToast } from "@/components/ui/use-toast"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface CastDetailModalProps {
   isOpen: boolean
   onClose: () => void
   cast: {
-    id: number
-    age: number
-    name: string
-    message: string
-    price: string
-    bgColor: string
+    id: string
+    displayName?: string
+    avatar?: string
+    bio?: string
+    hourlyRate?: number
+    tags?: { name: string }[]
+    // Legacy support for old format
+    name?: string
+    age?: number
+    message?: string
+    price?: string
     image?: string
-    class?: string
-    tags?: string[]
-    images?: string[]
-  }
+  } | null
 }
 
 export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailModalProps) {
-  const [isFavorite, setIsFavorite] = useState(false)
+  const { toast } = useToast()
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
-  const [isLiked, setIsLiked] = useState(false)
   const [showHeader, setShowHeader] = useState(false)
 
+  // Get cast ID
+  const castId = cast?.id
+
+  // API queries
+  const { 
+    data: castDetail, 
+    isLoading: isLoadingDetail,
+    error: detailError 
+  } = api.guest.getCastDetail.useQuery(
+    { castId: castId! },
+    { 
+      enabled: isOpen && !!castId,
+      staleTime: 1000 * 60 * 5, // 5 minutes
+    }
+  )
+
+  const { data: favoritesData } = api.guest.getFavorites.useQuery(
+    { guestId: "", limit: 100, offset: 0 },
+    { enabled: isOpen }
+  )
+
+  // Check if cast is in favorites
+  const isFavorite = useMemo(() => {
+    return favoritesData?.some(fav => fav.castId === castId) || false
+  }, [favoritesData, castId])
+
+  // Mutations
+  const addFavoriteMutation = api.guest.addFavorite.useMutation({
+    onSuccess: () => {
+      toast({
+        title: "お気に入りに追加しました",
+        duration: 2000,
+      })
+    },
+    onError: (error) => {
+      toast({
+        title: "エラー",
+        description: error.message,
+        variant: "destructive",
+      })
+    },
+  })
+
+  const removeFavoriteMutation = api.guest.removeFavorite.useMutation({
+    onSuccess: () => {
+      toast({
+        title: "お気に入りから削除しました",
+        duration: 2000,
+      })
+    },
+    onError: (error) => {
+      toast({
+        title: "エラー",
+        description: error.message,
+        variant: "destructive",
+      })
+    },
+  })
+
+  const likeCastMutation = api.guest.likeCast.useMutation({
+    onSuccess: (data) => {
+      toast({
+        title: "いいねを送信しました",
+        description: data.message,
+        duration: 3000,
+      })
+    },
+    onError: (error) => {
+      toast({
+        title: "エラー",
+        description: error.message,
+        variant: "destructive",
+      })
+    },
+  })
+
+  // Use detailed cast data if available, fallback to basic cast data
+  const displayCast = castDetail || cast
+
+  // Handler functions
+  const handleFavoriteToggle = () => {
+    if (!castId) return
+    
+    if (isFavorite) {
+      removeFavoriteMutation.mutate({ castId })
+    } else {
+      addFavoriteMutation.mutate({ castId })
+    }
+  }
+
+  const handleLikeCast = () => {
+    if (!castId) return
+    likeCastMutation.mutate({ castId })
+  }
+
+  // Scroll handler for header
   useEffect(() => {
     const handleScroll = (e: Event) => {
       const target = e.target as HTMLElement
@@ -45,16 +145,52 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
     }
   }, [isOpen])
 
-  if (!isOpen) return null
+  if (!isOpen || !cast) return null
 
-  const images = cast.images || [
-    cast.image || "https://randomuser.me/api/portraits/men/32.jpg",
-    `https://randomuser.me/api/portraits/men/${Math.floor(Math.random() * 50) + 20}.jpg`,
-    `https://randomuser.me/api/portraits/men/${Math.floor(Math.random() * 50) + 50}.jpg`,
-    `https://randomuser.me/api/portraits/men/${Math.floor(Math.random() * 30) + 70}.jpg`,
-  ]
+  // Loading state
+  if (isLoadingDetail) {
+    return (
+      <div className="fixed inset-0 z-50 bg-gray-100 w-full md:max-w-sm mx-auto flex flex-col">
+        <div className="p-4">
+          <Skeleton className="h-96 w-full mb-4" />
+          <Skeleton className="h-6 w-3/4 mb-2" />
+          <Skeleton className="h-4 w-full mb-4" />
+          <div className="flex gap-2 mb-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="w-16 h-16 rounded-lg" />
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
-  const tags = cast.tags || ["爽やか系", "スポーツ好き", "会話上手"]
+  // Error state
+  if (detailError) {
+    return (
+      <div className="fixed inset-0 z-50 bg-gray-100 w-full md:max-w-sm mx-auto flex flex-col items-center justify-center p-4">
+        <p className="text-red-500 mb-4">キャスト情報の読み込みに失敗しました</p>
+        <Button onClick={onClose} variant="outline">
+          閉じる
+        </Button>
+      </div>
+    )
+  }
+
+  // Get display values
+  const displayName = displayCast?.displayName || displayCast?.name || "Unknown"
+  const displayAvatar = displayCast?.avatar || displayCast?.image || "/placeholder-user.jpg" 
+  const displayBio = displayCast?.bio || displayCast?.message || ""
+  const displayRate = displayCast?.hourlyRate ? `${displayCast.hourlyRate.toLocaleString()}P / 30分` : displayCast?.price || ""
+  const displayTags = displayCast?.tags?.map(tag => tag.name) || []
+  
+  // Create images array (use avatar as main image for now)
+  const images = [displayAvatar]
+  
+  // Calculate average rating
+  const averageRating = displayCast?.reviews?.length > 0 
+    ? displayCast.reviews.reduce((sum, review) => sum + review.rating, 0) / displayCast.reviews.length 
+    : 0
 
   return (
     <div className="fixed inset-0 z-50 bg-gray-100 w-full md:max-w-sm mx-auto flex flex-col">
@@ -67,7 +203,7 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
         <button onClick={onClose}>
           <ArrowLeft className="w-5 h-5 text-white" />
         </button>
-        <span className="text-base font-medium text-white">{cast.name}</span>
+        <span className="text-base font-medium text-white">{displayName}</span>
       </div>
 
       {/* Scrollable Content */}
@@ -75,7 +211,7 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
         {/* Main Image */}
         <div className="relative h-96 bg-gray-200">
           <Image
-            src={images[currentImageIndex] || "/placeholder.svg"}
+            src={images[currentImageIndex] || "/placeholder-user.jpg"}
             alt="Cast profile"
             fill
             className="object-cover"
@@ -92,10 +228,15 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
           {/* Favorite Button */}
           <div className="absolute bottom-4 right-4">
             <button
-              onClick={() => setIsFavorite(!isFavorite)}
-              className="w-12 h-12 bg-white rounded-full flex flex-col items-center justify-center shadow-lg"
+              onClick={handleFavoriteToggle}
+              disabled={addFavoriteMutation.isLoading || removeFavoriteMutation.isLoading}
+              className="w-12 h-12 bg-white rounded-full flex flex-col items-center justify-center shadow-lg disabled:opacity-50"
             >
-              <Star className={`w-7 h-7 ${isFavorite ? "text-yellow-400 fill-yellow-400" : "text-gray-400"}`} />
+              {(addFavoriteMutation.isLoading || removeFavoriteMutation.isLoading) ? (
+                <Loader2 className="w-7 h-7 text-gray-400 animate-spin" />
+              ) : (
+                <Star className={`w-7 h-7 ${isFavorite ? "text-yellow-400 fill-yellow-400" : "text-gray-400"}`} />
+              )}
               <span className="text-[5px] text-gray-600 mt-0.5">お気に入り</span>
             </button>
           </div>
@@ -114,7 +255,7 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
                 }`}
               >
                 <Image
-                  src={image || "/placeholder.svg"}
+                  src={image || "/placeholder-user.jpg"}
                   alt={`Cast photo ${index + 1}`}
                   width={64}
                   height={64}
@@ -129,13 +270,23 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
             <div className="flex items-center gap-2 mb-2">
               <div className="w-3 h-3 bg-green-500 rounded-full"></div>
               <span className="text-xs text-green-600">オンライン中</span>
+              {displayCast?.isVerified && (
+                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">認証済み</span>
+              )}
             </div>
             <h1 className="text-base font-medium mb-1">
-              {cast.name} {cast.age}歳
+              {displayName}
             </h1>
             <p className="text-sm text-gray-700">
-              {cast.class || "会社員"} / {cast.message}
+              {displayBio}
             </p>
+            {averageRating > 0 && (
+              <div className="flex items-center gap-1 mt-2">
+                <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                <span className="text-sm text-gray-600">{averageRating.toFixed(1)}</span>
+                <span className="text-sm text-gray-500">({displayCast?.reviews?.length}件)</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -143,12 +294,12 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
         <div className="h-2 bg-gray-100"></div>
 
         {/* Simple Profile Tags Section */}
-        {tags && tags.length > 0 && (
+        {displayTags && displayTags.length > 0 && (
           <>
             <div className="bg-white p-4">
               <h3 className="text-sm font-medium text-black mb-3">簡単プロフィール</h3>
               <div className="flex flex-wrap gap-2">
-                {tags.map((tag) => (
+                {displayTags.map((tag) => (
                   <span
                     key={tag}
                     className="px-2 py-1 text-sm bg-gold-pink-gradient text-white rounded-md"
@@ -167,7 +318,7 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
         <div className="bg-white p-4">
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium text-gray-700">ポイント</span>
-            <span className="text-xl font-bold">{cast.price}</span>
+            <span className="text-xl font-bold">{displayRate}</span>
           </div>
         </div>
 
@@ -177,14 +328,14 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
         {/* Self Introduction Section */}
         <div className="bg-white p-4">
           <h3 className="text-sm font-medium text-black mb-3">自己紹介</h3>
-          <p className="text-sm text-gray-700 leading-relaxed">
-            はじめまして！{cast.name}です✨
-            {"\n\n"}
-            普段は仕事で忙しい毎日を送っていますが、休日はスポーツをしたり、映画を見たりしてリラックスしています。
-            {"\n\n"}
-            いろんな話をするのが好きで、多くの方とお会いできるのを楽しみにしています。一緒に楽しい時間を過ごしませんか？
-            {"\n\n"}
-            気軽にメッセージをお送りください💪
+          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+            {displayBio || `はじめまして！${displayName}です✨
+
+普段は仕事で忙しい毎日を送っていますが、休日はスポーツをしたり、映画を見たりしてリラックスしています。
+
+いろんな話をするのが好きで、多くの方とお会いできるのを楽しみにしています。一緒に楽しい時間を過ごしませんか？
+
+気軽にメッセージをお送りください💪`}
           </p>
         </div>
 
@@ -215,7 +366,7 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
             {/* Job */}
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">お仕事：</span>
-              <span className="text-sm font-medium">{cast.class || "会社員"}</span>
+              <span className="text-sm font-medium">{displayCast?.category?.name || "会社員"}</span>
             </div>
 
             {/* Alcohol */}
@@ -238,23 +389,18 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
 
       {/* Bottom Action Buttons */}
       <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full md:max-w-sm bg-white border-t px-4 py-3 z-20">
-        {!isLiked ? (
-          <Button 
-            variant="outline"
-            onClick={() => setIsLiked(true)}
-            className="w-full h-12 border-2 border-gold-pink-gradient text-gold-pink-gradient hover:bg-gold-pink-gradient hover:text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2 bg-white"
-          >
+        <Button 
+          onClick={handleLikeCast}
+          disabled={likeCastMutation.isLoading}
+          className="w-full h-12 text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2 bg-gold-pink-gradient hover:bg-accent-gold disabled:opacity-50"
+        >
+          {likeCastMutation.isLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
             <Heart className="w-4 h-4" />
-            いいね
-          </Button>
-        ) : (
-          <Button 
-            className="w-full h-12 text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2 bg-gold-pink-gradient hover:bg-accent-gold"
-          >
-            <MessageCircle className="w-4 h-4" />
-            メッセージを送る
-          </Button>
-        )}
+          )}
+          いいね
+        </Button>
       </div>
     </div>
   )

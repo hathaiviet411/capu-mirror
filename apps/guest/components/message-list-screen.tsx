@@ -2,13 +2,16 @@
 
 import type React from "react"
 
-import { Search, User, MessageCircle, ArrowLeft } from "lucide-react"
+import { Search, User, MessageCircle, ArrowLeft, Loader2 } from "lucide-react"
 import Image from "next/image"
-import { useState, useRef, useCallback, useEffect } from "react"
+import { useState, useRef, useCallback, useEffect, useMemo } from "react"
 import NotificationIcon from "@/components/shared/notification-icon"
 import NotificationScreen from "@/components/notification-screen"
 import MessageDetailScreen from "@/components/message-detail-screen"
 import Footer from "@/components/shared/footer"
+import { api } from "~/utils/api"
+import { useToast } from "@/components/ui/use-toast"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface MessageListScreenProps {
   onBack: () => void
@@ -17,6 +20,7 @@ interface MessageListScreenProps {
 }
 
 export default function MessageListScreen({ onBack, onNavigateToMyPage, onNavigateToHome }: MessageListScreenProps) {
+  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("すべて")
   const [searchText, setSearchText] = useState("")
   const [showNotifications, setShowNotifications] = useState(false)
@@ -26,6 +30,28 @@ export default function MessageListScreen({ onBack, onNavigateToMyPage, onNaviga
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [showMessageDetail, setShowMessageDetail] = useState(false)
   const [selectedMessage, setSelectedMessage] = useState<any>(null)
+
+  // API queries
+  const { 
+    data: conversationsData, 
+    isLoading: isLoadingConversations,
+    error: conversationsError,
+    refetch: refetchConversations,
+  } = api.message.getConversations.useQuery({
+    limit: 50,
+    offset: 0,
+  }, {
+    staleTime: 1000 * 60 * 2, // 2 minutes
+    refetchInterval: 1000 * 30, // Refetch every 30 seconds for real-time feel
+  })
+
+  const { data: favoritesData } = api.guest.getFavorites.useQuery({
+    guestId: "",
+    limit: 100,
+    offset: 0,
+  }, {
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
 
   // ブラウザ履歴を使った画面遷移管理
   useEffect(() => {
@@ -101,92 +127,6 @@ export default function MessageListScreen({ onBack, onNavigateToMyPage, onNaviga
     pushToHistory('message-detail', { messageId: message.id })
   }
 
-  const messages = [
-    {
-      id: 1,
-      castName: "patoコンシェルジュ",
-      castAge: 11,
-      lastMessage: "素敵な方とお会いできることを楽しみにしています✨",
-      timestamp: "2025/06/03",
-      unreadCount: 3,
-      profileImage: "https://randomuser.me/api/portraits/men/75.jpg",
-      isOnline: false,
-      isPinned: false,
-    },
-    {
-      id: 2,
-      castName: "ゆうき💪",
-      castAge: 20,
-      lastMessage: "お疲れさまです！体調はいかがですか？😊",
-      timestamp: "昨日",
-      unreadCount: 1,
-      profileImage: "https://randomuser.me/api/portraits/men/32.jpg",
-      isOnline: true,
-      isPinned: true,
-    },
-    {
-      id: 3,
-      castName: "りくと🎯東京",
-      castAge: 24,
-      lastMessage: "今度一緒にお食事でもいかがですか？😊",
-      timestamp: "2025/06/29",
-      unreadCount: 0,
-      profileImage: "https://randomuser.me/api/portraits/men/45.jpg",
-      isOnline: false,
-      isPinned: false,
-    },
-    {
-      id: 4,
-      castName: "まさとくん🍺",
-      castAge: 27,
-      lastMessage: "今度お酒を飲みながらお話しできればと思います🍻",
-      timestamp: "2025/06/24",
-      unreadCount: 0,
-      profileImage: "https://randomuser.me/api/portraits/men/67.jpg",
-      isOnline: false,
-      isPinned: false,
-    },
-    {
-      id: 5,
-      castName: "たると⚽",
-      castAge: 25,
-      lastMessage: "サッカー観戦一緒に行きませんか？⚽",
-      timestamp: "2025/06/23",
-      unreadCount: 0,
-      profileImage: "https://randomuser.me/api/portraits/men/43.jpg",
-      isOnline: true,
-      isPinned: false,
-    },
-    {
-      id: 6,
-      castName: "りょうすけ🎮",
-      castAge: 23,
-      lastMessage: "ゲームの話で盛り上がりましたね😄",
-      timestamp: "2025/06/22",
-      unreadCount: 0,
-      profileImage: "https://randomuser.me/api/portraits/men/68.jpg",
-      isOnline: false,
-      isPinned: false,
-    },
-    {
-      id: 7,
-      castName: "しんや🎸",
-      castAge: 23,
-      lastMessage: "音楽の趣味が合いそうですね🎵",
-      timestamp: "2025/06/21",
-      unreadCount: 0,
-      profileImage: "https://randomuser.me/api/portraits/men/89.jpg",
-      isOnline: false,
-      isPinned: false,
-    },
-  ]
-
-  // Sort messages: pinned first, then by timestamp
-  const sortedMessages = [...messages].sort((a, b) => {
-    if (a.isPinned && !b.isPinned) return -1
-    if (!a.isPinned && b.isPinned) return 1
-    return 0
-  })
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY
@@ -207,21 +147,98 @@ export default function MessageListScreen({ onBack, onNavigateToMyPage, onNaviga
 
   const handleTouchEnd = useCallback(async () => {
     if (pullDistance > 60 && !isRefreshing) {
-      setIsRefreshing(true)
-      // Simulate refresh
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-      setIsRefreshing(false)
+      await refreshMessages()
     }
     setPullDistance(0)
   }, [pullDistance, isRefreshing])
 
-  const refreshMessages = useCallback(async () => {
-    // メッセージリストの更新処理
-    console.log("メッセージを更新中...")
-  }, [])
+  // Process conversations data
+  const processedConversations = useMemo(() => {
+    if (!conversationsData) return []
 
-  const handleMessageClick = (message: any) => {
-    navigateToMessageDetail(message)
+    return conversationsData.map(conversation => {
+      // Find the other participant (not current user)
+      const otherParticipants = conversation.participants.filter(p => p.id !== conversation.participants[0]?.id)
+      const otherParticipant = otherParticipants[0]
+
+      // Get last message
+      const lastMessage = conversation.messages[0]
+      
+      // Format timestamp
+      const formatTimestamp = (date: Date) => {
+        const now = new Date()
+        const messageDate = new Date(date)
+        const diffInHours = (now.getTime() - messageDate.getTime()) / (1000 * 60 * 60)
+        
+        if (diffInHours < 24) {
+          return messageDate.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+        } else if (diffInHours < 48) {
+          return '昨日'
+        } else {
+          return messageDate.toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' })
+        }
+      }
+
+      return {
+        id: conversation.id,
+        conversationId: conversation.id,
+        castName: otherParticipant?.name || "Unknown",
+        castAge: 25, // TODO: Get age from participant profile
+        lastMessage: lastMessage?.content || "",
+        timestamp: lastMessage ? formatTimestamp(lastMessage.createdAt) : "",
+        unreadCount: conversation._count.messages,
+        profileImage: otherParticipant?.image || "/placeholder-user.jpg",
+        isOnline: false, // TODO: Add online status
+        isPinned: false, // TODO: Add pinned functionality
+        participant: otherParticipant,
+        conversation,
+      }
+    })
+  }, [conversationsData])
+
+  // Filter conversations based on search and active tab
+  const filteredConversations = useMemo(() => {
+    let filtered = processedConversations
+
+    // Search filter
+    if (searchText.trim()) {
+      filtered = filtered.filter(conv => 
+        conv.castName.toLowerCase().includes(searchText.toLowerCase())
+      )
+    }
+
+    // Tab filter (お気に入り)
+    if (activeTab === "お気に入り") {
+      const favoriteIds = new Set(favoritesData?.map(fav => fav.castId) || [])
+      filtered = filtered.filter(conv => 
+        conv.participant && favoriteIds.has(conv.participant.id)
+      )
+    }
+
+    return filtered
+  }, [processedConversations, searchText, activeTab, favoritesData])
+
+  const refreshMessages = useCallback(async () => {
+    setIsRefreshing(true)
+    try {
+      await refetchConversations()
+      toast({
+        title: "メッセージを更新しました",
+        duration: 2000,
+      })
+    } catch (error) {
+      toast({
+        title: "更新に失敗しました",
+        variant: "destructive",
+        duration: 3000,
+      })
+    } finally {
+      setIsRefreshing(false)
+    }
+  }, [refetchConversations, toast])
+
+  const handleMessageClick = (conversation: any) => {
+    navigateToMessageDetail(conversation)
   }
 
   if (showMessageDetail && selectedMessage) {
@@ -309,17 +326,62 @@ export default function MessageListScreen({ onBack, onNavigateToMyPage, onNaviga
 
         {/* Message List */}
         <div className="bg-white">
-          {sortedMessages.map((message, index) => (
-            <div key={`message-${message.id}-${index}`}>
+          {/* Loading State */}
+          {isLoadingConversations && (
+            <>
+              {[...Array(6)].map((_, index) => (
+                <div key={`skeleton-${index}`} className="p-4 flex items-center gap-4">
+                  <Skeleton className="w-16 h-16 rounded-full" />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start mb-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-12" />
+                    </div>
+                    <Skeleton className="h-4 w-full" />
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* Error State */}
+          {conversationsError && (
+            <div className="p-8 text-center">
+              <p className="text-red-500 mb-4">メッセージの読み込みに失敗しました</p>
+              <button 
+                onClick={() => refetchConversations()}
+                className="text-blue-500 underline"
+              >
+                再試行
+              </button>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!isLoadingConversations && !conversationsError && filteredConversations.length === 0 && (
+            <div className="p-8 text-center">
+              <MessageCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-600 mb-2">
+                {searchText.trim() ? "検索に一致するメッセージがありません" : "メッセージがありません"}
+              </p>
+              {activeTab === "お気に入り" && (
+                <p className="text-sm text-gray-500">お気に入りのキャストとメッセージを開始してください</p>
+              )}
+            </div>
+          )}
+
+          {/* Message List */}
+          {!isLoadingConversations && !conversationsError && filteredConversations.map((conversation, index) => (
+            <div key={`conversation-${conversation.id}-${index}`}>
               <button
                 className="w-full p-4 flex items-center gap-4 hover:bg-gray-50"
-                onClick={() => handleMessageClick(message)}
+                onClick={() => handleMessageClick(conversation)}
               >
                 {/* Profile Image */}
                 <div className="relative flex-shrink-0">
-                  <div className="w-16 h-16 rounded-full overflow-hidden">
+                  <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-200">
                     <Image
-                      src={message.profileImage || "/placeholder.svg"}
+                      src={conversation.profileImage}
                       alt="Profile"
                       width={64}
                       height={64}
@@ -327,7 +389,7 @@ export default function MessageListScreen({ onBack, onNavigateToMyPage, onNaviga
                     />
                   </div>
                   {/* Online Status */}
-                  {message.isOnline && (
+                  {conversation.isOnline && (
                     <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
                   )}
                 </div>
@@ -337,10 +399,10 @@ export default function MessageListScreen({ onBack, onNavigateToMyPage, onNaviga
                   <div className="flex items-start justify-between mb-1">
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-medium text-black truncate">
-                        {message.castName} {message.castAge}歳
+                        {conversation.castName}
                       </h3>
                       {/* Pin Icon */}
-                      {message.isPinned && (
+                      {conversation.isPinned && (
                         <svg className="w-4 h-4 text-gold-pink-gradient flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" />
                           <path
@@ -351,24 +413,26 @@ export default function MessageListScreen({ onBack, onNavigateToMyPage, onNaviga
                         </svg>
                       )}
                     </div>
-                    {message.timestamp && (
-                      <span className="text-xs text-gray-500 whitespace-nowrap ml-2">{message.timestamp}</span>
+                    {conversation.timestamp && (
+                      <span className="text-xs text-gray-500 whitespace-nowrap ml-2">{conversation.timestamp}</span>
                     )}
                   </div>
                   <div className="flex items-end justify-between">
-                    {message.lastMessage && (
-                      <p className="text-sm text-gray-600 text-left flex-1">{message.lastMessage}</p>
+                    {conversation.lastMessage && (
+                      <p className="text-sm text-gray-600 text-left flex-1 truncate">{conversation.lastMessage}</p>
                     )}
-                    {message.unreadCount > 0 && (
+                    {conversation.unreadCount > 0 && (
                       <div className="w-7 h-7 bg-gold-pink-gradient rounded-full flex items-center justify-center ml-2 flex-shrink-0">
-                        <span className="text-white text-sm font-bold">{message.unreadCount}</span>
+                        <span className="text-white text-sm font-bold">
+                          {conversation.unreadCount > 99 ? "99+" : conversation.unreadCount}
+                        </span>
                       </div>
                     )}
                   </div>
                 </div>
               </button>
               {/* Divider */}
-              {index < sortedMessages.length - 1 && <div className="h-px bg-gray-100 mx-4"></div>}
+              {index < filteredConversations.length - 1 && <div className="h-px bg-gray-100 mx-4"></div>}
             </div>
           ))}
         </div>

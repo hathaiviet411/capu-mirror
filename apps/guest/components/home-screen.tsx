@@ -5,20 +5,22 @@ import type React from "react"
 import { useState, useCallback, useEffect } from "react"
 import { Star, Search, Heart } from "lucide-react"
 import Image from "next/image"
-import SearchModal from "@/components/search-modal"
+import SearchModal, { type SearchFilters } from "@/components/search-modal"
 import CastDetailModal from "@/components/cast-detail-modal"
 import MyPageScreen from "@/components/mypage-screen"
 import { Button } from "@/components/ui/button"
 import MessageListScreen from "@/components/message-list-screen"
 import Footer from "@/components/shared/footer"
+import { api } from "~/utils/api"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function HomeScreen() {
+  const { toast } = useToast()
   const [showSearchModal, setShowSearchModal] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState({ home: true, favorites: true, footprints: true })
-  const [page, setPage] = useState({ home: 1, favorites: 1, footprints: 1 })
+  const [page, setPage] = useState({ home: 0, favorites: 0, footprints: 0 })
   const [activeTab, setActiveTab] = useState("オススメ")
-  const [favorites, setFavorites] = useState<Set<number>>(new Set())
   const [searchText, setSearchText] = useState("検索してみる")
   const [showMyPage, setShowMyPage] = useState(false)
   const [showMessageList, setShowMessageList] = useState(false)
@@ -26,6 +28,123 @@ export default function HomeScreen() {
   const [showCastDetail, setShowCastDetail] = useState(false)
   const [selectedCast, setSelectedCast] = useState<any>(null)
   const [filterCount, setFilterCount] = useState(0)
+
+  // API Queries
+  const { data: myProfile, error: profileError } = api.guest.getMyProfile.useQuery(undefined, {
+    enabled: true,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    retry: 1,
+  })
+
+  // Recommended casts with infinite query
+  const {
+    data: recommendedCastsData,
+    isLoading: isLoadingRecommended,
+    isFetchingNextPage: isFetchingMoreRecommended,
+    hasNextPage: hasMoreRecommended,
+    fetchNextPage: fetchMoreRecommended,
+  } = api.guest.getRecommendedCasts.useInfiniteQuery(
+    {
+      limit: 20,
+      offset: 0,
+    },
+    {
+      getNextPageParam: (lastPage, allPages) => {
+        // If we got less than the limit, there are no more pages
+        if (!lastPage || lastPage.length < 20) return undefined
+        // Calculate the offset for the next page
+        return allPages.length * 20
+      },
+      enabled: activeTab === "オススメ" && !profileError,
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      retry: 1,
+    }
+  )
+
+  // Favorites
+  const {
+    data: favoritesData,
+    isLoading: isLoadingFavorites,
+    refetch: refetchFavorites,
+  } = api.guest.getFavorites.useQuery(
+    {
+      guestId: myProfile?.userId || "",
+      limit: 100,
+      offset: 0,
+    },
+    {
+      enabled: !!myProfile?.userId && !profileError,
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      retry: 1,
+    }
+  )
+
+  // Footprints
+  const {
+    data: footprintsData,
+    isLoading: isLoadingFootprints,
+    isFetchingNextPage: isFetchingMoreFootprints,
+    hasNextPage: hasMoreFootprints,
+    fetchNextPage: fetchMoreFootprints,
+  } = api.user.getFootprints.useInfiniteQuery(
+    {
+      limit: 20,
+      offset: 0,
+    },
+    {
+      getNextPageParam: (lastPage, allPages) => {
+        if (!lastPage || lastPage.length < 20) return undefined
+        return allPages.length * 20
+      },
+      enabled: activeTab === "足あと" && !profileError,
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      retry: 1,
+    }
+  )
+
+  // Mutations
+  const addFavoriteMutation = api.guest.addFavorite.useMutation({
+    onSuccess: () => {
+      refetchFavorites()
+      toast({
+        title: "お気に入りに追加しました",
+        duration: 2000,
+      })
+    },
+    onError: (error) => {
+      if (error.message.includes("既にお気に入りに追加されています")) {
+        // すでにお気に入りの場合は何もしない
+        return
+      }
+      toast({
+        title: "エラー",
+        description: error.message,
+        variant: "destructive",
+        duration: 3000,
+      })
+    },
+  })
+
+  const removeFavoriteMutation = api.guest.removeFavorite.useMutation({
+    onSuccess: () => {
+      refetchFavorites()
+      toast({
+        title: "お気に入りから削除しました",
+        duration: 2000,
+      })
+    },
+    onError: (error) => {
+      toast({
+        title: "エラー",
+        description: error.message,
+        variant: "destructive",
+        duration: 3000,
+      })
+    },
+  })
+
+  // Create favorites set from API data
+  const favoriteIds = new Set(favoritesData?.map(fav => fav.castId) || [])
 
   // ブラウザ履歴を使った画面遷移管理
   useEffect(() => {
@@ -130,239 +249,34 @@ export default function HomeScreen() {
     setFilterCount(count)
   }
 
-  const [castData, setCastData] = useState([
-    {
-      id: 1,
-      age: 28,
-      name: "だいき😊",
-      message: "楽しくお話ししましょう🌟よろしくお願いします！",
-      price: "10,000P / 30分",
-      bgColor: "bg-gray-200",
-      image: "https://randomuser.me/api/portraits/men/32.jpg",
-      likes: 229,
-    },
-    {
-      id: 2,
-      age: 25,
-      name: "けんじ💫",
-      message: "一緒に素敵な時間を過ごしましょう✨",
-      price: "15,000P / 30分",
-      bgColor: "bg-gray-200",
-      image: "https://randomuser.me/api/portraits/men/45.jpg",
-      likes: 26500,
-    },
-    {
-      id: 3,
-      age: 23,
-      name: "ひろき🎯",
-      message: "映画や音楽の話が好きです😊",
-      price: "20,000P / 30分",
-      bgColor: "bg-gray-200",
-      image: "https://randomuser.me/api/portraits/men/22.jpg",
-      likes: 1340,
-    },
-    {
-      id: 4,
-      age: 26,
-      name: "たくや🎸",
-      message: "爽やか系です♪よろしくお願いします🎵",
-      price: "12,000P / 30分",
-      bgColor: "bg-gray-200",
-      image: "https://randomuser.me/api/portraits/men/67.jpg",
-      likes: 8420,
-    },
-    {
-      id: 5,
-      age: 29,
-      name: "しんいち⚽",
-      message: "スポーツと旅行が趣味です！",
-      price: "18,000P / 30分",
-      bgColor: "bg-gray-200",
-      image: "https://randomuser.me/api/portraits/men/89.jpg",
-      likes: 2638,
-    },
-    {
-      id: 6,
-      age: 24,
-      name: "ゆうた🎮",
-      message: "ゲームとアニメが大好きです🎬",
-      price: "22,000P / 30分",
-      bgColor: "bg-gray-200",
-      image: "https://randomuser.me/api/portraits/men/15.jpg",
-      likes: 999,
-    },
-  ])
-
-  const [footprintData, setFootprintData] = useState([
-    {
-      id: 1,
-      name: "りょうた🦁",
-      age: 27,
-      class: "VIP",
-      timestamp: "06/19(木) 19:19",
-      message:
-        "こんにちは🦁 社交的でアクティブです✨ お酒も音楽も大好きです🍻 渋谷、恵比寿、六本木あたりによくいます...",
-      bgColor: "bg-gray-200",
-      image: "https://randomuser.me/api/portraits/men/56.jpg",
-    },
-    {
-      id: 2,
-      name: "海外帰りのけんと",
-      age: 29,
-      class: "",
-      timestamp: "06/19(木) 19:13",
-      message:
-        "はじめまして🙋‍♂️ 海外から帰ってきました✈️🌺 普段は仕事でしっかりモードですが、プライベートではリラックスしています...",
-      bgColor: "bg-gray-200",
-      image: "https://randomuser.me/api/portraits/men/78.jpg",
-    },
-    {
-      id: 3,
-      name: "YUKI🤍",
-      age: 25,
-      class: "",
-      timestamp: "06/19(木) 19:00",
-      message:
-        "はじめまして💎 最近また始めました🙋‍♂️ 六本木、恵比寿、西麻布あたりにいることが多いです🍸 昼間も仕事してます🏢 ゴルフ、ポーカー、サウナ...",
-      bgColor: "bg-gray-200",
-      image: "https://randomuser.me/api/portraits/men/91.jpg",
-    },
-  ])
-
-  const toggleFavorite = (castId: number) => {
-    const newFavorites = new Set(favorites)
-    if (newFavorites.has(castId)) {
-      newFavorites.delete(castId)
+  // Toggle favorite function
+  const toggleFavorite = useCallback((castId: string) => {
+    if (favoriteIds.has(castId)) {
+      removeFavoriteMutation.mutate({ castId })
     } else {
-      newFavorites.add(castId)
+      addFavoriteMutation.mutate({ castId })
     }
-    setFavorites(newFavorites)
-  }
+  }, [favoriteIds, addFavoriteMutation, removeFavoriteMutation])
 
   const handleCastClick = (cast: any) => {
     navigateToCastDetail(cast)
   }
 
-  // Generate more cast data
-  const generateMoreCasts = useCallback((startId: number, count = 6) => {
-    const names = ["まさき❄️", "しょう💪", "かずき🌟", "やまと✨", "かいと🎯", "りく💫", "そうた🎮", "はやと🍀"]
-    const messages = [
-      "楽しい時間を一緒に過ごしましょう💪",
-      "スポーツやゲームの話が好きです✨",
-      "爽やか系です♪よろしくお願いします🌟",
-      "一緒に素敵な時間を過ごしませんか😊",
-      "よろしくお願いします！",
-      "楽しくお話ししましょう🎵",
-      "いい出会いになればと思います💫",
-      "一緒に楽しみましょう🎯",
-    ]
-    const prices = [
-      "10,000P / 30分",
-      "12,000P / 30分",
-      "15,000P / 30分",
-      "18,000P / 30分",
-      "20,000P / 30分",
-      "22,000P / 30分",
-      "25,000P / 30分",
-      "28,000P / 30分",
-    ]
-    const bgColors = [
-      "bg-gray-200",
-      "bg-gray-200",
-      "bg-gray-200",
-      "bg-gray-200",
-      "bg-gray-200",
-      "bg-gray-200",
-      "bg-gray-200",
-      "bg-gray-200",
-    ]
+  // Process API data
+  const recommendedCasts = recommendedCastsData?.pages.flatMap(page => page) || []
+  const footprints = footprintsData?.pages.flatMap(page => page) || []
+  const favoriteCasts = favoritesData?.map(fav => fav.cast).filter(Boolean) || []
 
-    return Array.from({ length: count }, (_, index) => ({
-      id: startId + index,
-      age: 20 + (index % 10),
-      name: names[index % names.length],
-      message: messages[index % messages.length],
-      price: prices[index % prices.length],
-      bgColor: bgColors[index % bgColors.length],
-      image: `https://randomuser.me/api/portraits/men/${(startId + index) % 100}.jpg`,
-      likes: 100 + (index * 137) % 30000,
-    }))
-  }, [])
+  // Calculate average rating for a cast
+  const calculateAverageRating = (reviews: any[]) => {
+    if (!reviews || reviews.length === 0) return 0
+    return reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+  }
 
-  // Generate more footprint data
-  const generateMoreFootprints = useCallback((startId: number, count = 3) => {
-    const names = ["たかし💎", "こうじ🎯", "あきら✨", "じろう🎸", "さとし💪", "のぼる🌟"]
-    const classes = ["", "VIP", "プレミアム", ""]
-    const messages = [
-      "はじめまして✨ よろしくお願いします💪",
-      "楽しい時間を一緒に過ごしませんか？🎯",
-      "話すのが大好きです♪",
-      "いい出会いを求めています💎",
-      "一緒に楽しみましょう🎵",
-      "爽やか系です♪よろしく🌟",
-    ]
-    const bgColors = [
-      "bg-gray-200",
-      "bg-gray-200",
-      "bg-gray-200",
-      "bg-gray-200",
-      "bg-gray-200",
-      "bg-gray-200",
-    ]
-
-    const now = new Date()
-    return Array.from({ length: count }, (_, index) => ({
-      id: startId + index,
-      name: names[Math.floor(Math.random() * names.length)],
-      age: Math.floor(Math.random() * 10) + 20,
-      class: classes[Math.floor(Math.random() * classes.length)],
-      timestamp: `06/19(木) ${String(now.getHours() - index - 1).padStart(2, "0")}:${String(Math.floor(Math.random() * 60)).padStart(2, "0")}`,
-      message:
-        messages[Math.floor(Math.random() * messages.length)] + " ".repeat(50) + "詳細なプロフィールはこちらから...",
-      bgColor: bgColors[Math.floor(Math.random() * bgColors.length)],
-      image: `https://randomuser.me/api/portraits/men/${Math.floor(Math.random() * 100)}.jpg`,
-    }))
-  }, [])
-
-  // Load more data function
-  const loadMoreData = useCallback(
-    async (tabType: "home" | "favorites" | "footprints") => {
-      if (loading || !hasMore[tabType]) return
-
-      setLoading(true)
-
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      if (tabType === "home") {
-        const newCasts = generateMoreCasts(castData.length + 1)
-        // Use requestAnimationFrame to ensure smooth rendering
-        requestAnimationFrame(() => {
-          setCastData((prev) => [...prev, ...newCasts])
-        })
-        setPage((prev) => ({ ...prev, home: prev.home + 1 }))
-
-        // Simulate end of data after 5 pages
-        if (page.home >= 4) {
-          setHasMore((prev) => ({ ...prev, home: false }))
-        }
-      } else if (tabType === "footprints") {
-        const newFootprints = generateMoreFootprints(footprintData.length + 1)
-        requestAnimationFrame(() => {
-          setFootprintData((prev) => [...prev, ...newFootprints])
-        })
-        setPage((prev) => ({ ...prev, footprints: prev.footprints + 1 }))
-
-        // Simulate end of data after 5 pages
-        if (page.footprints >= 4) {
-          setHasMore((prev) => ({ ...prev, footprints: false }))
-        }
-      }
-
-      setLoading(false)
-    },
-    [loading, hasMore, castData.length, footprintData.length, page, generateMoreCasts, generateMoreFootprints],
-  )
+  // Format price display
+  const formatPrice = (hourlyRate: number) => {
+    return `${hourlyRate.toLocaleString()}P / 30分`
+  }
 
   // Scroll handler
   const handleScroll = useCallback(
@@ -371,19 +285,26 @@ export default function HomeScreen() {
 
       // Load more when user is 200px from bottom
       if (scrollHeight - scrollTop <= clientHeight + 200) {
-        if (activeTab === "オススメ") {
-          loadMoreData("home")
-        } else if (activeTab === "足あと") {
-          loadMoreData("footprints")
-        } else if (activeTab === "お気に入り") {
-          loadMoreData("favorites")
+        if (activeTab === "オススメ" && hasMoreRecommended && !isFetchingMoreRecommended) {
+          fetchMoreRecommended()
+        } else if (activeTab === "足あと" && hasMoreFootprints && !isFetchingMoreFootprints) {
+          fetchMoreFootprints()
         }
       }
     },
-    [activeTab, loadMoreData],
+    [activeTab, hasMoreRecommended, isFetchingMoreRecommended, fetchMoreRecommended, hasMoreFootprints, isFetchingMoreFootprints, fetchMoreFootprints],
   )
 
-  const displayedCasts = activeTab === "お気に入り" ? castData.filter((cast) => favorites.has(cast.id)) : castData
+  // Get displayed casts based on active tab
+  const displayedCasts = activeTab === "お気に入り" ? favoriteCasts : recommendedCasts
+
+  // Handle search functionality
+  const handleSearchSubmit = useCallback((searchText: string, filters: SearchFilters) => {
+    setSearchText(searchText)
+    // TODO: Implement actual search functionality with the filters
+    // For now, we'll just update the search text display
+    console.log("Search submitted:", { searchText, filters })
+  }, [])
 
   // Handle search button click - always open search modal for filtering
   const handleSearchClick = () => {
@@ -460,71 +381,121 @@ export default function HomeScreen() {
           <div>
             {/* Top Spacer */}
             <div className="h-4 bg-gray-100"></div>
-            {/* Footprint Items */}
-            <div className="bg-white">
-              {footprintData.map((footprint, index) => (
-                <div key={`footprint-${footprint.id}-${index}`}>
-                  <div className="p-4">
-                    <div className="flex items-start gap-3">
-                      {/* Profile Image */}
-                      <div
-                        className={`w-16 h-16 rounded-full ${footprint.bgColor} overflow-hidden flex-shrink-0`}
-                      >
-                        <Image
-                          src={footprint.image || "/placeholder.svg?height=64&width=64"}
-                          alt="Profile"
-                          width={64}
-                          height={64}
-                          className="object-cover w-full h-full"
-                        />
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1">
-                        {/* Timestamp */}
-                        <p className="text-xs text-gray-500 mb-2">{footprint.timestamp} • 足あとがつきました</p>
-
-                        {/* Name and Class */}
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="flex items-center gap-1">
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                            <span className="text-sm font-medium text-gray-900">
-                              {footprint.name} {footprint.age}歳
-                            </span>
-                          </div>
-                          {footprint.class && (
-                            <span className="bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded">
-                              {footprint.class}
-                            </span>
-                          )}
+            
+            {/* Loading skeleton */}
+            {isLoadingFootprints && footprints.length === 0 ? (
+              <div className="bg-white">
+                {[...Array(3)].map((_, index) => (
+                  <div key={`skeleton-${index}`}>
+                    <div className="p-4">
+                      <div className="flex items-start gap-3">
+                        <Skeleton className="w-16 h-16 rounded-full" />
+                        <div className="flex-1">
+                          <Skeleton className="h-4 w-48 mb-2" />
+                          <Skeleton className="h-4 w-32 mb-2" />
+                          <Skeleton className="h-16 w-full mb-3" />
+                          <Skeleton className="h-10 w-full" />
                         </div>
-
-                        {/* Message */}
-                        <p className="text-xs text-gray-700 leading-relaxed mb-3">{footprint.message}</p>
-
-                        {/* Message Button */}
-                        <Button className="w-full h-10 bg-gold-pink-gradient hover:bg-gold-pink-gradient-dark text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                            />
-                          </svg>
-                          メッセージを送る
-                        </Button>
                       </div>
                     </div>
+                    {index < 2 && <div className="h-px bg-gray-200 mx-4"></div>}
                   </div>
-                  {/* Divider between items */}
-                  {index < footprintData.length - 1 && <div className="h-px bg-gray-200 mx-4"></div>}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : footprints.length === 0 ? (
+              <div className="bg-white p-8 text-center">
+                <p className="text-gray-600">まだ足あとがついていません</p>
+              </div>
+            ) : (
+              /* Footprint Items */
+              <div className="bg-white">
+                {footprints.map((footprint, index) => {
+                  const viewer = footprint.viewer
+                  const profile = viewer.userType === "CAST" ? viewer.castProfile : viewer.guestProfile
+                  const displayName = profile?.displayName || viewer.name || "ユーザー"
+                  const avatar = profile?.avatar || viewer.image
+                  const timestamp = new Date(footprint.viewedAt).toLocaleString('ja-JP', {
+                    month: '2-digit',
+                    day: '2-digit',
+                    weekday: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })
+                  
+                  return (
+                    <div key={`footprint-${footprint.id}-${index}`}>
+                      <div className="p-4">
+                        <div className="flex items-start gap-3">
+                          {/* Profile Image */}
+                          <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
+                            <Image
+                              src={avatar || "/placeholder-user.jpg"}
+                              alt="Profile"
+                              width={64}
+                              height={64}
+                              className="object-cover w-full h-full"
+                            />
+                          </div>
+
+                          {/* Content */}
+                          <div className="flex-1">
+                            {/* Timestamp */}
+                            <p className="text-xs text-gray-500 mb-2">{timestamp} • 足あとがつきました</p>
+
+                            {/* Name and Class */}
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="flex items-center gap-1">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span className="text-sm font-medium text-gray-900">
+                                  {displayName}
+                                </span>
+                              </div>
+                              {viewer.userType === "CAST" && profile?.hourlyRate && (
+                                <span className="bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded">
+                                  {formatPrice(profile.hourlyRate)}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Message */}
+                            {viewer.userType === "CAST" && profile?.bio && (
+                              <p className="text-xs text-gray-700 leading-relaxed mb-3 line-clamp-3">{profile.bio}</p>
+                            )}
+
+                            {/* Message Button */}
+                            <Button 
+                              onClick={() => viewer.userType === "CAST" && handleCastClick(profile)}
+                              className="w-full h-10 bg-gold-pink-gradient hover:bg-gold-pink-gradient-dark text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2"
+                            >
+                              {viewer.userType === "CAST" ? (
+                                <>プロフィールを見る</>
+                              ) : (
+                                <>
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                                    />
+                                  </svg>
+                                  メッセージを送る
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Divider between items */}
+                      {index < footprints.length - 1 && <div className="h-px bg-gray-200 mx-4"></div>}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
 
             {/* Loading Section */}
-            {loading && activeTab === "足あと" && (
+            {isFetchingMoreFootprints && (
               <>
                 <div className="h-2 bg-gray-100"></div>
                 <div className="bg-white p-4 flex justify-center">
@@ -534,7 +505,7 @@ export default function HomeScreen() {
             )}
 
             {/* End of data Section */}
-            {!hasMore.footprints && activeTab === "足あと" && footprintData.length > 6 && (
+            {!hasMoreFootprints && footprints.length > 0 && (
               <>
                 <div className="h-2 bg-gray-100"></div>
                 <div className="bg-white p-4 text-center">
@@ -551,69 +522,114 @@ export default function HomeScreen() {
           <div>
             {/* Top Spacer */}
             <div className="h-4 bg-gray-100"></div>
-            {displayedCasts.length === 0 && activeTab === "お気に入り" ? (
+            
+            {/* Loading skeleton */}
+            {(isLoadingRecommended || isLoadingFavorites) && displayedCasts.length === 0 ? (
+              <div className="bg-white px-2 pb-4 pt-2">
+                <div className="grid grid-cols-2 gap-2">
+                  {[...Array(6)].map((_, index) => (
+                    <div key={`skeleton-${index}`} className="mb-2">
+                      <Skeleton className="w-full h-72 rounded-lg" />
+                      <div className="mt-1 px-1">
+                        <Skeleton className="h-4 w-24 mb-1" />
+                        <Skeleton className="h-8 w-full mb-1" />
+                        <Skeleton className="h-4 w-20 ml-auto" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : displayedCasts.length === 0 ? (
               <div className="bg-white p-8 text-center">
-                <p className="text-gray-600">お気に入りのキャストがいません</p>
+                <p className="text-gray-600">
+                  {activeTab === "お気に入り" ? "お気に入りのキャストがいません" : "キャストが見つかりません"}
+                </p>
               </div>
             ) : (
               /* Cast Masonry Grid Section */
               <div className="bg-white px-2 pb-4 pt-2">
                 <div className="grid grid-cols-2 gap-2">
-                  {displayedCasts.map((cast, index) => (
-                    <div
-                      key={`cast-${activeTab}-${cast.id}-${index}`}
-                      onClick={() => handleCastClick(cast)}
-                      className="relative mb-2 cursor-pointer group"
-                    >
-                      {/* Cast Image */}
-                      <Image
-                        src={cast.image || "/placeholder.svg?height=600&width=320"}
-                        alt="Cast member"
-                        width={320}
-                        height={600}
-                        className={`w-full h-72 object-cover rounded-lg ${cast.bgColor}`}
-                      />
-
-                      {/* Hover dark overlay - Desktop only */}
-                      <div className="absolute inset-0 bg-black/0 md:group-hover:bg-black/40 transition-colors rounded-lg" />
-
-                      {/* Caption & Meta */}
-                      <div className="mt-1 px-1">
-                        {/* Name and Age as title */}
-                        <p className="text-sm font-semibold text-gray-900 leading-tight truncate">
-                          {cast.age}歳 {cast.name}
-                        </p>
-                        {/* Message (limited to 2 lines) */}
-                        <p className="text-xs text-gray-600 line-clamp-2">
-                          {cast.message}
-                        </p>
-
-                        {/* Price Row */}
-                        <div className="flex items-center justify-end mt-1">
-                          <span className="text-xs text-gray-500">{cast.price}</span>
-                        </div>
-                      </div>
-
-                      {/* Favourite Star */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          toggleFavorite(cast.id)
-                        }}
-                        className="absolute top-2 right-2 md:hover:scale-110 transition-transform z-10"
+                  {displayedCasts.map((cast, index) => {
+                    const castProfile = activeTab === "お気に入り" ? cast.castProfile : cast
+                    const averageRating = calculateAverageRating(castProfile.reviews || [])
+                    const reviewCount = castProfile._count?.reviews || 0
+                    const favoriteCount = castProfile._count?.favorites || 0
+                    
+                    return (
+                      <div
+                        key={`cast-${activeTab}-${castProfile.id}-${index}`}
+                        onClick={() => handleCastClick(castProfile)}
+                        className="relative mb-2 cursor-pointer group"
                       >
-                        <Star
-                          className={`w-5 h-5 drop-shadow ${favorites.has(cast.id) ? "text-yellow-400 fill-yellow-400" : "text-white fill-white"}`}
+                        {/* Cast Image */}
+                        <Image
+                          src={castProfile.avatar || "/placeholder-user.jpg"}
+                          alt="Cast member"
+                          width={320}
+                          height={600}
+                          className="w-full h-72 object-cover rounded-lg bg-gray-200"
                         />
-                      </button>
-                    </div>
-                  ))}
+
+                        {/* Hover dark overlay - Desktop only */}
+                        <div className="absolute inset-0 bg-black/0 md:group-hover:bg-black/40 transition-colors rounded-lg" />
+
+                        {/* Caption & Meta */}
+                        <div className="mt-1 px-1">
+                          {/* Name as title */}
+                          <p className="text-sm font-semibold text-gray-900 leading-tight truncate">
+                            {castProfile.displayName}
+                          </p>
+                          {/* Bio (limited to 2 lines) */}
+                          <p className="text-xs text-gray-600 line-clamp-2">
+                            {castProfile.bio || "プロフィールメッセージなし"}
+                          </p>
+
+                          {/* Price Row */}
+                          <div className="flex items-center justify-between mt-1">
+                            <div className="flex items-center gap-1">
+                              {averageRating > 0 && (
+                                <>
+                                  <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                                  <span className="text-xs text-gray-600">{averageRating.toFixed(1)}</span>
+                                </>
+                              )}
+                              {reviewCount > 0 && (
+                                <span className="text-xs text-gray-500">({reviewCount})</span>
+                              )}
+                            </div>
+                            <span className="text-xs text-gray-500">{formatPrice(castProfile.hourlyRate)}</span>
+                          </div>
+                        </div>
+
+                        {/* Favourite Star */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleFavorite(castProfile.id)
+                          }}
+                          className="absolute top-2 right-2 md:hover:scale-110 transition-transform z-10"
+                          disabled={addFavoriteMutation.isLoading || removeFavoriteMutation.isLoading}
+                        >
+                          <Star
+                            className={`w-5 h-5 drop-shadow ${favoriteIds.has(castProfile.id) ? "text-yellow-400 fill-yellow-400" : "text-white fill-white"}`}
+                          />
+                        </button>
+
+                        {/* Verified Badge */}
+                        {castProfile.isVerified && (
+                          <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                            認証済
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}
 
             {/* Loading Section */}
-            {loading && (activeTab === "オススメ" || activeTab === "お気に入り") && (
+            {(isFetchingMoreRecommended || (activeTab === "お気に入り" && isLoadingFavorites)) && (
               <>
                 <div className="h-2 bg-gray-100"></div>
                 <div className="bg-white p-4 flex justify-center">
@@ -623,7 +639,7 @@ export default function HomeScreen() {
             )}
 
             {/* End of data Section */}
-            {!hasMore.home && activeTab === "オススメ" && castData.length > 12 && (
+            {!hasMoreRecommended && activeTab === "オススメ" && recommendedCasts.length > 0 && (
               <>
                 <div className="h-2 bg-gray-100"></div>
                 <div className="bg-white p-4 text-center">
@@ -651,7 +667,7 @@ export default function HomeScreen() {
       <SearchModal 
         isOpen={showSearchModal} 
         onClose={goBack} 
-        onSearch={setSearchText} 
+        onSearch={handleSearchSubmit}
         onFilterCountChange={handleFilterCountChange}
       />
 
