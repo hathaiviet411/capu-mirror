@@ -59,8 +59,9 @@ export const authOptions: NextAuthOptions = {
 
           // Use LINE profile sub as unique identifier instead of hardcoded email
           const lineId = profile.sub;
+          console.log("LINE OAuth login attempt with lineId:", lineId);
           
-          // Check if user already exists with this LINE ID
+          // First, check if user already exists with this LINE ID in accounts
           const existingUser = await db.user.findFirst({
             where: {
               accounts: {
@@ -69,6 +70,9 @@ export const authOptions: NextAuthOptions = {
                   providerAccountId: lineId
                 }
               }
+            },
+            include: {
+              accounts: true
             }
           });
 
@@ -77,19 +81,59 @@ export const authOptions: NextAuthOptions = {
             user.id = existingUser.id;
             user.email = existingUser.email;
             user.userType = existingUser.userType as "GUEST";
+            console.log("Found existing user for LINE login:", existingUser.id, existingUser.email);
             return true;
           }
 
+          // If no user found by account, check if email already exists
+          const newEmail = `line_${lineId}@gmail.com`;
+          const existingUserByEmail = await db.user.findUnique({
+            where: { email: newEmail }
+          });
+
+          if (existingUserByEmail) {
+            // User exists with this email, update the user object
+            user.id = existingUserByEmail.id;
+            user.email = existingUserByEmail.email;
+            user.userType = existingUserByEmail.userType as "GUEST";
+            console.log("Found existing user by email for LINE login:", existingUserByEmail.id, existingUserByEmail.email);
+            return true;
+          }
+
+          // Check if there's any user with a similar LINE email pattern
+          const existingLineUsers = await db.user.findMany({
+            where: {
+              email: {
+                contains: 'line_',
+                endsWith: '@gmail.com'
+              }
+            }
+          });
+
+          if (existingLineUsers.length > 0) {
+            console.log("Found existing LINE users:", existingLineUsers.map(u => ({ id: u.id, email: u.email })));
+          }
+
           // Create new user with unique email based on LINE ID
-          const newEmail = `line_${lineId}@capu.app`;
-          
           try {
+            console.log("Creating new user with email:", newEmail);
             const newUser = await db.user.create({
               data: {
                 email: newEmail,
                 userType: "GUEST",
                 name: profile.name || `LINE User ${lineId.slice(-6)}`,
                 image: (profile as any).picture || null,
+                // Also create the account record to link LINE OAuth
+                accounts: {
+                  create: {
+                    type: "oauth",
+                    provider: "line",
+                    providerAccountId: lineId,
+                    access_token: account.access_token,
+                    token_type: account.token_type,
+                    scope: account.scope,
+                  }
+                }
               }
             });
             
@@ -97,10 +141,27 @@ export const authOptions: NextAuthOptions = {
             user.email = newUser.email;
             user.userType = newUser.userType as "GUEST";
             
-            console.log("Created new user for LINE login:", newUser.id);
+            console.log("Created new user for LINE login:", newUser.id, newUser.email);
             return true;
           } catch (error) {
             console.error("Error creating new user for LINE login:", error);
+            
+            // If creation fails due to email conflict, try to find the existing user
+            if ((error as any).code === 'P2002' && (error as any).meta?.target?.includes('email')) {
+              console.log("Email conflict detected, trying to find existing user...");
+              const conflictUser = await db.user.findUnique({
+                where: { email: newEmail }
+              });
+              
+              if (conflictUser) {
+                user.id = conflictUser.id;
+                user.email = conflictUser.email;
+                user.userType = conflictUser.userType as "GUEST";
+                console.log("Found conflicting user:", conflictUser.id, conflictUser.email);
+                return true;
+              }
+            }
+            
             return false;
           }
         }
