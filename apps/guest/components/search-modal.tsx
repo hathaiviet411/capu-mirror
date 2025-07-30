@@ -1,15 +1,27 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { X, ChevronDown } from "lucide-react"
 import TagSelectionModal from "@/components/tag-selection-modal"
 import AreaSelectionModal from "@/components/area-selection-modal"
+import { api } from "~/utils/api"
+
+export interface SearchFilters {
+  query?: string
+  areaId?: string
+  tagIds?: string[]
+  minRate?: number
+  maxRate?: number
+  isVerified?: boolean
+  ageRange?: { min?: number; max?: number }
+  heightRange?: { min?: number; max?: number }
+}
 
 interface SearchModalProps {
   isOpen: boolean
   onClose: () => void
-  onSearch: (searchText: string) => void
+  onSearch: (searchText: string, filters: SearchFilters) => void
   onFilterCountChange?: (count: number) => void
 }
 
@@ -17,12 +29,15 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
   const [activeTab, setActiveTab] = useState("pato")
   const [selectedClasses, setSelectedClasses] = useState<string[]>([])
 
-  const [residence, setResidence] = useState("")
-  const [birthplace, setBirthplace] = useState("")
+  const [residenceId, setResidenceId] = useState("")
+  const [residenceName, setResidenceName] = useState("")
+  const [birthplaceId, setBirthplaceId] = useState("")
+  const [birthplaceName, setBirthplaceName] = useState("")
   const [ageRange, setAgeRange] = useState({ min: "", max: "" })
   const [heightRange, setHeightRange] = useState({ min: "", max: "" })
   const [freeWord, setFreeWord] = useState("")
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
+  const [selectedTagNames, setSelectedTagNames] = useState<string[]>([])
 
   const [showTagModal, setShowTagModal] = useState(false)
   const [showResidenceModal, setShowResidenceModal] = useState(false)
@@ -32,12 +47,12 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
   const calculateFilterCount = () => {
     let count = 0
     
-    if (residence) count++
-    if (birthplace) count++
+    if (residenceId) count++
+    if (birthplaceId) count++
     if (ageRange.min || ageRange.max) count++
     if (heightRange.min || heightRange.max) count++
     if (selectedClasses.length > 0) count++
-    if (selectedTags.length > 0) count++
+    if (selectedTagIds.length > 0) count++
     if (freeWord.trim()) count++
     
     return count
@@ -47,7 +62,7 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
   useEffect(() => {
     const count = calculateFilterCount()
     onFilterCountChange?.(count)
-  }, [residence, birthplace, ageRange, heightRange, selectedClasses, selectedTags, freeWord, onFilterCountChange])
+  }, [residenceId, birthplaceId, ageRange, heightRange, selectedClasses, selectedTagIds, freeWord, onFilterCountChange])
 
   const toggleClass = (className: string) => {
     setSelectedClasses((prev) =>
@@ -57,18 +72,21 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
 
   const handleClear = () => {
     setSelectedClasses([])
-    setResidence("")
-    setBirthplace("")
+    setResidenceId("")
+    setResidenceName("")
+    setBirthplaceId("")
+    setBirthplaceName("")
     setAgeRange({ min: "", max: "" })
     setHeightRange({ min: "", max: "" })
     setFreeWord("")
-    setSelectedTags([])
+    setSelectedTagIds([])
+    setSelectedTagNames([])
   }
 
   const handleSearch = () => {
     const conditions = []
-    if (residence) conditions.push(`居住地:${residence}`)
-    if (birthplace) conditions.push(`出身地:${birthplace}`)
+    if (residenceName) conditions.push(`居住地:${residenceName}`)
+    if (birthplaceName) conditions.push(`出身地:${birthplaceName}`)
     if (ageRange.min || ageRange.max) {
       conditions.push(`年齢:${ageRange.min || "18"}-${ageRange.max || "99"}歳`)
     }
@@ -78,13 +96,30 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
     if (selectedClasses.length > 0) {
       conditions.push(`クラス:${selectedClasses.join(",")}`)
     }
-    if (selectedTags.length > 0) {
-      conditions.push(`タグ:${selectedTags.slice(0, 2).join(",")}${selectedTags.length > 2 ? "..." : ""}`)
+    if (selectedTagNames.length > 0) {
+      conditions.push(`タグ:${selectedTagNames.slice(0, 2).join(",")}${selectedTagNames.length > 2 ? "..." : ""}`)
     }
     if (freeWord) conditions.push(freeWord)
 
     const searchText = conditions.length > 0 ? conditions.join(" ") : "検索してみる"
-    onSearch(searchText)
+    
+    // Build search filters
+    const filters: SearchFilters = {
+      query: freeWord || undefined,
+      areaId: residenceId || undefined,
+      tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
+      isVerified: selectedClasses.includes("VIP") ? true : undefined,
+      ageRange: (ageRange.min || ageRange.max) ? {
+        min: ageRange.min ? parseInt(ageRange.min) : undefined,
+        max: ageRange.max ? parseInt(ageRange.max) : undefined,
+      } : undefined,
+      heightRange: (heightRange.min || heightRange.max) ? {
+        min: heightRange.min ? parseInt(heightRange.min) : undefined,
+        max: heightRange.max ? parseInt(heightRange.max) : undefined,
+      } : undefined,
+    }
+    
+    onSearch(searchText, filters)
     onClose()
   }
 
@@ -113,7 +148,7 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
               >
                 <span className="text-sm text-gray-600">居住地</span>
                 <div className="flex items-center gap-1 text-black">
-                  <span className="text-sm">{residence || "未選択"}</span>
+                  <span className="text-sm">{residenceName || "未選択"}</span>
                   <ChevronDown className="w-4 h-4" />
                 </div>
               </button>
@@ -123,7 +158,7 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
               >
                 <span className="text-sm text-gray-600">出身地</span>
                 <div className="flex items-center gap-1 text-black">
-                  <span className="text-sm">{birthplace || "未選択"}</span>
+                  <span className="text-sm">{birthplaceName || "未選択"}</span>
                   <ChevronDown className="w-4 h-4" />
                 </div>
               </button>
@@ -178,20 +213,20 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
             <button onClick={() => setShowTagModal(true)} className="bg-gray-50 p-4 rounded-lg w-full">
               <div className="flex justify-between items-center">
                 <div className="text-left">
-                  {selectedTags.length === 0 && (
+                  {selectedTagNames.length === 0 && (
                     <p className="text-sm text-gray-600 mb-1">
                       体型、顔立ち、系統、髪型、職歴、楽しみ方、趣味、特技などキャストの詳細タグから検索できます
                     </p>
                   )}
-                  {selectedTags.length > 0 && (
+                  {selectedTagNames.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {selectedTags.slice(0, 3).map((tag) => (
+                      {selectedTagNames.slice(0, 3).map((tag) => (
                         <span key={tag} className="bg-pink-100 text-pink-800 text-xs px-2 py-1 rounded">
                           {tag}
                         </span>
                       ))}
-                      {selectedTags.length > 3 && (
-                        <span className="text-xs text-gray-500">+{selectedTags.length - 3}個</span>
+                      {selectedTagNames.length > 3 && (
+                        <span className="text-xs text-gray-500">+{selectedTagNames.length - 3}個</span>
                       )}
                     </div>
                   )}
@@ -242,13 +277,22 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
         </div>
 
         {/* Fixed Bottom Button */}
-        <div className="bg-white border-t p-4">
-          <Button
-            onClick={handleSearch}
-            className="w-full h-12 bg-gold-pink-gradient hover:bg-gold-pink-gradient-dark text-white text-base font-medium rounded-lg"
-          >
-            この条件で検索する
-          </Button>
+        <div className="bg-white border-t p-4 space-y-2">
+          <div className="flex gap-2">
+            <Button
+              onClick={handleClear}
+              variant="outline"
+              className="flex-1 h-12 text-gray-600 border-gray-300"
+            >
+              クリア
+            </Button>
+            <Button
+              onClick={handleSearch}
+              className="flex-[2] h-12 bg-gold-pink-gradient hover:bg-gold-pink-gradient-dark text-white text-base font-medium rounded-lg"
+            >
+              この条件で検索する
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -256,24 +300,36 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
       <TagSelectionModal
         isOpen={showTagModal}
         onClose={() => setShowTagModal(false)}
-        onSave={setSelectedTags}
-        initialTags={selectedTags}
+        onSave={(tagIds: string[], tagNames: string[]) => {
+          setSelectedTagIds(tagIds)
+          setSelectedTagNames(tagNames)
+        }}
+        initialTagIds={selectedTagIds}
+        initialTagNames={selectedTagNames}
       />
 
       {/* Area Selection Modals */}
       <AreaSelectionModal
         isOpen={showResidenceModal}
         onClose={() => setShowResidenceModal(false)}
-        onSave={setResidence}
+        onSave={(areaId: string, areaName: string) => {
+          setResidenceId(areaId)
+          setResidenceName(areaName)
+        }}
         title="居住地を選択"
-        initialArea={residence}
+        initialAreaId={residenceId}
+        initialAreaName={residenceName}
       />
       <AreaSelectionModal
         isOpen={showBirthplaceModal}
         onClose={() => setShowBirthplaceModal(false)}
-        onSave={setBirthplace}
+        onSave={(areaId: string, areaName: string) => {
+          setBirthplaceId(areaId)
+          setBirthplaceName(areaName)
+        }}
         title="出身地を選択"
-        initialArea={birthplace}
+        initialAreaId={birthplaceId}
+        initialAreaName={birthplaceName}
       />
     </>
   )

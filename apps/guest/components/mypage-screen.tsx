@@ -1,6 +1,6 @@
 "use client"
 
-import { Settings, ChevronRight } from "lucide-react"
+import { Settings, ChevronRight, Loader2 } from "lucide-react"
 import Image from "next/image"
 import ProfileEditScreen from "@/components/profile-edit-screen"
 import JoinedCastsScreen from "@/components/joined-casts-screen"
@@ -9,25 +9,24 @@ import PaymentInfoScreen from "@/components/payment-info-screen"
 import HelpScreen from "@/components/help-screen"
 import IdentityVerificationScreen from "@/components/id-verification"
 import IdentityVerificationCompleteScreen from "@/components/id-verify-complete"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import NotificationScreen from "@/components/notification-screen"
 import NotificationIcon from "@/components/shared/notification-icon"
 import Footer from "@/components/shared/footer"
 import MessageListScreen from "@/components/message-list-screen"
 import SettingsScreen from "@/components/settings-screen"
 import { useSession } from "next-auth/react"
+import { api } from "~/utils/api"
+import { useToast } from "@/components/ui/use-toast"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface MyPageScreenProps {
   onBack: () => void
 }
 
 export default function MyPageScreen({ onBack }: MyPageScreenProps) {
-  const matchedCasts = Array.from({ length: 7 }, (_, index) => ({
-    id: index + 1,
-    name: `Cast ${index + 1}`,
-  }))
-
   const { data: session, status } = useSession()
+  const { toast } = useToast()
 
   const [showProfileEdit, setShowProfileEdit] = useState(false)
   const [showJoinedCasts, setShowJoinedCasts] = useState(false)
@@ -189,12 +188,111 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
     pushToHistory('mypage-settings')
   }
 
-  // User profile data (would come from state/API in real app)
-  const userProfile = {
-    avatar: session?.user?.image || "https://randomuser.me/api/portraits/women/32.jpg",
-    name: session?.user?.name || "田中 美咲",
-    age: session?.user?.dob ? Math.floor((new Date().getTime() - new Date(session.user.dob).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : 28,
-    job: "会社員",
+  // API queries
+  const {
+    data: guestProfile,
+    isLoading: isLoadingProfile,
+    error: profileError,
+    refetch: refetchProfile,
+  } = api.guest.getMyProfile.useQuery(undefined, {
+    enabled: status === "authenticated",
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    retry: 1,
+  })
+
+  const {
+    data: bookingsData,
+    isLoading: isLoadingBookings,
+    error: bookingsError,
+  } = api.booking.getBookingHistory.useQuery(
+    {
+      guestId: guestProfile?.userId || "",
+      status: "COMPLETED",
+      limit: 10,
+      offset: 0,
+    },
+    {
+      enabled: !!guestProfile?.userId,
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      retry: 1,
+    }
+  )
+
+  const {
+    data: notificationsData,
+    isLoading: isLoadingNotifications,
+  } = api.user.getNotifications.useQuery(
+    {
+      limit: 1,
+      offset: 0,
+      unreadOnly: true,
+    },
+    {
+      enabled: status === "authenticated",
+      staleTime: 1000 * 60 * 2, // 2 minutes
+    }
+  )
+
+  // Process user profile data
+  const userProfile = useMemo(() => {
+    const profile = guestProfile?.guestProfile
+    const user = guestProfile?.user
+
+    return {
+      avatar: profile?.avatar || user?.image || session?.user?.image || "/placeholder-user.jpg",
+      name: profile?.displayName || user?.name || session?.user?.name || "ゲスト",
+      age: profile?.birthDate ? 
+        new Date().getFullYear() - new Date(profile.birthDate).getFullYear() : 
+        null,
+      job: profile?.occupation || "未設定",
+      isVerified: profile?.isVerified || false,
+      verificationStatus: profile?.verificationStatus || "PENDING",
+    }
+  }, [guestProfile, session])
+
+  // Process matched casts data
+  const matchedCasts = useMemo(() => {
+    if (!bookingsData) return []
+    
+    // Show max 7 casts as in original design
+    return bookingsData.slice(0, 7).map(booking => {
+      const cast = booking.cast
+      const castProfile = cast.castProfile
+      
+      return {
+        id: booking.id,
+        name: castProfile?.displayName || cast.name || "Unknown",
+        avatar: castProfile?.avatar || cast.image || "/placeholder-user.jpg",
+      }
+    })
+  }, [bookingsData])
+
+  // Check if there are unread notifications
+  const hasUnreadNotifications = (notificationsData?.length || 0) > 0
+
+  // Get verification status text
+  const getVerificationStatusText = () => {
+    switch (userProfile.verificationStatus) {
+      case "VERIFIED":
+        return "認証済み"
+      case "REJECTED":
+        return "認証に失敗しました"
+      case "PENDING":
+      default:
+        return "本人確認書類を確認中"
+    }
+  }
+
+  const getVerificationStatusColor = () => {
+    switch (userProfile.verificationStatus) {
+      case "VERIFIED":
+        return "bg-green-500"
+      case "REJECTED":
+        return "bg-red-500"
+      case "PENDING":
+      default:
+        return "bg-gold-pink-gradient"
+    }
   }
 
   // Show different screens based on state
@@ -253,8 +351,12 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
       <div className="bg-gold-pink-gradient px-4 py-4 h-16 flex items-center justify-between fixed top-0 left-1/2 transform -translate-x-1/2 w-full md:max-w-sm z-10 shadow-lg">
         <h1 className="text-base font-medium text-white">マイページ</h1>
         <div className="flex items-center gap-3">
-          <NotificationIcon onClick={navigateToNotifications} hasNotifications={true} />
-          <button className="p-1" onClick={navigateToSettings}>
+          {isLoadingNotifications ? (
+            <div className="w-6 h-6 bg-white/20 rounded-full animate-pulse" />
+          ) : (
+            <NotificationIcon onClick={navigateToNotifications} hasNotifications={hasUnreadNotifications} />
+          )}
+          <button className="p-1 hover:bg-white/20 transition-colors rounded-full" onClick={navigateToSettings}>
             <Settings className="w-6 h-6 text-white" />
           </button>
         </div>
@@ -264,39 +366,68 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
       <div className="flex-1 overflow-y-auto pt-[64px] bg-gray-100 content-with-safe-footer">
         {/* Profile Section */}
         <div className="bg-white p-8 text-center">
-          <div className="relative inline-block mb-4">
-            {/* Profile Image */}
-            <button
-              onClick={navigateToProfileEdit}
-              className="w-32 h-32 rounded-full bg-gray-200 overflow-hidden mx-auto"
-            >
-              <Image
-                src={userProfile.avatar}
-                alt="Profile"
-                width={128}
-                height={128}
-                className="object-cover w-full h-full"
-              />
-            </button>
-            {/* Edit Icon - overlapping the profile image */}
-            <button
-              onClick={navigateToProfileEdit}
-              className="absolute bottom-2 right-2 w-8 h-8 bg-gold-pink-gradient rounded-full flex items-center justify-center shadow-lg"
-            >
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                />
-              </svg>
-            </button>
-          </div>
-          <h2 className="text-base font-medium text-black">
-            {userProfile.name} {userProfile.age}歳
-          </h2>
-          <p className="text-xs text-gray-600 mt-1">{userProfile.job}</p>
+          {/* Loading state */}
+          {isLoadingProfile ? (
+            <div className="flex flex-col items-center">
+              <Skeleton className="w-32 h-32 rounded-full mb-4" />
+              <Skeleton className="h-5 w-32 mb-2" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+          ) : profileError ? (
+            <div className="text-center py-8">
+              <p className="text-red-500 mb-4">プロフィールの読み込みに失敗しました</p>
+              <button 
+                onClick={() => refetchProfile()}
+                className="text-blue-500 underline"
+              >
+                再試行
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="relative inline-block mb-4">
+                {/* Profile Image */}
+                <button
+                  onClick={navigateToProfileEdit}
+                  className="w-32 h-32 rounded-full bg-gray-200 overflow-hidden mx-auto hover:opacity-90 transition-opacity"
+                >
+                  <Image
+                    src={userProfile.avatar}
+                    alt="Profile"
+                    width={128}
+                    height={128}
+                    className="object-cover w-full h-full"
+                  />
+                </button>
+                {/* Edit Icon - overlapping the profile image */}
+                <button
+                  onClick={navigateToProfileEdit}
+                  className="absolute bottom-2 right-2 w-8 h-8 bg-gold-pink-gradient rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+                >
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                </button>
+                {/* Verified Badge */}
+                {userProfile.isVerified && (
+                  <div className="absolute top-0 right-0 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                )}
+              </div>
+              <h2 className="text-base font-medium text-black">
+                {userProfile.name}{userProfile.age ? ` ${userProfile.age}歳` : ""}
+              </h2>
+              <p className="text-xs text-gray-600 mt-1">{userProfile.job}</p>
+            </>
+          )}
         </div>
 
         {/* Gray Spacer */}
@@ -304,34 +435,86 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
 
         {/* Matched Casts Section */}
         <div className="bg-white p-4">
-          <button onClick={navigateToJoinedCasts} className="w-full flex items-center justify-between mb-4">
+          <button onClick={navigateToJoinedCasts} className="w-full flex items-center justify-between mb-4 hover:bg-gray-50 transition-colors rounded-lg p-2 -m-2">
             <span className="text-sm font-medium text-black">合流したキャスト</span>
-            <ChevronRight className="w-5 h-5 text-gray-400" />
+            <div className="flex items-center gap-2">
+              {!isLoadingBookings && matchedCasts.length > 0 && (
+                <span className="text-xs text-gray-500">{matchedCasts.length}人</span>
+              )}
+              <ChevronRight className="w-5 h-5 text-gray-400" />
+            </div>
           </button>
 
           {/* Cast Avatars */}
           <div className="flex items-center justify-center">
-            <div className="flex items-center">
-              {matchedCasts.map((cast, index) => (
-                <div
-                  key={cast.id}
-                  className={`relative ${index > 0 ? "-ml-2" : ""}`}
-                  style={{ zIndex: matchedCasts.length - index }}
-                >
-                  <div className="w-12 h-12 rounded-full border-2 border-dotted border-gray-300 bg-white flex items-center justify-center">
-                    <div className="w-6 h-6 rounded-full bg-amber-800 flex items-center justify-center">
-                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path
-                          fillRule="evenodd"
-                          d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </div>
+            {isLoadingBookings ? (
+              <div className="flex items-center">
+                {[...Array(5)].map((_, index) => (
+                  <div
+                    key={`skeleton-${index}`}
+                    className={`relative ${index > 0 ? "-ml-2" : ""}`}
+                    style={{ zIndex: 5 - index }}
+                  >
+                    <Skeleton className="w-12 h-12 rounded-full" />
+                  </div>
+                ))}
+              </div>
+            ) : matchedCasts.length === 0 ? (
+              <div className="text-center py-4">
+                <div className="w-12 h-12 rounded-full border-2 border-dotted border-gray-300 bg-white flex items-center justify-center mx-auto mb-2">
+                  <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center">
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
                   </div>
                 </div>
-              ))}
-            </div>
+                <p className="text-xs text-gray-500">まだ合流したキャストがいません</p>
+              </div>
+            ) : (
+              <div className="flex items-center">
+                {matchedCasts.map((cast, index) => (
+                  <div
+                    key={`cast-${cast.id}-${index}`}
+                    className={`relative ${index > 0 ? "-ml-2" : ""}`}
+                    style={{ zIndex: matchedCasts.length - index }}
+                  >
+                    <div className="w-12 h-12 rounded-full border-2 border-white bg-gray-200 overflow-hidden shadow-sm">
+                      <Image
+                        src={cast.avatar}
+                        alt={cast.name}
+                        width={48}
+                        height={48}
+                        className="object-cover w-full h-full"
+                      />
+                    </div>
+                  </div>
+                ))}
+                {/* Show placeholder circles if we have fewer than 7 casts */}
+                {matchedCasts.length < 7 && [...Array(7 - matchedCasts.length)].map((_, index) => (
+                  <div
+                    key={`placeholder-${index}`}
+                    className="relative -ml-2"
+                    style={{ zIndex: 7 - matchedCasts.length - index }}
+                  >
+                    <div className="w-12 h-12 rounded-full border-2 border-dotted border-gray-300 bg-white flex items-center justify-center">
+                      <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path
+                            fillRule="evenodd"
+                            d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -381,7 +564,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
           {/* Identity Verification */}
           <button
             onClick={navigateToIdentityVerification}
-            className="w-full flex items-center justify-between p-4 border-b border-gray-100"
+            className="w-full flex items-center justify-between p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors"
           >
             <div className="flex items-center gap-3">
               <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -393,7 +576,9 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
                 />
               </svg>
               <span className="text-sm text-black">本人認証</span>
-              <span className="bg-gold-pink-gradient text-white text-xs px-2 py-1 rounded">本人確認書類を確認中</span>
+              <span className={`${getVerificationStatusColor()} text-white text-xs px-2 py-1 rounded`}>
+                {getVerificationStatusText()}
+              </span>
             </div>
             <ChevronRight className="w-5 h-5 text-gray-400" />
           </button>
