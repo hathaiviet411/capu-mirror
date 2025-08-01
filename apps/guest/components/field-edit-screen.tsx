@@ -3,6 +3,9 @@
 import { ArrowLeft } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
+import { api } from "~/utils/api"
+import { useSession } from "next-auth/react"
+import { useToast } from "@/components/ui/use-toast"
 
 interface FieldEditScreenProps {
   onBack: () => void
@@ -12,6 +15,7 @@ interface FieldEditScreenProps {
   maxLength?: number
   placeholder?: string
   multiline?: boolean
+  fieldType?: "aliasName" | "quote" | "selfIntro"
 }
 
 export default function FieldEditScreen({
@@ -22,13 +26,63 @@ export default function FieldEditScreen({
   maxLength = 20,
   placeholder = "",
   multiline = false,
+  fieldType = "selfIntro",
 }: FieldEditScreenProps) {
-  const [inputValue, setInputValue] = useState(value)
+  const { data: session } = useSession()
+  const { toast } = useToast()
+  const [inputValue, setInputValue] = useState(value || "")
+  const [isSaving, setIsSaving] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  const updateUserMutation = api.guest.updateUser.useMutation({
+    onSuccess: () => {
+      const successMessages = {
+        aliasName: "ニックネームを更新しました",
+        quote: "今日のひとことを更新しました",
+        selfIntro: "自己紹介を更新しました",
+      }
+      
+      toast({
+        title: "保存完了",
+        description: successMessages[fieldType] || "更新しました",
+      })
+      onSave(inputValue)
+      onBack()
+    },
+    onError: (error) => {
+      toast({
+        title: "エラー",
+        description: error.message,
+        variant: "destructive",
+      })
+    },
+  })
+
   const handleSave = () => {
-    onSave(inputValue)
-    onBack()
+    if (!session?.user?.id) return
+    
+    setIsSaving(true)
+    
+    const updateData: any = {}
+    
+    switch (fieldType) {
+      case "aliasName":
+        updateData.aliasName = inputValue
+        break
+      case "quote":
+        updateData.quote = inputValue
+        break
+      case "selfIntro":
+        updateData.selfIntro = inputValue
+        break
+      default:
+        updateData.selfIntro = inputValue
+    }
+    
+    updateUserMutation.mutate({
+      userId: session.user.id,
+      data: updateData,
+    })
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
@@ -45,7 +99,7 @@ export default function FieldEditScreen({
       textareaRef.current.style.height = 'auto'
       const scrollHeight = textareaRef.current.scrollHeight
       const minHeight = 120 // 最小高さ（約3行分）
-      const maxHeight = 300 // 最大高さ制限
+      const maxHeight = 500 // 最大高さ制限
       const newHeight = Math.min(Math.max(scrollHeight, minHeight), maxHeight)
       textareaRef.current.style.height = `${newHeight}px`
     }
@@ -67,8 +121,12 @@ export default function FieldEditScreen({
           </button>
           <h1 className="text-base font-medium text-white">{title}</h1>
         </div>
-        <button onClick={handleSave} className="text-sm text-white font-medium">
-          保存
+        <button 
+          onClick={handleSave} 
+          disabled={isSaving}
+          className="text-sm text-white font-medium disabled:opacity-50"
+        >
+          {isSaving ? "保存中..." : "保存"}
         </button>
       </div>
 
@@ -78,7 +136,7 @@ export default function FieldEditScreen({
           {/* Character Counter */}
           <div className="flex justify-end mb-3">
             <span className="text-sm text-gray-500">
-              {inputValue.length}/{maxLength}
+              {(inputValue || "").length}/{maxLength}
             </span>
           </div>
 
@@ -106,7 +164,6 @@ export default function FieldEditScreen({
             />
           )}
           
-          {/* Helper text */}
           <p className="text-sm text-gray-500 mt-3 text-center">
             {multiline ? '改行して詳しく入力してください' : 'わかりやすく入力してください'}
           </p>

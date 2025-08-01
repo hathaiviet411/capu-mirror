@@ -50,6 +50,26 @@ export default function ProfilePreviewScreen({ onBack, formData, basicInfo, imag
   }, [])
 
   const calculateAge = (birthDate: string) => {
+    console.log('birthDate :', birthDate);
+    
+    // Handle formatted Japanese date string (e.g., "2000年11月4日")
+    if (birthDate.includes('年')) {
+      const match = birthDate.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/)
+      if (match) {
+        const [, year, month, day] = match
+        const birthDateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+        const today = new Date()
+        const age = today.getFullYear() - birthDateObj.getFullYear()
+        const monthDiff = today.getMonth() - birthDateObj.getMonth()
+        
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDateObj.getDate())) {
+          return age - 1
+        }
+        return age
+      }
+    }
+    
+    // Handle raw date string from database
     const today = new Date()
     const birthDateObj = new Date(birthDate)
     const age = today.getFullYear() - birthDateObj.getFullYear()

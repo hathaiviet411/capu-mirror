@@ -29,6 +29,11 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
   const { data: session, status } = useSession()
   const { toast } = useToast()
 
+  const { data: userDetails, isLoading: isLoadingUser } = api.guest.getUserById.useQuery(
+    { userId: session?.user?.id || "" },
+    { enabled: !!session?.user?.id }
+  )
+
   const [showHelp, setShowHelp] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showProfileEdit, setShowProfileEdit] = useState(false)
@@ -215,17 +220,28 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
   const isLoadingNotifications = false
 
   const userProfile = useMemo(() => {
-    return {
-      avatar: session?.user?.image || "/placeholder-user.jpg",
-      name: session?.user?.name || "ゲスト",
-      age: session?.user?.dob ?
-        new Date().getFullYear() - new Date(session.user.dob).getFullYear() :
-        null,
-      job: "未設定",
-      isVerified: false,
-      verificationStatus: "PENDING" as string,
+    if (!userDetails) {
+      return {
+        avatar: session?.user?.image || "/placeholder-user.jpg",
+        name: session?.user?.name || "ゲスト",
+        age: null,
+        occupation: "未設定",
+        isVerified: false,
+        verificationStatus: "PENDING" as string,
+      }
     }
-  }, [session])
+
+    return {
+      avatar: userDetails.image || "/placeholder-user.jpg",
+      name: userDetails.name || "ゲスト",
+      age: userDetails.birthDate ? 
+        new Date().getFullYear() - new Date(userDetails.birthDate).getFullYear() :
+        null,
+      occupation: userDetails.occupation || "未設定",
+      isVerified: userDetails.isVerified || false,
+      verificationStatus: "PENDING" as string, // TODO: Add verification status to API
+    }
+  }, [userDetails, session])
 
   const matchedCasts = useMemo(() => {
     if (!bookingsData) return []
@@ -340,9 +356,12 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
       <div className="flex-1 overflow-y-auto pt-[64px] bg-gray-100 content-with-safe-footer">
         <div className="bg-white p-8 text-center">
           {
-            isLoadingBookings ? (
+            isLoadingUser ? (
               <div className="flex flex-col items-center">
-                <Skeleton className="w-32 h-32 rounded-full mb-4" />
+                <div className="relative inline-block mb-4">
+                  <Skeleton className="w-32 h-32 rounded-full" />
+                  <Skeleton className="absolute bottom-2 right-2 w-8 h-8 rounded-full" />
+                </div>
                 <Skeleton className="h-5 w-32 mb-2" />
                 <Skeleton className="h-4 w-20" />
               </div>
@@ -391,7 +410,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
                 {userProfile.name}{userProfile.age ? ` ${userProfile.age}歳` : ""}
               </h2>
 
-              <p className="text-xs text-gray-600 mt-1">{userProfile.job}</p>
+              <p className="text-xs text-gray-600 mt-1">{userProfile.occupation}</p>
             </>
           )}
         </div>

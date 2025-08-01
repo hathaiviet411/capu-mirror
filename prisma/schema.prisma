@@ -56,8 +56,8 @@ model User {
   hourlyRate             Int?
   aliasName              String?
   quote                  String?
-  height                 Int?                    @db.SmallInt
-  weight                 Int?                    @db.SmallInt
+  height                 String?
+  weight                 String?
   residence              String?
   education              String?
   occupation             String?

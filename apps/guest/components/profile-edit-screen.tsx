@@ -21,12 +21,12 @@ interface ProfileEditScreenProps {
 export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
   const { data: session, status } = useSession()
   const { toast } = useToast()
-  
+
   const { data: userDetails, isLoading: isLoadingUser } = api.guest.getUserById.useQuery(
     { userId: session?.user?.id || "" },
     { enabled: !!session?.user?.id }
   )
-  
+
   const [formData, setFormData] = useState({
     aliasName: "",
     quote: "",
@@ -57,7 +57,7 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
       console.log("====================================================================================");
       console.log("userDetails", userDetails);
       console.log("====================================================================================");
-      
+
       setFormData({
         aliasName: userDetails.aliasName || "",
         quote: userDetails.quote || "",
@@ -67,7 +67,7 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
       })
 
       setBasicInfo({
-        height: `${userDetails.height || 0}cm` || "未選択",
+        height: userDetails.height || "未選択",
         residence: userDetails.residence || "未選択",
         birthplace: userDetails.birthplace || "未選択",
         education: userDetails.education || "未選択",
@@ -76,11 +76,15 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
         smokingLevel: userDetails.smokingLevel || "未選択",
         cohabitant: userDetails.cohabitant || "未選択",
         siblings: userDetails.siblings || "未選択",
-        birthDate: userDetails.birthDate ? new Date(userDetails.birthDate).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' }) : "未選択",
+        birthDate: userDetails.birthDate
+          ? new Date(userDetails.birthDate).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })
+          : "未選択",
       })
 
       if (userDetails.additionalImages) {
         setImages(userDetails.additionalImages)
+      } else {
+        setImages([])
       }
     }
   }, [userDetails])
@@ -90,15 +94,81 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
   const [showPreview, setShowPreview] = useState(false)
   const [showSimpleProfileTagModal, setShowSimpleProfileTagModal] = useState(false)
   const [showImageOptions, setShowImageOptions] = useState<number | null>(null)
+  const [isMainImageLoading, setIsMainImageLoading] = useState(false)
+  const [loadingImageIndex, setLoadingImageIndex] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const mainImageInputRef = useRef<HTMLInputElement>(null)
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const utils = api.useUtils()
+
+  const updateUserMutation = api.guest.updateUser.useMutation({
+    onSuccess: () => {
+      toast({
+        title: "保存完了",
+        description: "画像を更新しました",
+      })
+      setIsMainImageLoading(false)
+      setLoadingImageIndex(null)
+      // Refresh user data after successful update
+      utils.guest.getUserById.invalidate({ userId: session?.user?.id || "" })
+    },
+    onError: (error) => {
+      toast({
+        title: "エラー",
+        description: error.message,
+        variant: "destructive",
+      })
+      setIsMainImageLoading(false)
+      setLoadingImageIndex(null)
+    },
+  })
+
+  const handleMainImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("Main image change triggered", event.target.files)
     const file = event.target.files?.[0]
-    if (file) {
+    if (file && session?.user?.id) {
+      setIsMainImageLoading(true)
       const reader = new FileReader()
       reader.onload = (e) => {
         const result = e.target?.result as string
-        setImages([...images, result])
+        updateUserMutation.mutate({
+          userId: session.user.id,
+          data: {
+            image: result,
+          },
+        })
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("handleFileUpload triggered", { imagesLength: images.length, file: event.target.files?.[0] })
+    const file = event.target.files?.[0]
+    if (file && session?.user?.id) {
+      // Allow adding up to 5 additional images (index 0-4)
+      if (images.length >= 5) {
+        toast({
+          title: "エラー",
+          description: "追加画像は最大5枚までです",
+          variant: "destructive",
+        })
+        return
+      }
+      
+      console.log("Starting upload for image", images.length)
+      setLoadingImageIndex(images.length) // Set loading for the new image position
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const result = e.target?.result as string
+        const newImages = [...images, result]
+        console.log("Calling API with", newImages.length, "images")
+        updateUserMutation.mutate({
+          userId: session.user.id,
+          data: {
+            additionalImages: newImages,
+          },
+        })
       }
       reader.readAsDataURL(file)
     }
@@ -110,13 +180,19 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
     input.accept = "image/*"
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
-      if (file) {
+      if (file && session?.user?.id) {
+        setLoadingImageIndex(index)
         const reader = new FileReader()
         reader.onload = (e) => {
           const result = e.target?.result as string
           const newImages = [...images]
           newImages[index] = result
-          setImages(newImages)
+          updateUserMutation.mutate({
+            userId: session.user.id,
+            data: {
+              additionalImages: newImages,
+            },
+          })
         }
         reader.readAsDataURL(file)
       }
@@ -153,8 +229,8 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
 
   if (showBasicInfo) {
     return (
-      <BasicInfoScreen 
-        onBack={() => setShowBasicInfo(false)} 
+      <BasicInfoScreen
+        onBack={() => setShowBasicInfo(false)}
         basicInfo={basicInfo}
         onSave={(updatedBasicInfo) => {
           setBasicInfo(updatedBasicInfo)
@@ -167,8 +243,8 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
 
   if (showFieldEdit) {
     const fieldConfig = {
-      nickname: { title: "ニックネーム", maxLength: 20, placeholder: "ニックネームを入力", multiline: false },
-      todayWord: { title: "今日のひとこと", maxLength: 50, placeholder: "今日のひとことを入力", multiline: false },
+      aliasName: { title: "ニックネーム", maxLength: 20, placeholder: "ニックネームを入力", multiline: false },
+      quote: { title: "今日のひとこと", maxLength: 50, placeholder: "今日のひとことを入力", multiline: true },
       selfIntroduction: { title: "自己紹介", maxLength: 500, placeholder: "自己紹介を入力", multiline: true },
     }
 
@@ -178,11 +254,12 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
       <FieldEditScreen
         onBack={() => setShowFieldEdit(null)}
         title={config.title}
-        value={formData[showFieldEdit as "aliasName"]}
+        value={formData[showFieldEdit as keyof typeof formData] as string}
         onSave={(value) => setFormData({ ...formData, [showFieldEdit]: value })}
         maxLength={config.maxLength}
         placeholder={config.placeholder}
         multiline={config.multiline}
+        fieldType={showFieldEdit as "aliasName" | "quote" | "selfIntro"}
       />
     )
   }
@@ -195,8 +272,10 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
             <button onClick={onBack}>
               <ArrowLeft className="w-5 h-5 text-white" />
             </button>
+
             <h1 className="text-base font-medium text-white">プロフィール編集</h1>
           </div>
+
           <button className="text-white font-medium text-sm">
             プレビュー
           </button>
@@ -212,6 +291,7 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
               {[...Array(3)].map((_, index) => (
                 <Skeleton key={index} className="w-12 h-12 rounded-full" />
               ))}
+
               <Skeleton className="w-12 h-12 rounded-full" />
             </div>
           </div>
@@ -219,42 +299,43 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
           <div className="space-y-4">
             <div className="bg-white px-4 py-4">
               <Skeleton className="h-4 w-20 mb-3" />
+
               <div className="flex items-center justify-between py-2">
                 <Skeleton className="h-4 w-32" />
                 <Skeleton className="w-5 h-5 rounded" />
               </div>
             </div>
 
-            {/* Today's Word Section */}
             <div className="bg-white px-4 py-4">
               <Skeleton className="h-4 w-24 mb-3" />
+
               <div className="flex items-center justify-between py-2">
                 <Skeleton className="h-4 w-40" />
                 <Skeleton className="w-5 h-5 rounded" />
               </div>
             </div>
 
-            {/* Simple Profile Section */}
             <div className="bg-white px-4 py-4">
               <Skeleton className="h-4 w-28 mb-3" />
+
               <div className="flex items-start justify-between py-2">
                 <Skeleton className="h-4 w-36" />
                 <Skeleton className="w-5 h-5 rounded mt-1" />
               </div>
             </div>
 
-            {/* Self Introduction Section */}
             <div className="bg-white px-4 py-4">
               <Skeleton className="h-4 w-20 mb-3" />
+
               <div className="flex items-center justify-between py-2">
                 <Skeleton className="h-4 w-48" />
                 <Skeleton className="w-5 h-5 rounded" />
               </div>
             </div>
 
-            {/* Basic Information Section */}
             <div className="bg-white px-4 py-4">
               <Skeleton className="h-4 w-20 mb-3" />
+
               <div className="flex items-center justify-between py-2">
                 <Skeleton className="h-4 w-16" />
                 <Skeleton className="w-5 h-5 rounded" />
@@ -277,7 +358,7 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
             </button>
             <h1 className="text-base font-medium text-white">プロフィール編集</h1>
           </div>
-          <button 
+          <button
             onClick={() => setShowPreview(true)}
             className="text-white font-medium text-sm"
           >
@@ -285,30 +366,50 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
           </button>
         </div>
 
-        {/* Main Content - Scrollable */}
         <div className="flex-1 overflow-y-auto bg-gray-100 pb-8">
-          {/* Profile Image Section */}
           <div className="bg-gray-100 pt-8 pb-6 flex flex-col items-center">
-            {/* Main Profile Image */}
             <div className="relative mb-6">
-              <div className="w-48 h-48 rounded-full bg-white overflow-hidden shadow-lg">
+              <div className="w-48 h-48 rounded-full bg-white overflow-hidden shadow-lg relative group">
                 <Image
                   src={userDetails?.image || "/placeholder.svg?height=192&width=192"}
                   alt="Profile"
                   width={192}
                   height={192}
-                  className="object-cover w-full h-full"
+                  className={`object-cover w-full h-full ${isMainImageLoading ? 'opacity-50' : ''}`}
                 />
+
+                {isMainImageLoading ? (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowImageOptions(showImageOptions === -1 ? null : -1)}
+                    className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                  >
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                )}
               </div>
+
+              <input 
+                ref={mainImageInputRef} 
+                type="file" 
+                accept="image/*" 
+                onChange={handleMainImageChange} 
+                className="hidden" 
+              />
             </div>
 
-            {/* Thumbnail and Add Button */}
             <div className="flex items-center gap-2 justify-center">
               {images.map((image, index) => (
                 <div key={index} className="relative">
                   <button
                     onClick={() => setShowImageOptions(showImageOptions === index ? null : index)}
-                    className="w-12 h-12 rounded-full bg-white overflow-hidden shadow-md"
+                    disabled={loadingImageIndex === index}
+                    className={`w-12 h-12 rounded-full bg-white overflow-hidden shadow-md relative group ${loadingImageIndex === index ? 'opacity-50' : ''}`}
                   >
                     <Image
                       src={image || "/placeholder.svg?height=48&width=48"}
@@ -317,7 +418,19 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
                       height={48}
                       className="object-cover w-full h-full"
                     />
+                    {loadingImageIndex === index ? (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                    ) : (
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </div>
+                    )}
                   </button>
+
                   {showImageOptions === index && (
                     <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
                       <div className="bg-white rounded-t-2xl w-full md:max-w-sm p-6 space-y-4">
@@ -329,7 +442,15 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
                         </button>
                         <button
                           onClick={() => {
-                            setImages(images.filter((_, i) => i !== index))
+                            if (session?.user?.id) {
+                              const newImages = images.filter((_, i) => i !== index)
+                              updateUserMutation.mutate({
+                                userId: session.user.id,
+                                data: {
+                                  additionalImages: newImages,
+                                },
+                              })
+                            }
                             setShowImageOptions(null)
                           }}
                           className="w-full py-4 text-lg font-medium text-black border-b border-gray-200"
@@ -348,11 +469,36 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
                 </div>
               ))}
 
-              {images.length < 4 && (
+              {/* Main Image Options Modal */}
+              {showImageOptions === -1 && (
+                <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
+                  <div className="bg-white rounded-t-2xl w-full md:max-w-sm p-6 space-y-4">
+                    <button
+                      onClick={() => {
+                        mainImageInputRef.current?.click()
+                        setShowImageOptions(null)
+                      }}
+                      disabled={isMainImageLoading}
+                      className={`w-full py-4 text-lg font-medium text-black border-b border-gray-200 ${isMainImageLoading ? 'opacity-50' : ''}`}
+                    >
+                      変更する
+                    </button>
+                    <button
+                      onClick={() => setShowImageOptions(null)}
+                      className="w-full py-4 text-lg font-medium text-gray-500"
+                    >
+                      キャンセル
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {images.length < 5 && (
                 <>
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-12 h-12 bg-gold-pink-gradient rounded-full flex items-center justify-center shadow-lg"
+                    disabled={isMainImageLoading || loadingImageIndex !== null}
+                    className={`w-12 h-12 bg-gold-pink-gradient rounded-full flex items-center justify-center shadow-lg ${(isMainImageLoading || loadingImageIndex !== null) ? 'opacity-50' : ''}`}
                   >
                     <Plus className="w-6 h-6 text-white" />
                   </button>
@@ -362,13 +508,11 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
             </div>
           </div>
 
-          {/* Form Sections */}
           <div className="space-y-4">
-            {/* Nickname Section */}
             <div className="bg-white px-4 py-4">
               <h3 className="text-sm font-medium text-black mb-3">ニックネーム</h3>
               <button
-                onClick={() => setShowFieldEdit("nickname")}
+                onClick={() => setShowFieldEdit("aliasName")}
                 className="w-full flex items-center justify-between py-2"
               >
                 <span className="text-sm text-black">{formData.aliasName}</span>
@@ -376,11 +520,10 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
               </button>
             </div>
 
-            {/* Today's Word Section */}
             <div className="bg-white px-4 py-4">
               <h3 className="text-sm font-medium text-black mb-3">今日のひとこと</h3>
               <button
-                onClick={() => setShowFieldEdit("todayWord")}
+                onClick={() => setShowFieldEdit("quote")}
                 className="w-full flex items-center justify-between py-2"
               >
                 <span className="text-sm text-black text-justify">{formData.quote}</span>
@@ -388,7 +531,6 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
               </button>
             </div>
 
-            {/* Simple Profile Section */}
             <div className="bg-white px-4 py-4">
               <h3 className="text-sm font-medium text-black mb-3">簡単プロフィール</h3>
               <button
@@ -396,40 +538,54 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
                 className="w-full flex items-start justify-between py-2"
               >
                 <div className="flex-1 text-left">
-                  {formData.simpleProfileTags.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {formData.simpleProfileTags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="px-2 py-1 text-xs bg-gold-pink-gradient text-white rounded-md"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="text-sm text-gray-500">タグを選択してください</span>
-                  )}
+                  {
+                    formData.simpleProfileTags.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {
+                          formData.simpleProfileTags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="px-2 py-1 text-xs bg-gold-pink-gradient text-white rounded-md"
+                            >
+                              {tag}
+                            </span>
+                          ))
+                        }
+                      </div>
+                    ) : (
+                      <span className="text-sm text-gray-500">タグを選択してください</span>
+                    )
+                  }
                 </div>
+
                 <ChevronRight className="w-5 h-5 text-gray-400 mt-1" />
               </button>
             </div>
 
-            {/* Self Introduction Section */}
             <div className="bg-white px-4 py-4">
               <h3 className="text-sm font-medium text-black mb-3">自己紹介</h3>
+
               <button
                 onClick={() => setShowFieldEdit("selfIntroduction")}
                 className="w-full flex items-center justify-between py-2"
               >
-                <span className="text-sm text-black text-left flex-1">{formData.selfIntroduction.slice(0, 120)}...</span>
+                <span className="text-sm text-black text-left flex-1">
+                  {
+                    formData.selfIntroduction.length > 120 ? (
+                      formData.selfIntroduction.slice(0, 120) + "..."
+                    ) : (
+                      formData.selfIntroduction
+                    )
+                  }
+                </span>
+
                 <ChevronRight className="w-5 h-5 text-gray-400" />
               </button>
             </div>
 
-            {/* Basic Information Section */}
             <div className="bg-white px-4 py-4">
               <h3 className="text-sm font-medium text-black mb-3">基本情報</h3>
+
               <button onClick={() => setShowBasicInfo(true)} className="w-full flex items-center justify-between py-2">
                 <span className="text-sm text-black">10/10</span>
                 <ChevronRight className="w-5 h-5 text-gray-400" />
@@ -439,7 +595,6 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
         </div>
       </div>
 
-      {/* Simple Profile Tag Modal */}
       <SimpleProfileTagModal
         isOpen={showSimpleProfileTagModal}
         onClose={() => setShowSimpleProfileTagModal(false)}

@@ -38,33 +38,33 @@ function SelectionModal({ isOpen, onClose, title, options, selectedValue, onSele
 
   return (
     <div className="fixed inset-0 z-50 bg-white w-full md:max-w-sm mx-auto flex flex-col">
-      {/* Header */}
       <div className="bg-gold-pink-gradient px-4 py-4 h-16 flex items-center gap-3 border-b shadow-lg">
         <button onClick={onClose}>
           <X className="w-5 h-5 text-white" />
         </button>
+
         <span className="text-base font-medium text-white">{title}</span>
       </div>
 
-      {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto p-4 pb-20">
         <div className="space-y-2">
-          {options.map((option) => (
-            <button
-              key={option}
-              onClick={() => {
-                onSelect(option)
-                onClose()
-              }}
-              className={`w-full text-left px-4 py-3 rounded-lg ${
-                selectedValue === option
-                  ? "bg-gold-pink-gradient text-white"
-                  : "bg-gray-100 text-gray-600"
-              }`}
-            >
-              {option}
-            </button>
-          ))}
+          {
+            options.map((option) => (
+              <button
+                key={option}
+                onClick={() => {
+                  onSelect(option)
+                  onClose()
+                }}
+                className={`
+                  w-full text-left px-4 py-3 rounded-lg
+                  ${selectedValue === option ? "bg-gold-pink-gradient text-white" : "bg-gray-100 text-gray-600"}
+                `}
+              >
+                {option}
+              </button>
+            ))
+          }
         </div>
       </div>
 
@@ -151,7 +151,6 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
       "沖縄県",
     ],
     birthplace: [
-      "未選択",
       "北海道",
       "青森県",
       "岩手県",
@@ -212,9 +211,8 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
   const handleSave = () => {
     setIsSaving(true)
     
-    // Convert string values to numbers where needed
     const updateData = {
-      height: basicInfo.height ? parseInt(basicInfo.height) : undefined,
+      height: basicInfo.height,
       residence: basicInfo.residence,
       education: basicInfo.education,
       occupation: basicInfo.occupation,
@@ -279,7 +277,7 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
               <span className="text-sm text-black">身長</span>
               <div className="flex items-center gap-2">
                 {
-                  !basicInfo.height || basicInfo.height === '未選択' ? (
+                  !basicInfo.height ? (
                     <>
                       <span className="text-sm text-gray-300">未選択</span>
                       <ChevronDown className="w-5 h-5 text-gray-300" />
@@ -301,7 +299,7 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
               <span className="text-sm text-black">居住地</span>
               <div className="flex items-center gap-2">
                 {
-                  !basicInfo.residence || basicInfo.residence === '未選択' ? (
+                  !basicInfo.residence ? (
                     <>
                       <span className="text-sm text-gray-300">未選択</span>
                       <ChevronDown className="w-5 h-5 text-gray-300" />
@@ -323,7 +321,7 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
               <span className="text-sm text-black">出身地</span>
               <div className="flex items-center gap-2">
                 {
-                  !basicInfo.birthplace || basicInfo.birthplace === '未選択' ? (
+                  !basicInfo.birthplace ? (
                     <>
                       <span className="text-sm text-gray-300">未選択</span>
                       <ChevronDown className="w-5 h-5 text-gray-300" />
@@ -345,7 +343,7 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
               <span className="text-sm text-black">学歴</span>
               <div className="flex items-center gap-2">
                 {
-                  !basicInfo.education || basicInfo.education === '未選択' ? (
+                  !basicInfo.education ? (
                     <>
                       <span className="text-sm text-gray-300">未選択</span>
                       <ChevronDown className="w-5 h-5 text-gray-300" />
@@ -367,7 +365,7 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
               <span className="text-sm text-black">お仕事</span>
               <div className="flex items-center gap-2">
                 {
-                  !basicInfo.occupation || basicInfo.occupation === '未選択' ? (
+                  !basicInfo.occupation ? (
                     <>
                       <span className="text-sm text-gray-300">未選択</span>
                       <ChevronDown className="w-5 h-5 text-gray-300" />
@@ -389,7 +387,7 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
               <span className="text-sm text-black">お酒</span>
               <div className="flex items-center gap-2">
                 {
-                  !basicInfo.drinkingLevel || basicInfo.drinkingLevel === '未選択' ? (
+                  !basicInfo.drinkingLevel ? (
                     <>
                       <span className="text-sm text-gray-300">未選択</span>
                       <ChevronDown className="w-5 h-5 text-gray-300" />
@@ -411,7 +409,7 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
               <span className="text-sm text-black">タバコ</span>
               <div className="flex items-center gap-2">
                 {
-                  !basicInfo.smokingLevel || basicInfo.smokingLevel === '未選択' ? (
+                  !basicInfo.smokingLevel ? (
                     <>
                       <span className="text-sm text-gray-300">未選択</span>
                       <ChevronDown className="w-5 h-5 text-gray-300" />
@@ -433,7 +431,7 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
               <span className="text-sm text-black">同居人</span>
               <div className="flex items-center gap-2">
                 {
-                  !basicInfo.cohabitant || basicInfo.cohabitant === '未選択' ? (
+                  !basicInfo.cohabitant ? (
                     <>
                       <span className="text-sm text-gray-300">未選択</span>
                       <ChevronDown className="w-5 h-5 text-gray-300" />
@@ -455,7 +453,7 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
               <span className="text-sm text-black">兄弟姉妹</span>
               <div className="flex items-center gap-2">
                 {
-                  !basicInfo.siblings || basicInfo.siblings === '未選択' ? (
+                  !basicInfo.siblings ? (
                     <>
                       <span className="text-sm text-gray-300">未選択</span>
                       <ChevronDown className="w-5 h-5 text-gray-300" />
@@ -485,18 +483,19 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
         </div>
       </div>
 
-      {/* Selection Modals */}
-      {Object.entries(fieldOptions).map(([field, options]) => (
-        <SelectionModal
-          key={field}
-          isOpen={activeModal === field}
-          onClose={() => setActiveModal(null)}
-          title={getFieldTitle(field)}
-          options={options}
-          selectedValue={basicInfo[field as keyof typeof basicInfo]}
-          onSelect={(value) => handleFieldSelect(field, value)}
-        />
-      ))}
+      {
+        Object.entries(fieldOptions).map(([field, options]) => (
+          <SelectionModal
+            key={field}
+            isOpen={activeModal === field}
+            onClose={() => setActiveModal(null)}
+            title={getFieldTitle(field)}
+            options={options}
+            selectedValue={basicInfo[field as keyof typeof basicInfo]}
+            onSelect={(value) => handleFieldSelect(field, value)}
+          />
+        ))
+      }
     </>
   )
 }

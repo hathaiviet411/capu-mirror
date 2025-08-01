@@ -28,7 +28,6 @@ const guestProfileSchema = z.object({
 });
 
 export const guestRouter = createTRPCRouter({
-  // ゲストプロフィール作成
   create: protectedProcedure
     .input(guestProfileSchema)
     .mutation(async ({ ctx, input }) => {
@@ -70,7 +69,6 @@ export const guestRouter = createTRPCRouter({
       });
     }),
 
-  // ゲストプロフィール取得（ID指定）
   getById: publicProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
     const guestProfile = await ctx.db.guestProfile.findUnique({
       where: { id: input.id },
@@ -134,7 +132,6 @@ export const guestRouter = createTRPCRouter({
     };
   }),
 
-  // 自分のゲストプロフィール取得
   getMyProfile: protectedProcedure.query(async ({ ctx }) => {
     if (ctx.session.user.userType !== "GUEST") {
       throw new TRPCError({
@@ -171,7 +168,6 @@ export const guestRouter = createTRPCRouter({
     };
   }),
 
-  // ゲストプロフィール更新
   update: protectedProcedure.input(z.object({ id: z.string(), data: guestProfileSchema.partial(), })).mutation(async ({ ctx, input }) => {
     if (ctx.session.user.userType !== "GUEST") {
       throw new TRPCError({
@@ -217,7 +213,6 @@ export const guestRouter = createTRPCRouter({
     });
   }),
 
-  // 予約履歴取得
   getBookings: protectedProcedure
     .input(z.object({
       guestId: z.string(),
@@ -262,7 +257,6 @@ export const guestRouter = createTRPCRouter({
       });
     }),
 
-  // レビュー履歴取得
   getReviews: protectedProcedure
     .input(z.object({
       guestId: z.string(),
@@ -311,7 +305,6 @@ export const guestRouter = createTRPCRouter({
       });
     }),
 
-  // お気に入りキャスト取得
   getFavorites: protectedProcedure
     .input(z.object({
       guestId: z.string(),
@@ -408,7 +401,6 @@ export const guestRouter = createTRPCRouter({
     });
   }),
 
-  // お気に入り削除
   removeFavorite: protectedProcedure
     .input(z.object({ castId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -445,7 +437,6 @@ export const guestRouter = createTRPCRouter({
       });
     }),
 
-  // おすすめキャスト一覧を取得
   getRecommendedCasts: protectedProcedure
     .input(
       z.object({
@@ -516,7 +507,6 @@ export const guestRouter = createTRPCRouter({
       });
     }),
 
-  // 条件でキャストを検索
   searchCasts: protectedProcedure
     .input(
       z.object({
@@ -612,7 +602,6 @@ export const guestRouter = createTRPCRouter({
       });
     }),
 
-  // キャストに「いいね」を送信（メッセージチャネル作成のトリガー）
   likeCast: protectedProcedure
     .input(z.object({ castId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -693,7 +682,6 @@ export const guestRouter = createTRPCRouter({
       }
     }),
 
-  // 過去に合流したキャスト一覧を取得
   getJoinedCasts: protectedProcedure
     .input(
       z.object({
@@ -751,7 +739,6 @@ export const guestRouter = createTRPCRouter({
       });
     }),
 
-  // ポイントの獲得・使用履歴を取得
   getPointHistory: protectedProcedure
     .input(
       z.object({
@@ -789,7 +776,6 @@ export const guestRouter = createTRPCRouter({
       });
     }),
 
-  // 決済履歴を取得
   getPaymentHistory: protectedProcedure
     .input(
       z.object({
@@ -844,7 +830,6 @@ export const guestRouter = createTRPCRouter({
       });
     }),
 
-  // 登録済みのクレジットカード情報を取得
   getPaymentMethods: protectedProcedure.query(async ({ ctx }) => {
     if (ctx.session.user.userType !== "GUEST") {
       throw new TRPCError({
@@ -870,7 +855,6 @@ export const guestRouter = createTRPCRouter({
     });
   }),
 
-  // 新しいクレジットカードを登録（Stripe Setup Intent）
   addPaymentMethod: protectedProcedure
     .input(
       z.object({
@@ -887,7 +871,6 @@ export const guestRouter = createTRPCRouter({
       }
 
       try {
-        // Stripeから決済方法の詳細を取得
         const paymentMethod = await stripe.paymentMethods.retrieve(input.paymentMethodId);
 
         if (paymentMethod.customer && paymentMethod.customer !== ctx.session.user.id) {
@@ -936,7 +919,6 @@ export const guestRouter = createTRPCRouter({
       }
     }),
 
-  // クレジットカードを削除
   deletePaymentMethod: protectedProcedure
     .input(z.object({ paymentMethodId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -980,7 +962,6 @@ export const guestRouter = createTRPCRouter({
       }
     }),
 
-  // デフォルト決済方法設定
   setDefaultPaymentMethod: protectedProcedure
     .input(z.object({ paymentMethodId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -1023,7 +1004,6 @@ export const guestRouter = createTRPCRouter({
       });
     }),
 
-  // ポイントを購入
   purchasePoints: protectedProcedure
     .input(z.object({
       amount: z.number().min(100, "最低100円から購入可能です"),
@@ -1143,7 +1123,6 @@ export const guestRouter = createTRPCRouter({
       }
     }),
 
-  // 領収書を生成
   generateReceipt: protectedProcedure
     .input(z.object({
       paymentId: z.string().optional(),
@@ -1271,7 +1250,6 @@ export const guestRouter = createTRPCRouter({
 
   // ============================================================
 
-  // Get List Cast User
   getListCastUser: protectedProcedure
     .input(
       z.object({
@@ -1486,7 +1464,6 @@ export const guestRouter = createTRPCRouter({
       };
     }),
 
-  // Get User Details by User ID
   getUserById: protectedProcedure
     .input(z.object({ userId: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -1559,7 +1536,6 @@ export const guestRouter = createTRPCRouter({
       };
     }),
 
-  // Update User Details
   updateUser: protectedProcedure
     .input(z.object({
       userId: z.string(),
@@ -1567,21 +1543,21 @@ export const guestRouter = createTRPCRouter({
         aliasName: z.string().optional(),
         quote: z.string().optional(),
         selfIntro: z.string().optional(),
-        height: z.number().optional(),
-        weight: z.number().optional(),
+        height: z.string().optional(),
+        weight: z.string().optional(),
         residence: z.string().optional(),
         education: z.string().optional(),
         occupation: z.string().optional(),
         drinkingLevel: z.string().optional(),
         smokingLevel: z.string().optional(),
         birthplace: z.string().optional(),
-        cohabitation: z.string().optional(),
+        cohabitant: z.string().optional(),
         siblings: z.string().optional(),
         additionalImages: z.array(z.string()).optional(),
+        image: z.string().optional(),
       })
     }))
     .mutation(async ({ ctx, input }) => {
-      // Only allow users to update their own data
       if (ctx.session.user.id !== input.userId) {
         throw new TRPCError({
           code: "FORBIDDEN",
