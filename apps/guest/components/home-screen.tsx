@@ -619,7 +619,6 @@ export default function HomeScreen() {
                       avatar = castProfile?.avatar || userImage || "/placeholder-user.jpg"
                     }
                     
-                    console.log("Cast data:", { cast, castProfile, activeTab, avatar })
                     const averageRating = calculateAverageRating(castProfile?.reviews || [])
                     const reviewCount = castProfile?._count?.reviews || 0
                     const favoriteCount = castProfile?._count?.favorites || 0
@@ -684,12 +683,9 @@ export default function HomeScreen() {
                           />
                         </button>
 
-                        {/* Verified Badge */}
-                        {castProfile?.isVerified && (
-                          <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-                            認証済
-                          </div>
-                        )}
+                        <div className="absolute top-2 left-2">
+                          <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                        </div>
                       </div>
                     )
                   })}

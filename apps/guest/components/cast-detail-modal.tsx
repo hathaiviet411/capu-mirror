@@ -1,12 +1,14 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft, Star, MessageCircle, Heart, Loader2 } from "lucide-react"
-import Image from "next/image"
 import { api } from "~/utils/api"
-import { useToast } from "@/components/ui/use-toast"
+import { useSession } from "next-auth/react"
+import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useState, useEffect, useMemo } from "react"
+import { useToast } from "@/components/ui/use-toast"
+import { ArrowLeft, Star, MessageCircle, Heart, Loader2 } from "lucide-react"
+
+import Image from "next/image"
 
 interface CastDetailModalProps {
   isOpen: boolean
@@ -18,7 +20,6 @@ interface CastDetailModalProps {
     bio?: string
     hourlyRate?: number
     tags?: { name: string }[]
-    // Legacy support for old format
     name?: string
     age?: number
     message?: string
@@ -29,36 +30,31 @@ interface CastDetailModalProps {
 
 export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailModalProps) {
   const { toast } = useToast()
+
+  const { data: session } = useSession()
+
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [showHeader, setShowHeader] = useState(false)
 
-  // Get cast ID
   const castId = cast?.id
 
-  // API queries
-  const { 
-    data: castDetail, 
-    isLoading: isLoadingDetail,
-    error: detailError 
-  } = api.guest.getCastDetail.useQuery(
+  const { data: castDetail, isLoading: isLoadingDetail, error: detailError } = api.guest.getCastDetail.useQuery(
     { castId: castId! },
     { 
       enabled: isOpen && !!castId,
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: 1000 * 60 * 5,
     }
   )
 
   const { data: favoritesData } = api.guest.getFavorites.useQuery(
-    { guestId: "", limit: 100, offset: 0 },
-    { enabled: isOpen }
+    { guestId: session?.user?.id || "", limit: 100, offset: 0 },
+    { enabled: isOpen && !!session?.user?.id }
   )
 
-  // Check if cast is in favorites
   const isFavorite = useMemo(() => {
     return favoritesData?.some(fav => fav.castId === castId) || false
   }, [favoritesData, castId])
 
-  // Mutations
   const addFavoriteMutation = api.guest.addFavorite.useMutation({
     onSuccess: () => {
       toast({
@@ -108,10 +104,6 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
     },
   })
 
-  // Use detailed cast data if available, fallback to basic cast data
-  const displayCast = castDetail || cast
-
-  // Handler functions
   const handleFavoriteToggle = () => {
     if (!castId) return
     
@@ -127,7 +119,22 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
     likeCastMutation.mutate({ castId })
   }
 
-  // Scroll handler for header
+  const calculateAge = (birthDate: string | Date | null | undefined): number => {
+    if (!birthDate) return 0
+    
+    const birth = new Date(birthDate)
+    const today = new Date()
+    
+    let age = today.getFullYear() - birth.getFullYear()
+    const monthDiff = today.getMonth() - birth.getMonth()
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--
+    }
+    
+    return age
+  }
+
   useEffect(() => {
     const handleScroll = (e: Event) => {
       const target = e.target as HTMLElement
@@ -147,77 +154,195 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
 
   if (!isOpen || !cast) return null
 
-  // Loading state
   if (isLoadingDetail) {
     return (
       <div className="fixed inset-0 z-50 bg-gray-100 w-full md:max-w-sm mx-auto flex flex-col">
-        <div className="p-4">
-          <Skeleton className="h-96 w-full mb-4" />
-          <Skeleton className="h-6 w-3/4 mb-2" />
-          <Skeleton className="h-4 w-full mb-4" />
-          <div className="flex gap-2 mb-4">
-            {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="w-16 h-16 rounded-lg" />
-            ))}
+        <div className="flex-1 overflow-y-auto pb-20 relative z-10">
+          <div className="relative h-96 bg-gray-200">
+            <Skeleton className="w-full h-full" />
+            
+            <div className="absolute top-4 left-4 w-10 h-10 bg-black/50 rounded-full flex items-center justify-center">
+              <Skeleton className="w-5 h-5 rounded" />
+            </div>
+
+            <div className="absolute bottom-4 right-4 w-12 h-12 bg-white rounded-full flex flex-col items-center justify-center shadow-lg">
+              <Skeleton className="w-7 h-7 rounded" />
+              <Skeleton className="w-8 h-1 mt-1 rounded" />
+            </div>
           </div>
+
+          <div className="bg-white p-4">
+            <div className="flex gap-2 mb-4">
+              {[...Array(4)].map((_, i) => (
+                <Skeleton key={i} className="w-16 h-16 rounded-lg" />
+              ))}
+            </div>
+
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-2">
+                <Skeleton className="w-3 h-3 rounded-full" />
+                <Skeleton className="h-3 w-20 rounded" />
+                <Skeleton className="h-3 w-16 rounded" />
+              </div>
+
+              <Skeleton className="h-5 w-32 mb-2" />
+              <Skeleton className="h-4 w-full mb-2" />
+              <Skeleton className="h-4 w-3/4 mb-2" />
+
+              <div className="flex items-center gap-1 mt-2">
+                <Skeleton className="w-4 h-4 rounded" />
+                <Skeleton className="h-4 w-8 rounded" />
+                <Skeleton className="h-4 w-12 rounded" />
+              </div>
+            </div>
+          </div>
+
+          <div className="h-2 bg-gray-100"></div>
+
+          <div className="bg-white p-4">
+            <Skeleton className="h-4 w-24 mb-3" />
+
+            <div className="flex flex-wrap gap-2">
+              {[...Array(4)].map((_, i) => (
+                <Skeleton key={i} className="w-16 h-8 rounded-md" />
+              ))}
+            </div>
+          </div>
+
+          <div className="h-2 bg-gray-100"></div>
+
+          <div className="bg-white p-4">
+            <div className="flex justify-between items-center">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-6 w-24" />
+            </div>
+          </div>
+
+          <div className="h-2 bg-gray-100"></div>
+
+          <div className="bg-white p-4">
+            <Skeleton className="h-4 w-20 mb-3" />
+
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-5/6" />
+              <Skeleton className="h-4 w-2/3" />
+            </div>
+          </div>
+
+          <div className="h-2 bg-gray-100"></div>
+
+          <div className="bg-white p-4">
+            <div className="space-y-3">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="h-4 bg-gray-100"></div>
+        </div>
+
+        <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full md:max-w-sm bg-white border-t px-4 py-3 z-20">
+          <Skeleton className="w-full h-12 rounded-lg" />
         </div>
       </div>
     )
   }
 
-  // Error state
   if (detailError) {
     return (
-      <div className="fixed inset-0 z-50 bg-gray-100 w-full md:max-w-sm mx-auto flex flex-col items-center justify-center p-4">
-        <p className="text-red-500 mb-4">キャスト情報の読み込みに失敗しました</p>
-        <Button onClick={onClose} variant="outline">
-          閉じる
-        </Button>
+      <div className="fixed inset-0 z-50 bg-gray-100 w-full md:max-w-sm mx-auto flex flex-col">
+        <div className="bg-gold-pink-gradient px-4 py-4 h-16 flex items-center gap-3">
+          <button onClick={onClose}>
+            <ArrowLeft className="w-5 h-5 text-white" />
+          </button>
+          <span className="text-base font-medium text-white">エラー</span>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">キャスト情報の読み込みに失敗しました</h2>
+          
+          <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+            {
+              detailError.message === "キャストが見つかりません"
+                ? "このキャストは存在しないか、削除された可能性があります。"
+                : detailError.message === "このキャストは現在利用できません"
+                  ? "このキャストは現在利用できません。しばらく時間をおいてから再度お試しください。"
+                  : "ネットワークエラーが発生しました。インターネット接続を確認してから再度お試しください。"
+            }
+          </p>
+          
+          <div className="flex gap-3">
+            <Button onClick={onClose} variant="outline" className="flex-1" >
+              <span>閉じる</span>
+            </Button>
+            
+            <Button 
+              onClick={() => window.location.reload()} 
+              className="flex-1 bg-gold-pink-gradient hover:bg-gold-pink-gradient-dark text-white"
+            >
+              <span>再読み込み</span>
+            </Button>
+          </div>
+        </div>
       </div>
     )
   }
+  const castTags = (castDetail as any)?.userTags?.map((tag: any) => tag.name) || []
+  console.log("====================================================================================");
+  console.log("castTags", castTags);
+  console.log("====================================================================================");
 
-  // Get display values
-  const displayName = displayCast?.displayName || displayCast?.name || "Unknown"
-  const displayAvatar = displayCast?.avatar || displayCast?.image || "/placeholder-user.jpg" 
-  const displayBio = displayCast?.bio || displayCast?.message || ""
-  const displayRate = displayCast?.hourlyRate ? `${displayCast.hourlyRate.toLocaleString()}P / 30分` : displayCast?.price || ""
-  const displayTags = displayCast?.tags?.map(tag => tag.name) || []
+  const castInformation = (castDetail as any)?.user
+  console.log("====================================================================================");
+  console.log("castInformation", castInformation);
+  console.log("====================================================================================");
+
+  const castName = castInformation?.name || "Unknown"
+  const castAliasName = castInformation?.aliasName || ""
+  const castAge = calculateAge(castInformation?.birthDate) || ""
+  const castQuote = castInformation?.quote || ""
+  const castAvatar = castInformation?.image || "/placeholder-user.jpg"
+  const castHourlyRate = castInformation?.hourlyRate || ""
+  const castAdditionalImages = castInformation?.additionalImages || []
+  const castSelfIntro = castInformation?.selfIntro || ""
+  const castImages = [castAvatar, ...castAdditionalImages].filter(Boolean)
+
+  const castHeight = castInformation?.height || ""
+  const castWeight = castInformation?.weight || ""
+  const castResidence = castInformation?.residence || ""
+  const castEducation = castInformation?.education || ""
+  const castOccupation = castInformation?.occupation || ""
+  const castDrinkingLevel = castInformation?.drinkingLevel || ""
+  const castCigaretteLevel = castInformation?.cigaretteLevel || ""
+  const castSiblings = castInformation?.siblings || ""
   
-  // Create images array (use avatar as main image for now)
-  const images = [displayAvatar]
-  
-  // Calculate average rating
-  const averageRating = displayCast?.reviews?.length > 0 
-    ? displayCast.reviews.reduce((sum, review) => sum + review.rating, 0) / displayCast.reviews.length 
+  const averageRating = (castDetail as any)?.reviews?.length > 0 
+    ? (castDetail as any).reviews.reduce((sum: number, review: any) => sum + review.rating, 0) / (castDetail as any).reviews.length 
     : 0
 
   return (
     <div className="fixed inset-0 z-50 bg-gray-100 w-full md:max-w-sm mx-auto flex flex-col">
-      {/* Header - appears on scroll */}
-      <div
-        className={`fixed top-0 left-1/2 transform -translate-x-1/2 w-full md:max-w-sm bg-gold-pink-gradient border-b shadow-lg px-4 py-4 h-16 flex items-center gap-3 transition-all duration-300 ${
-          showHeader ? "z-30 translate-y-0 opacity-100" : "z-30 -translate-y-full opacity-0 pointer-events-none"
-        }`}
-      >
-        <button onClick={onClose}>
-          <ArrowLeft className="w-5 h-5 text-white" />
-        </button>
-        <span className="text-base font-medium text-white">{displayName}</span>
-      </div>
-
-      {/* Scrollable Content */}
       <div id="cast-detail-scroll" className="flex-1 overflow-y-auto pb-20 relative z-10">
-        {/* Main Image */}
         <div className="relative h-96 bg-gray-200">
           <Image
-            src={images[currentImageIndex] || "/placeholder-user.jpg"}
+            src={castImages[currentImageIndex] || "/placeholder-user.jpg"}
             alt="Cast profile"
             fill
             className="object-cover"
           />
 
-          {/* Back Button */}
           <button
             onClick={onClose}
             className="absolute top-4 left-4 w-10 h-10 bg-black/50 rounded-full flex items-center justify-center z-10"
@@ -225,169 +350,158 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
             <ArrowLeft className="w-5 h-5 text-white" />
           </button>
 
-          {/* Favorite Button */}
           <div className="absolute bottom-4 right-4">
             <button
               onClick={handleFavoriteToggle}
               disabled={addFavoriteMutation.isLoading || removeFavoriteMutation.isLoading}
               className="w-12 h-12 bg-white rounded-full flex flex-col items-center justify-center shadow-lg disabled:opacity-50"
             >
-              {(addFavoriteMutation.isLoading || removeFavoriteMutation.isLoading) ? (
-                <Loader2 className="w-7 h-7 text-gray-400 animate-spin" />
-              ) : (
-                <Star className={`w-7 h-7 ${isFavorite ? "text-yellow-400 fill-yellow-400" : "text-gray-400"}`} />
-              )}
+              {
+                (addFavoriteMutation.isLoading || removeFavoriteMutation.isLoading) ? (
+                  <Loader2 className="w-7 h-7 text-gray-400 animate-spin" />
+                ) : (
+                  <Star className={`w-7 h-7 ${isFavorite ? "text-yellow-400 fill-yellow-400" : "text-gray-400"}`} />
+                )
+              }
+
               <span className="text-[5px] text-gray-600 mt-0.5">お気に入り</span>
             </button>
           </div>
         </div>
 
-        {/* Profile Info Section */}
         <div className="bg-white p-4">
-          {/* Thumbnail Images */}
           <div className="flex gap-2 mb-4">
-            {images.map((image, index) => (
-              <button
-                key={index}
-                onClick={() => setCurrentImageIndex(index)}
-                className={`w-16 h-16 rounded-lg overflow-hidden border-2 ${
-                  currentImageIndex === index ? "border-gold-pink-gradient" : "border-gray-200"
-                }`}
-              >
-                <Image
-                  src={image || "/placeholder-user.jpg"}
-                  alt={`Cast photo ${index + 1}`}
-                  width={64}
-                  height={64}
-                  className="object-cover w-full h-full"
-                />
-              </button>
-            ))}
+            {
+              castImages.map((image, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentImageIndex(index)}
+                  className={`
+                    w-16 h-16 rounded-lg overflow-hidden border-2 
+                    ${currentImageIndex === index? "border-gold-pink-gradient": "border-gray-200"}`
+                  }
+                >
+                  <Image
+                    src={image || "/placeholder-user.jpg"}
+                    alt={`Cast photo ${index + 1}`}
+                    width={64}
+                    height={64}
+                    className="object-cover w-full h-full"
+                  />
+                </button>
+              ))
+            }
           </div>
 
-          {/* Online Status and Profile Info */}
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-3 h-3 bg-green-500 rounded-full"></div>
               <span className="text-xs text-green-600">オンライン中</span>
-              {displayCast?.isVerified && (
-                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">認証済み</span>
-              )}
             </div>
+
             <h1 className="text-base font-medium mb-1">
-              {displayName}
+              {castAliasName} - {castAge}歳
             </h1>
+
             <p className="text-sm text-gray-700">
-              {displayBio}
+              {castQuote}
             </p>
-            {averageRating > 0 && (
-              <div className="flex items-center gap-1 mt-2">
-                <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                <span className="text-sm text-gray-600">{averageRating.toFixed(1)}</span>
-                <span className="text-sm text-gray-500">({displayCast?.reviews?.length}件)</span>
-              </div>
-            )}
+
+            {
+              averageRating > 0 && (
+                <div className="flex items-center gap-1 mt-2">
+                  <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                  <span className="text-sm text-gray-600">{averageRating.toFixed(1)}</span>
+                  <span className="text-sm text-gray-500">({(castDetail as any)?.reviews?.length}件)</span>
+                </div>
+              )
+            }
           </div>
         </div>
 
-        {/* Gray Spacer */}
         <div className="h-2 bg-gray-100"></div>
 
-        {/* Simple Profile Tags Section */}
-        {displayTags && displayTags.length > 0 && (
-          <>
-            <div className="bg-white p-4">
-              <h3 className="text-sm font-medium text-black mb-3">簡単プロフィール</h3>
-              <div className="flex flex-wrap gap-2">
-                {displayTags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-2 py-1 text-sm bg-gold-pink-gradient text-white rounded-md"
-                  >
-                    {tag}
-                  </span>
-                ))}
+        {
+          castTags && castTags.length > 0 && (
+            <>
+              <div className="bg-white p-4">
+                <h3 className="text-sm font-medium text-black mb-3">簡単プロフィール</h3>
+                <div className="flex flex-wrap gap-2">
+                  {
+                    castTags.map((tag: string, index: number) => (
+                      <span key={index} className="px-2 py-1 text-sm bg-gold-pink-gradient text-white rounded-md">
+                        {tag}
+                      </span>
+                    ))
+                  }
+                </div>
               </div>
-            </div>
-            {/* Gray Spacer */}
-            <div className="h-2 bg-gray-100"></div>
-          </>
-        )}
 
-        {/* Pricing Section */}
+              <div className="h-2 bg-gray-100"></div>
+            </>
+          )
+        }
+
         <div className="bg-white p-4">
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium text-gray-700">ポイント</span>
-            <span className="text-xl font-bold">{displayRate}</span>
+            <span className="text-xl font-bold">{castHourlyRate}</span>
           </div>
         </div>
 
-        {/* Gray Spacer */}
         <div className="h-2 bg-gray-100"></div>
 
-        {/* Self Introduction Section */}
         <div className="bg-white p-4">
           <h3 className="text-sm font-medium text-black mb-3">自己紹介</h3>
           <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-            {displayBio || `はじめまして！${displayName}です✨
-
-普段は仕事で忙しい毎日を送っていますが、休日はスポーツをしたり、映画を見たりしてリラックスしています。
-
-いろんな話をするのが好きで、多くの方とお会いできるのを楽しみにしています。一緒に楽しい時間を過ごしませんか？
-
-気軽にメッセージをお送りください💪`}
+            {castSelfIntro}
           </p>
         </div>
 
-        {/* Gray Spacer */}
         <div className="h-2 bg-gray-100"></div>
 
-        {/* Basic Information Section */}
         <div className="bg-white p-4">
           <div className="space-y-3">
-            {/* Height */}
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">身長：</span>
-              <span className="text-sm font-medium">175cm</span>
+              <span className="text-sm font-medium">{castHeight}cm</span>
             </div>
 
-            {/* Residence */}
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">居住地：</span>
-              <span className="text-sm font-medium">東京都</span>
+              <span className="text-sm font-medium">{castResidence}</span>
             </div>
 
-            {/* Education */}
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">学歴：</span>
-              <span className="text-sm font-medium">大学卒</span>
+              <span className="text-sm font-medium">{castEducation}</span>
             </div>
 
-            {/* Job */}
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">お仕事：</span>
-              <span className="text-sm font-medium">{displayCast?.category?.name || "会社員"}</span>
+              <span className="text-sm font-medium">{castOccupation}</span>
             </div>
 
-            {/* Alcohol */}
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">お酒：</span>
-              <span className="text-sm font-medium">ときどき飲む</span>
+              <span className="text-sm font-medium">{castDrinkingLevel}</span>
             </div>
 
-            {/* Siblings */}
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-600">タバコ：</span>
+              <span className="text-sm font-medium">{castCigaretteLevel}</span>
+            </div>
+
             <div className="flex justify-between items-center py-2">
               <span className="text-sm text-gray-600">兄弟姉妹：</span>
-              <span className="text-sm font-medium">長男</span>
+              <span className="text-sm font-medium">{castSiblings}</span>
             </div>
           </div>
         </div>
 
-        {/* Final Gray Spacer */}
         <div className="h-4 bg-gray-100"></div>
       </div>
 
-      {/* Bottom Action Buttons */}
       <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full md:max-w-sm bg-white border-t px-4 py-3 z-20">
         <Button 
           onClick={handleLikeCast}

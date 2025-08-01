@@ -612,107 +612,6 @@ export const guestRouter = createTRPCRouter({
       });
     }),
 
-  // 特定キャストの詳細情報を取得
-  getCastDetail: protectedProcedure
-    .input(z.object({ castId: z.string() }))
-    .query(async ({ ctx, input }) => {
-      if (ctx.session.user.userType !== "GUEST") {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "ゲストユーザーのみアクセス可能です",
-        });
-      }
-
-      const castProfile = await ctx.db.castProfile.findUnique({
-        where: { id: input.castId },
-        select: {
-          id: true,
-          displayName: true,
-          bio: true,
-          avatar: true,
-          coverImage: true,
-          hourlyRate: true,
-          availability: true,
-          specialties: true,
-          experience: true,
-          portfolio: true,
-          isActive: true,
-          isVerified: true,
-          area: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-          category: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-          tags: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-          user: {
-            select: {
-              id: true,
-              userType: true,
-              createdAt: true,
-            },
-          },
-          reviews: {
-            select: {
-              id: true,
-              rating: true,
-              comment: true,
-              createdAt: true,
-              guest: {
-                select: {
-                  displayName: true,
-                  avatar: true,
-                },
-              },
-            },
-            orderBy: { createdAt: "desc" },
-            take: 10,
-          },
-          _count: {
-            select: {
-              reviews: true,
-              favorites: true,
-            },
-          },
-        },
-      });
-
-      if (!castProfile) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "キャストが見つかりません",
-        });
-      }
-
-      if (!castProfile.isActive) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "このキャストは現在利用できません",
-        });
-      }
-
-      // 平均評価を計算
-      const averageRating = castProfile.reviews.length > 0
-        ? castProfile.reviews.reduce((sum, review) => sum + review.rating, 0) / castProfile.reviews.length
-        : 0;
-
-      return {
-        ...castProfile,
-        averageRating,
-      };
-    }),
-
   // キャストに「いいね」を送信（メッセージチャネル作成のトリガー）
   likeCast: protectedProcedure
     .input(z.object({ castId: z.string() }))
@@ -944,7 +843,6 @@ export const guestRouter = createTRPCRouter({
         skip: input.offset,
       });
     }),
-
 
   // 登録済みのクレジットカード情報を取得
   getPaymentMethods: protectedProcedure.query(async ({ ctx }) => {
@@ -1371,6 +1269,9 @@ export const guestRouter = createTRPCRouter({
       }
     }),
 
+  // ============================================================
+
+  // Get List Cast User
   getListCastUser: protectedProcedure
     .input(
       z.object({
@@ -1447,4 +1348,286 @@ export const guestRouter = createTRPCRouter({
 
       return castUsers;
     }),
+
+  getCastDetail: protectedProcedure
+    .input(z.object({ castId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      if (ctx.session.user.userType !== "GUEST") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "ゲストユーザーのみアクセス可能です",
+        });
+      }
+
+      const castProfile = await ctx.db.castProfile.findUnique({
+        where: { id: input.castId },
+        select: {
+          id: true,
+          displayName: true,
+          bio: true,
+          availability: true,
+          specialties: true,
+          experience: true,
+          portfolio: true,
+          isActive: true,
+          isVerified: true,
+          area: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          category: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          user: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              birthDate: true,
+              gender: true,
+              city: true,
+              image: true,
+              isVerified: true,
+              phoneNumber: true,
+              points: true,
+              prefecture: true,
+              selfIntro: true,
+              tags: true,
+              additionalImages: true,
+              hourlyRate: true,
+              createdAt: true,
+              updatedAt: true,
+              userType: true,
+              aliasName: true,
+              quote: true,
+              height: true,
+              weight: true,
+              residence: true,
+              education: true,
+              occupation: true,
+              drinkingLevel: true,
+              smokingLevel: true,
+              birthplace: true,
+              cohabitant: true,
+              siblings: true,
+            }
+          },
+          reviews: {
+            select: {
+              id: true,
+              rating: true,
+              comment: true,
+              createdAt: true,
+              guest: {
+                select: {
+                  displayName: true,
+                  avatar: true,
+                },
+              },
+            },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+          },
+          _count: {
+            select: {
+              reviews: true,
+              favorites: true,
+            },
+          },
+        },
+      });
+
+      if (!castProfile) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "キャストが見つかりません",
+        });
+      }
+
+      if (!castProfile.isActive) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "このキャストは現在利用できません",
+        });
+      }
+
+      const userTagIds = castProfile.user.tags || [];
+      const userTags = userTagIds.length > 0 
+        ? await ctx.db.tag.findMany({
+            where: {
+              tag_id: {
+                in: userTagIds
+              }
+            },
+            select: {
+              id: true,
+              name: true,
+              tag_id: true,
+              type: true,
+              color: true,
+              description: true
+            }
+          })
+        : [];
+
+      const averageRating = castProfile.reviews.length > 0
+        ? castProfile.reviews.reduce((sum, review) => sum + review.rating, 0) / castProfile.reviews.length
+        : 0;
+
+      return {
+        ...castProfile,
+        userTags,
+        averageRating,
+      };
+    }),
+
+  // Get User Details by User ID
+  getUserById: protectedProcedure
+    .input(z.object({ userId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const user = await ctx.db.user.findUnique({
+        where: { id: input.userId },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          birthDate: true,
+          gender: true,
+          city: true,
+          image: true,
+          isVerified: true,
+          phoneNumber: true,
+          points: true,
+          prefecture: true,
+          selfIntro: true,
+          tags: true,
+          additionalImages: true,
+          hourlyRate: true,
+          createdAt: true,
+          updatedAt: true,
+          userType: true,
+          aliasName: true,
+          quote: true,
+          height: true,
+          weight: true,
+          residence: true,
+          education: true,
+          occupation: true,
+          siblings: true,
+          drinkingLevel: true,
+          smokingLevel: true,
+          birthplace: true,
+          cohabitant: true,
+        },
+      });
+
+      if (!user) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "ユーザーが見つかりません",
+        });
+      }
+
+      // Fetch tags that match the user's tag IDs
+      const userTagIds = user.tags || [];
+      const userTags = userTagIds.length > 0 
+        ? await ctx.db.tag.findMany({
+            where: {
+              tag_id: {
+                in: userTagIds
+              }
+            },
+            select: {
+              id: true,
+              name: true,
+              tag_id: true,
+              type: true,
+              color: true,
+              description: true
+            }
+          })
+        : [];
+
+      return {
+        ...user,
+        userTags,
+      };
+    }),
+
+  // Update User Details
+  updateUser: protectedProcedure
+    .input(z.object({
+      userId: z.string(),
+      data: z.object({
+        aliasName: z.string().optional(),
+        quote: z.string().optional(),
+        selfIntro: z.string().optional(),
+        height: z.number().optional(),
+        weight: z.number().optional(),
+        residence: z.string().optional(),
+        education: z.string().optional(),
+        occupation: z.string().optional(),
+        drinkingLevel: z.string().optional(),
+        smokingLevel: z.string().optional(),
+        birthplace: z.string().optional(),
+        cohabitation: z.string().optional(),
+        siblings: z.string().optional(),
+        additionalImages: z.array(z.string()).optional(),
+      })
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Only allow users to update their own data
+      if (ctx.session.user.id !== input.userId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "自分のデータのみ更新できます",
+        });
+      }
+
+      const updatedUser = await ctx.db.user.update({
+        where: { id: input.userId },
+        data: input.data,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          birthDate: true,
+          gender: true,
+          city: true,
+          image: true,
+          isVerified: true,
+          phoneNumber: true,
+          points: true,
+          prefecture: true,
+          selfIntro: true,
+          tags: true,
+          additionalImages: true,
+          hourlyRate: true,
+          createdAt: true,
+          updatedAt: true,
+          userType: true,
+          aliasName: true,
+          quote: true,
+          height: true,
+          weight: true,
+          residence: true,
+          education: true,
+          occupation: true,
+          siblings: true,
+          drinkingLevel: true,
+          smokingLevel: true,
+          birthplace: true,
+          cohabitant: true,
+        },
+      });
+
+      return updatedUser;
+    }),
+
+  // ============================================================
 });

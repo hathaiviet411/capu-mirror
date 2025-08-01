@@ -7,8 +7,8 @@ import { useState, useEffect } from "react"
 interface ProfilePreviewScreenProps {
   onBack: () => void
   formData: {
-    nickname: string
-    todayWord: string
+    aliasName: string
+    quote: string
     simpleProfile: string
     simpleProfileTags: string[]
     selfIntroduction: string
@@ -18,8 +18,10 @@ interface ProfilePreviewScreenProps {
     residence: string
     birthplace: string
     education: string
-    job: string
-    alcohol: string
+    occupation: string
+    drinkingLevel: string
+    smokingLevel: string
+    cohabitant: string
     siblings: string
     birthDate: string
   }
@@ -47,17 +49,23 @@ export default function ProfilePreviewScreen({ onBack, formData, basicInfo, imag
     }
   }, [])
 
-  // Calculate age from birth date (simplified)
   const calculateAge = (birthDate: string) => {
-    // For demo purposes, using fixed age. In real app, calculate from birthDate
-    return 28
+    const today = new Date()
+    const birthDateObj = new Date(birthDate)
+    const age = today.getFullYear() - birthDateObj.getFullYear()
+    const monthDiff = today.getMonth() - birthDateObj.getMonth()
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDateObj.getDate())) {
+      return age - 1
+    }
+
+    return age
   }
 
   const age = calculateAge(basicInfo.birthDate)
 
   return (
     <div className="h-screen w-full md:max-w-sm mx-auto bg-gray-100 flex flex-col relative">
-      {/* Header - appears on scroll */}
       <div
         className={`fixed top-0 left-1/2 transform -translate-x-1/2 w-full md:max-w-sm bg-gold-pink-gradient border-b shadow-lg px-4 py-4 h-16 flex items-center gap-3 transition-all duration-300 ${
           showHeader ? "z-30 translate-y-0 opacity-100" : "z-30 -translate-y-full opacity-0 pointer-events-none"
@@ -66,12 +74,10 @@ export default function ProfilePreviewScreen({ onBack, formData, basicInfo, imag
         <button onClick={onBack}>
           <ArrowLeft className="w-5 h-5 text-white" />
         </button>
-        <span className="text-base font-medium text-white">{formData.nickname}</span>
+        <span className="text-base font-medium text-white">{formData.aliasName}</span>
       </div>
 
-      {/* Scrollable Content */}
       <div id="profile-preview-scroll" className="flex-1 overflow-y-auto pb-8 relative z-10">
-        {/* Main Profile Image */}
         <div className="relative h-96 bg-gray-200">
           <Image
             src={images[currentImageIndex] || "/placeholder.svg?height=400&width=400"}
@@ -80,7 +86,6 @@ export default function ProfilePreviewScreen({ onBack, formData, basicInfo, imag
             className="object-cover"
           />
 
-          {/* Back Button */}
           <button
             onClick={onBack}
             className="absolute top-4 left-4 w-10 h-10 bg-black/50 rounded-full flex items-center justify-center z-10"
@@ -89,9 +94,7 @@ export default function ProfilePreviewScreen({ onBack, formData, basicInfo, imag
           </button>
         </div>
 
-        {/* Profile Info Section */}
         <div className="bg-white p-4">
-          {/* Thumbnail Images */}
           <div className="flex gap-2 mb-4">
             {images.map((image, index) => (
               <button
@@ -112,25 +115,22 @@ export default function ProfilePreviewScreen({ onBack, formData, basicInfo, imag
             ))}
           </div>
 
-          {/* Online Status and Profile Info */}
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-3 h-3 bg-green-500 rounded-full"></div>
               <span className="text-xs text-green-600">オンライン中</span>
             </div>
             <h1 className="text-base font-medium mb-1">
-              {formData.nickname} {age}歳
+              {formData.aliasName} {age}歳
             </h1>
             <p className="text-sm text-gray-700">
-              {basicInfo.job} / {formData.todayWord}
+              {basicInfo.occupation} / {formData.quote}
             </p>
           </div>
         </div>
 
-        {/* Gray Spacer */}
         <div className="h-2 bg-gray-100"></div>
 
-        {/* Simple Profile Tags Section */}
         {formData.simpleProfileTags && formData.simpleProfileTags.length > 0 && (
           <>
             <div className="bg-white p-4">
@@ -146,76 +146,63 @@ export default function ProfilePreviewScreen({ onBack, formData, basicInfo, imag
                 ))}
               </div>
             </div>
-            {/* Gray Spacer */}
             <div className="h-2 bg-gray-100"></div>
           </>
         )}
 
-        {/* Self Introduction Section */}
         <div className="bg-white p-4">
           <h3 className="text-sm font-medium text-black mb-3">自己紹介</h3>
           <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{formData.selfIntroduction}</p>
         </div>
 
-        {/* Gray Spacer */}
         <div className="h-2 bg-gray-100"></div>
 
-        {/* Basic Information Section */}
         <div className="bg-white p-4">
           <div className="space-y-3">
-            {/* Height */}
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">身長：</span>
               <span className="text-sm font-medium">{basicInfo.height}</span>
             </div>
 
-            {/* Residence */}
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">居住地：</span>
               <span className="text-sm font-medium">{basicInfo.residence}</span>
             </div>
 
-            {/* Birthplace */}
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">出身地：</span>
               <span className="text-sm font-medium">{basicInfo.birthplace}</span>
             </div>
 
-            {/* Education */}
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">学歴：</span>
               <span className="text-sm font-medium">{basicInfo.education}</span>
             </div>
 
-            {/* Job */}
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">お仕事：</span>
-              <span className="text-sm font-medium">{basicInfo.job}</span>
+              <span className="text-sm font-medium">{basicInfo.occupation}</span>
             </div>
 
-            {/* Alcohol */}
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">お酒：</span>
-              <span className="text-sm font-medium">{basicInfo.alcohol}</span>
+              <span className="text-sm font-medium">{basicInfo.drinkingLevel}</span>
             </div>
 
-            {/* Smoking */}
-            {(basicInfo as any).smoking && (
+            {basicInfo.smokingLevel && (
               <div className="flex justify-between items-center py-2 border-b border-gray-100">
                 <span className="text-sm text-gray-600">タバコ：</span>
-                <span className="text-sm font-medium">{(basicInfo as any).smoking}</span>
+                <span className="text-sm font-medium">{basicInfo.smokingLevel}</span>
               </div>
             )}
 
-            {/* Roommates */}
-            {(basicInfo as any).roommates && (
+            {basicInfo.cohabitant && (
               <div className="flex justify-between items-center py-2 border-b border-gray-100">
                 <span className="text-sm text-gray-600">同居人：</span>
-                <span className="text-sm font-medium">{(basicInfo as any).roommates}</span>
+                <span className="text-sm font-medium">{basicInfo.cohabitant}</span>
               </div>
             )}
 
-            {/* Siblings */}
             <div className="flex justify-between items-center py-2">
               <span className="text-sm text-gray-600">兄弟姉妹：</span>
               <span className="text-sm font-medium">{basicInfo.siblings}</span>
@@ -223,7 +210,6 @@ export default function ProfilePreviewScreen({ onBack, formData, basicInfo, imag
           </div>
         </div>
 
-        {/* Final Gray Spacer */}
         <div className="h-4 bg-gray-100"></div>
       </div>
     </div>

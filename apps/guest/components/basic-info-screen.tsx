@@ -3,9 +3,25 @@
 import { ArrowLeft, ChevronDown, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
+import { api } from "~/utils/api"
+import { useToast } from "@/components/ui/use-toast"
 
 interface BasicInfoScreenProps {
   onBack: () => void
+  basicInfo: {
+    height: string
+    residence: string
+    birthplace: string
+    education: string
+    occupation: string
+    drinkingLevel: string
+    smokingLevel: string
+    cohabitant: string
+    siblings: string
+    birthDate: string
+  }
+  onSave: (basicInfo: BasicInfoScreenProps['basicInfo']) => void
+  userId: string
 }
 
 interface SelectionModalProps {
@@ -57,21 +73,31 @@ function SelectionModal({ isOpen, onClose, title, options, selectedValue, onSele
   )
 }
 
-export default function BasicInfoScreen({ onBack }: BasicInfoScreenProps) {
-  const [basicInfo, setBasicInfo] = useState({
-    height: "162",
-    residence: "東京都",
-    birthplace: "未選択",
-    education: "大学卒",
-    job: "会社員",
-    alcohol: "ときどき飲む",
-    smoking: "吸わない",
-    roommates: "一人暮らし",
-    siblings: "長女",
-    birthDate: "1996年10月22日",
-  })
+export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, onSave, userId }: BasicInfoScreenProps) {
+  const { toast } = useToast()
+  const [basicInfo, setBasicInfo] = useState(initialBasicInfo)
+  const [isSaving, setIsSaving] = useState(false)
 
   const [activeModal, setActiveModal] = useState<string | null>(null)
+
+  const updateUserMutation = api.guest.updateUser.useMutation({
+    onSuccess: () => {
+      toast({
+        title: "保存しました",
+        description: "基本情報を更新しました",
+        duration: 2000,
+      })
+      onSave(basicInfo)
+      onBack()
+    },
+    onError: (error) => {
+      toast({
+        title: "エラー",
+        description: error.message,
+        variant: "destructive",
+      })
+    },
+  })
 
   const fieldOptions = {
     height: Array.from({ length: 51 }, (_, i) => `${150 + i}`),
@@ -176,26 +202,58 @@ export default function BasicInfoScreen({ onBack }: BasicInfoScreenProps) {
       "海外",
     ],
     education: ["中学卒", "高校卒", "専門学校卒", "短大卒", "大学卒", "大学院卒"],
-    job: ["学生", "会社員", "公務員", "経営者・役員", "自営業", "自由業", "専門職", "パート・アルバイト", "その他"],
-    alcohol: ["飲まない", "ときどき飲む", "よく飲む"],
-    smoking: ["吸わない", "ときどき吸う", "よく吸う"],
-    roommates: ["一人暮らし", "家族と同居", "友人・知人と同居", "恋人と同居", "その他"],
+    occupation: ["学生", "会社員", "公務員", "経営者・役員", "自営業", "自由業", "専門職", "パート・アルバイト", "その他"],
+    drinkingLevel: ["飲まない", "ときどき飲む", "よく飲む"],
+    smokingLevel: ["吸わない", "ときどき吸う", "よく吸う"],
+    cohabitant: ["一人暮らし", "家族と同居", "友人・知人と同居", "恋人と同居", "その他"],
     siblings: ["一人っ子", "長女", "次女", "三女以降"],
   }
 
   const handleSave = () => {
-    // Save logic here
-    onBack()
+    setIsSaving(true)
+    
+    // Convert string values to numbers where needed
+    const updateData = {
+      height: basicInfo.height ? parseInt(basicInfo.height) : undefined,
+      residence: basicInfo.residence,
+      education: basicInfo.education,
+      occupation: basicInfo.occupation,
+      drinkingLevel: basicInfo.drinkingLevel,
+      siblings: basicInfo.siblings,
+      birthplace: basicInfo.birthplace,
+      cohabitant: basicInfo.cohabitant,
+      smokingLevel: basicInfo.smokingLevel,
+    }
+
+    updateUserMutation.mutate({
+      userId: userId,
+      data: updateData
+    })
   }
 
   const handleFieldSelect = (field: string, value: string) => {
     setBasicInfo({ ...basicInfo, [field]: value })
   }
 
+  const getFieldTitle = (field: string): string => {
+    const fieldTitles: Record<string, string> = {
+      height: "身長",
+      residence: "居住地", 
+      birthplace: "出身地",
+      education: "学歴",
+      occupation: "お仕事",
+      drinkingLevel: "お酒",
+      smokingLevel: "タバコ",
+      cohabitant: "同居人",
+      siblings: "兄弟姉妹",
+    }
+    
+    return fieldTitles[field] || ""
+  }
+
   return (
     <>
       <div className="min-h-screen w-full md:max-w-sm mx-auto bg-gray-100 flex flex-col relative">
-        {/* Header */}
         <div className="bg-gold-pink-gradient px-4 py-4 h-16 flex items-center justify-between fixed top-0 left-1/2 transform -translate-x-1/2 w-full md:max-w-sm z-10 shadow-lg">
           <div className="flex items-center gap-3">
             <button onClick={onBack}>
@@ -203,130 +261,221 @@ export default function BasicInfoScreen({ onBack }: BasicInfoScreenProps) {
             </button>
             <h1 className="text-base font-medium text-white">基本情報</h1>
           </div>
-          <button onClick={handleSave} className="text-sm text-white font-medium">
-            保存
+          <button 
+            onClick={handleSave} 
+            disabled={isSaving}
+            className="text-sm text-white font-medium disabled:opacity-50"
+          >
+            {isSaving ? "保存中..." : "保存"}
           </button>
         </div>
 
-        {/* Main Content - Scrollable */}
         <div className="flex-1 overflow-y-auto mt-[64px] bg-gray-100 pb-8">
           <div className="bg-white">
-            {/* Height */}
             <button
               onClick={() => setActiveModal("height")}
               className="w-full flex items-center justify-between p-4 border-b border-gray-100"
             >
               <span className="text-sm text-black">身長</span>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-black">{basicInfo.height}</span>
-                <ChevronDown className="w-5 h-5 text-gray-400" />
+                {
+                  !basicInfo.height || basicInfo.height === '未選択' ? (
+                    <>
+                      <span className="text-sm text-gray-300">未選択</span>
+                      <ChevronDown className="w-5 h-5 text-gray-300" />
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm text-black">{basicInfo.height}</span>
+                      <ChevronDown className="w-5 h-5 text-gray-400" />
+                    </>
+                  )
+                }
               </div>
             </button>
 
-            {/* Residence */}
             <button
               onClick={() => setActiveModal("residence")}
               className="w-full flex items-center justify-between p-4 border-b border-gray-100"
             >
               <span className="text-sm text-black">居住地</span>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-black">{basicInfo.residence}</span>
-                <ChevronDown className="w-5 h-5 text-gray-400" />
+                {
+                  !basicInfo.residence || basicInfo.residence === '未選択' ? (
+                    <>
+                      <span className="text-sm text-gray-300">未選択</span>
+                      <ChevronDown className="w-5 h-5 text-gray-300" />
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm text-black">{basicInfo.residence}</span>
+                      <ChevronDown className="w-5 h-5 text-gray-400" />
+                    </>
+                  )
+                }
               </div>
             </button>
 
-            {/* Birthplace */}
             <button
               onClick={() => setActiveModal("birthplace")}
               className="w-full flex items-center justify-between p-4 border-b border-gray-100"
             >
               <span className="text-sm text-black">出身地</span>
               <div className="flex items-center gap-2">
-                <span className={`text-sm ${basicInfo.birthplace === "未選択" ? "text-gray-500" : "text-black"}`}>
-                  {basicInfo.birthplace}
-                </span>
-                <ChevronDown className="w-5 h-5 text-gray-400" />
+                {
+                  !basicInfo.birthplace || basicInfo.birthplace === '未選択' ? (
+                    <>
+                      <span className="text-sm text-gray-300">未選択</span>
+                      <ChevronDown className="w-5 h-5 text-gray-300" />
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm text-black">{basicInfo.birthplace}</span>
+                      <ChevronDown className="w-5 h-5 text-gray-400" />
+                    </>
+                  )
+                }
               </div>
             </button>
 
-            {/* Education */}
             <button
               onClick={() => setActiveModal("education")}
               className="w-full flex items-center justify-between p-4 border-b border-gray-100"
             >
               <span className="text-sm text-black">学歴</span>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-black">{basicInfo.education}</span>
-                <ChevronDown className="w-5 h-5 text-gray-400" />
+                {
+                  !basicInfo.education || basicInfo.education === '未選択' ? (
+                    <>
+                      <span className="text-sm text-gray-300">未選択</span>
+                      <ChevronDown className="w-5 h-5 text-gray-300" />
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm text-black">{basicInfo.education}</span>
+                      <ChevronDown className="w-5 h-5 text-gray-400" />
+                    </>
+                  )
+                }
               </div>
             </button>
 
-            {/* Job */}
             <button
-              onClick={() => setActiveModal("job")}
+              onClick={() => setActiveModal("occupation")}
               className="w-full flex items-center justify-between p-4 border-b border-gray-100"
             >
               <span className="text-sm text-black">お仕事</span>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-black">{basicInfo.job}</span>
-                <ChevronDown className="w-5 h-5 text-gray-400" />
+                {
+                  !basicInfo.occupation || basicInfo.occupation === '未選択' ? (
+                    <>
+                      <span className="text-sm text-gray-300">未選択</span>
+                      <ChevronDown className="w-5 h-5 text-gray-300" />
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm text-black">{basicInfo.occupation}</span>
+                      <ChevronDown className="w-5 h-5 text-gray-400" />
+                    </>
+                  )
+                }
               </div>
             </button>
 
-            {/* Alcohol */}
             <button
-              onClick={() => setActiveModal("alcohol")}
+              onClick={() => setActiveModal("drinkingLevel")}
               className="w-full flex items-center justify-between p-4 border-b border-gray-100"
             >
               <span className="text-sm text-black">お酒</span>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-black">{basicInfo.alcohol}</span>
-                <ChevronDown className="w-5 h-5 text-gray-400" />
+                {
+                  !basicInfo.drinkingLevel || basicInfo.drinkingLevel === '未選択' ? (
+                    <>
+                      <span className="text-sm text-gray-300">未選択</span>
+                      <ChevronDown className="w-5 h-5 text-gray-300" />
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm text-black">{basicInfo.drinkingLevel}</span>
+                      <ChevronDown className="w-5 h-5 text-gray-400" />
+                    </>
+                  )
+                }
               </div>
             </button>
 
-            {/* Smoking */}
             <button
-              onClick={() => setActiveModal("smoking")}
+              onClick={() => setActiveModal("smokingLevel")}
               className="w-full flex items-center justify-between p-4 border-b border-gray-100"
             >
               <span className="text-sm text-black">タバコ</span>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-black">{basicInfo.smoking}</span>
-                <ChevronDown className="w-5 h-5 text-gray-400" />
+                {
+                  !basicInfo.smokingLevel || basicInfo.smokingLevel === '未選択' ? (
+                    <>
+                      <span className="text-sm text-gray-300">未選択</span>
+                      <ChevronDown className="w-5 h-5 text-gray-300" />
+                    </>
+                  ) : (
+                    <>  
+                      <span className="text-sm text-black">{basicInfo.smokingLevel}</span>
+                      <ChevronDown className="w-5 h-5 text-gray-400" />
+                    </>
+                  )
+                }
               </div>
             </button>
 
-            {/* Roommates */}
             <button
-              onClick={() => setActiveModal("roommates")}
+              onClick={() => setActiveModal("cohabitant")}
               className="w-full flex items-center justify-between p-4 border-b border-gray-100"
             >
               <span className="text-sm text-black">同居人</span>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-black">{basicInfo.roommates}</span>
-                <ChevronDown className="w-5 h-5 text-gray-400" />
+                {
+                  !basicInfo.cohabitant || basicInfo.cohabitant === '未選択' ? (
+                    <>
+                      <span className="text-sm text-gray-300">未選択</span>
+                      <ChevronDown className="w-5 h-5 text-gray-300" />
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm text-black">{basicInfo.cohabitant}</span>
+                      <ChevronDown className="w-5 h-5 text-black" />
+                    </>
+                  )
+                }
               </div>
             </button>
 
-            {/* Siblings */}
             <button
               onClick={() => setActiveModal("siblings")}
               className="w-full flex items-center justify-between p-4 border-b border-gray-100"
             >
               <span className="text-sm text-black">兄弟姉妹</span>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-black">{basicInfo.siblings}</span>
-                <ChevronDown className="w-5 h-5 text-gray-400" />
+                {
+                  !basicInfo.siblings || basicInfo.siblings === '未選択' ? (
+                    <>
+                      <span className="text-sm text-gray-300">未選択</span>
+                      <ChevronDown className="w-5 h-5 text-gray-300" />
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm text-black">{basicInfo.siblings}</span>
+                      <ChevronDown className="w-5 h-5 text-black" />
+                    </>
+                  )
+                }
               </div>
             </button>
 
-            {/* Birth Date */}
             <div className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-black">生年月日</span>
                 <span className="text-sm text-gold-pink-gradient">{basicInfo.birthDate}</span>
               </div>
+
               <div className="text-xs text-gray-500 leading-relaxed">
                 <p>生年月日を登録すると、プロフィールに年齢が表示されます。</p>
                 <p>変更希望の場合はコンシェルジュチャットまでお問い合わせください。</p>
@@ -342,27 +491,7 @@ export default function BasicInfoScreen({ onBack }: BasicInfoScreenProps) {
           key={field}
           isOpen={activeModal === field}
           onClose={() => setActiveModal(null)}
-          title={
-            field === "height"
-              ? "身長"
-              : field === "residence"
-                ? "居住地"
-                : field === "birthplace"
-                  ? "出身地"
-                  : field === "education"
-                    ? "学歴"
-                    : field === "job"
-                      ? "お仕事"
-                      : field === "alcohol"
-                        ? "お酒"
-                        : field === "smoking"
-                          ? "タバコ"
-                          : field === "roommates"
-                            ? "同居人"
-                            : field === "siblings"
-                              ? "兄弟姉妹"
-                              : ""
-          }
+          title={getFieldTitle(field)}
           options={options}
           selectedValue={basicInfo[field as keyof typeof basicInfo]}
           onSelect={(value) => handleFieldSelect(field, value)}

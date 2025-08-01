@@ -13,9 +13,6 @@ export default function CapuApp() {
   const [showSignupModal, setShowSignupModal] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
 
-  // デバッグ用ログ
-  console.log("CapuApp state:", { showLoginModal, showSignupModal, session, status })
-
   // ローディング中
   if (status === "loading") {
     return (

@@ -53,15 +53,12 @@ export const authOptions: NextAuthOptions = {
       try {
         if (account?.provider === "line") {
           if (!profile?.sub) {
-            console.error("LINE OAuth: Missing sub in profile");
+            console.error("LINE OAuth: Missing sub in profile.");
             return false;
           }
 
-          // Use LINE profile sub as unique identifier instead of hardcoded email
           const lineId = profile.sub;
-          console.log("LINE OAuth login attempt with lineId:", lineId);
           
-          // First, check if user already exists with this LINE ID in accounts
           const existingUser = await db.user.findFirst({
             where: {
               accounts: {
@@ -77,7 +74,6 @@ export const authOptions: NextAuthOptions = {
           });
 
           if (existingUser) {
-            // User exists, update the user object
             user.id = existingUser.id;
             user.email = existingUser.email;
             user.userType = existingUser.userType as "GUEST";
@@ -85,14 +81,12 @@ export const authOptions: NextAuthOptions = {
             return true;
           }
 
-          // If no user found by account, check if email already exists
           const newEmail = `line_${lineId}@gmail.com`;
           const existingUserByEmail = await db.user.findUnique({
             where: { email: newEmail }
           });
 
           if (existingUserByEmail) {
-            // User exists with this email, update the user object
             user.id = existingUserByEmail.id;
             user.email = existingUserByEmail.email;
             user.userType = existingUserByEmail.userType as "GUEST";
@@ -100,7 +94,6 @@ export const authOptions: NextAuthOptions = {
             return true;
           }
 
-          // Check if there's any user with a similar LINE email pattern
           const existingLineUsers = await db.user.findMany({
             where: {
               email: {
@@ -114,7 +107,6 @@ export const authOptions: NextAuthOptions = {
             console.log("Found existing LINE users:", existingLineUsers.map(u => ({ id: u.id, email: u.email })));
           }
 
-          // Create new user with unique email based on LINE ID
           try {
             console.log("Creating new user with email:", newEmail);
             const newUser = await db.user.create({
@@ -123,7 +115,6 @@ export const authOptions: NextAuthOptions = {
                 userType: "GUEST",
                 name: profile.name || `LINE User ${lineId.slice(-6)}`,
                 image: (profile as any).picture || null,
-                // Also create the account record to link LINE OAuth
                 accounts: {
                   create: {
                     type: "oauth",
@@ -140,15 +131,9 @@ export const authOptions: NextAuthOptions = {
             user.id = newUser.id;
             user.email = newUser.email;
             user.userType = newUser.userType as "GUEST";
-            
-            console.log("Created new user for LINE login:", newUser.id, newUser.email);
             return true;
           } catch (error) {
-            console.error("Error creating new user for LINE login:", error);
-            
-            // If creation fails due to email conflict, try to find the existing user
             if ((error as any).code === 'P2002' && (error as any).meta?.target?.includes('email')) {
-              console.log("Email conflict detected, trying to find existing user...");
               const conflictUser = await db.user.findUnique({
                 where: { email: newEmail }
               });
@@ -157,7 +142,6 @@ export const authOptions: NextAuthOptions = {
                 user.id = conflictUser.id;
                 user.email = conflictUser.email;
                 user.userType = conflictUser.userType as "GUEST";
-                console.log("Found conflicting user:", conflictUser.id, conflictUser.email);
                 return true;
               }
             }
@@ -184,7 +168,6 @@ export const authOptions: NextAuthOptions = {
           token.userType = "GUEST";
           token.lineId = profile?.sub;
           
-          // Fetch user data from database using the user ID
           if (token.id) {
             const dbUser = await db.user.findUnique({
               where: { id: token.id as string }
@@ -249,7 +232,7 @@ export const authOptions: NextAuthOptions = {
   providers: [
     ...(env.LINE_CLIENT_ID && env.LINE_CLIENT_SECRET
       ? (() => {
-        console.log("✅ LINE OAuth環境変数が設定されています");
+        console.log("✅ LINE OAuth provider configured.");
         return [
           LineProvider({
             clientId: env.LINE_CLIENT_ID,
@@ -263,7 +246,7 @@ export const authOptions: NextAuthOptions = {
         ];
       })()
       : (() => {
-        console.log("❌ LINE OAuth環境変数が未設定です");
+        console.log("Preparing LINE OAuth provider...");
         return [];
       })()),
   ],

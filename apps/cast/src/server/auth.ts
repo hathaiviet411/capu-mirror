@@ -81,7 +81,7 @@ export const authOptions: NextAuthOptions = {
   providers: [
     ...(env.NEXTAUTH_SECRET
       ? (() => {
-        console.log("✅ Cast credentials provider configured");
+        console.log("✅ Cast credentials provider configured.");
         return [
           CredentialsProvider({
             id: "cast-credentials",
@@ -107,17 +107,13 @@ export const authOptions: NextAuthOptions = {
                   },
                 });
 
-                console.log("user", user);
-
                 if (!user || !user.hashedPassword) {
-                  console.log("User not found or no password:", credentials.loginId);
                   throw new Error("ユーザーが見つからないか、パスワードが設定されていません");
                 }
 
                 const isValid = await bcrypt.compare(credentials.password, user.hashedPassword);
 
                 if (!isValid) {
-                  console.log("Invalid password for user:", credentials.loginId);
                   throw new Error("パスワードが正しくありません");
                 }
 
@@ -138,7 +134,7 @@ export const authOptions: NextAuthOptions = {
         ];
       })()
       : (() => {
-        console.log("❌ Cast credentials provider not configured");
+        console.log("Preparing Cast Credentials provider...");
         return [];
       })()),
   ],

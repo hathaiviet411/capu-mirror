@@ -36,9 +36,9 @@ model Session {
 model User {
   id                     String                  @id @default(cuid())
   email                  String                  @unique
-  emailVerified           DateTime?
+  emailVerified          DateTime?
   userType               UserType                @default(GUEST)
-  gender                 Int?                    @default(0) // 0 for female, 1 for male, null for unspecified
+  gender                 Int?                    @default(0)
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
   birthDate              DateTime?
@@ -50,8 +50,22 @@ model User {
   points                 Int                     @default(0)
   prefecture             String?
   selfIntro              String?
-  tags                   String[]
+  tags                   Int[]
   hashedPassword         String?
+  additionalImages       String[]
+  hourlyRate             Int?
+  aliasName              String?
+  quote                  String?
+  height                 Int?                    @db.SmallInt
+  weight                 Int?                    @db.SmallInt
+  residence              String?
+  education              String?
+  occupation             String?
+  drinkingLevel          String?
+  siblings               String?
+  birthplace             String?
+  smokingLevel           String?
+  cohabitant             String?
   accounts               Account[]
   sessions               Session[]
   activityLogs           ActivityLog[]
@@ -303,6 +317,7 @@ model Tag {
   isActive     Boolean       @default(true)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+  tag_id       Int           @default(autoincrement()) @db.SmallInt
   castProfiles CastProfile[] @relation("CastProfileToTag")
 
   @@map("tags")
