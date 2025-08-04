@@ -34,6 +34,16 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
     { enabled: !!session?.user?.id }
   )
 
+  const { data: verificationStatus, isLoading: isLoadingVerification } = api.user.getIdVerificationStatus.useQuery(
+    undefined,
+    { enabled: !!session?.user?.id }
+  )
+
+  const { data: paymentMethods, isLoading: isLoadingPaymentMethods } = api.payment.getUserPaymentMethods.useQuery(
+    undefined,
+    { enabled: !!session?.user?.id }
+  )
+
   const [showHelp, setShowHelp] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showProfileEdit, setShowProfileEdit] = useState(false)
@@ -227,7 +237,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
         age: null,
         occupation: "未設定",
         isVerified: false,
-        verificationStatus: "PENDING" as string,
+        verificationStatus: verificationStatus?.status || "PENDING",
       }
     }
 
@@ -239,9 +249,9 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
         null,
       occupation: userDetails.occupation || "未設定",
       isVerified: userDetails.isVerified || false,
-      verificationStatus: "PENDING" as string, // TODO: Add verification status to API
+      verificationStatus: verificationStatus?.status || "PENDING",
     }
-  }, [userDetails, session])
+  }, [userDetails, session, verificationStatus])
 
   const matchedCasts = useMemo(() => {
     if (!bookingsData) return []
@@ -262,25 +272,35 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
 
   const getVerificationStatusText = () => {
     switch (userProfile.verificationStatus) {
-      case "VERIFIED":
-        return "認証済み"
-      case "REJECTED":
-        return "認証に失敗しました"
       case "PENDING":
-      default:
+        return "本人確認書類が未提出"
+      case "UNDER_REVIEW":
         return "本人確認書類を確認中"
+      case "APPROVED":
+        return "本人確認書類が承認されました"
+      case "REJECTED":
+        return "本人確認書類が拒否されました"
+      case "EXPIRED":
+        return "本人確認書類が期限切れです"
+      default:
+        return "本人確認書類が未提出"
     }
   }
 
   const getVerificationStatusColor = () => {
     switch (userProfile.verificationStatus) {
-      case "VERIFIED":
+      case "PENDING":
+        return "bg-gold-pink-gradient"
+      case "UNDER_REVIEW":
+        return "bg-yellow-500"
+      case "APPROVED":
         return "bg-green-500"
       case "REJECTED":
         return "bg-red-500"
-      case "PENDING":
+      case "EXPIRED":
+        return "bg-orange-500"
       default:
-        return "bg-yellow-500"
+        return "bg-red-500"
     }
   }
 
@@ -542,7 +562,18 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
               <span className="text-sm text-black">お支払い情報</span>
             </div>
 
-            <ChevronRight className="w-5 h-5 text-gray-400" />
+            <div className="flex items-center gap-2">
+              {isLoadingPaymentMethods ? (
+                <Skeleton className="w-16 h-4 rounded" />
+              ) : paymentMethods && paymentMethods.length > 0 ? (
+                <span className="text-xs text-gray-500">
+                  {paymentMethods.length}枚のカード
+                </span>
+              ) : (
+                <span className="text-xs text-red-500">未登録</span>
+              )}
+              <ChevronRight className="w-5 h-5 text-gray-400" />
+            </div>
           </button>
 
           <button
@@ -561,9 +592,13 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
 
               <span className="text-sm text-black">本人認証</span>
 
-              <span className={`${getVerificationStatusColor()} text-white text-xs px-2 py-1 rounded`}>
-                {getVerificationStatusText()}
-              </span>
+              {isLoadingVerification ? (
+                <Skeleton className="w-20 h-6 rounded" />
+              ) : (
+                <span className={`${getVerificationStatusColor()} text-white text-xs px-2 py-1 rounded`}>
+                  {getVerificationStatusText()}
+                </span>
+              )}
             </div>
 
             <ChevronRight className="w-5 h-5 text-gray-400" />

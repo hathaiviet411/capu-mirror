@@ -21,6 +21,15 @@ import MessageListScreen from "@/components/message-list-screen"
 export default function HomeScreen() {
   const { toast } = useToast()
   const { data: session } = useSession()
+  
+  // Debug session state
+  useEffect(() => {
+    console.log('Session state:', { 
+      hasSession: !!session, 
+      userId: session?.user?.id,
+      userType: session?.user?.userType 
+    })
+  }, [session])
   const [showSearchModal, setShowSearchModal] = useState(false)
   const [hasMore, setHasMore] = useState({ home: true, favorites: true, footprints: true })
   const [page, setPage] = useState({ home: 0, favorites: 0, footprints: 0 })
@@ -54,22 +63,29 @@ export default function HomeScreen() {
   )
 
   // Favorites - temporarily disabled
-  const {
-    data: favoritesData,
-    isLoading: isLoadingFavorites,
-    refetch: refetchFavorites,
-  } = api.guest.getFavorites.useQuery(
-    {
-      guestId: session?.user?.id || "",
-      limit: 100,
-      offset: 0,
-    },
-    {
-      enabled: !!session?.user?.id,
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      retry: 1,
-    }
-  )
+  // const {
+  //   data: favoritesData,
+  //   isLoading: isLoadingFavorites,
+  //   refetch: refetchFavorites,
+  //   error: favoritesError,
+  // } = api.guest.getFavorites.useQuery(
+  //   {
+  //     guestId: session?.user?.id || "",
+  //     limit: 100,
+  //     offset: 0,
+  //   },
+  //   {
+  //     enabled: !!session?.user?.id,
+  //     staleTime: 1000 * 60 * 5, // 5 minutes
+  //     retry: 1,
+  //   }
+  // )
+  
+  // Temporary mock data for favorites
+  const favoritesData: any[] = []
+  const isLoadingFavorites = false
+  const refetchFavorites = () => {}
+  const favoritesError = null
 
   // Footprints - temporarily disabled
   const {
@@ -88,49 +104,83 @@ export default function HomeScreen() {
     }
   )
 
-  // Mutations
-  const addFavoriteMutation = api.guest.addFavorite.useMutation({
-    onSuccess: () => {
-      refetchFavorites()
-      toast({
-        title: "お気に入りに追加しました",
-        duration: 2000,
-      })
-    },
-    onError: (error) => {
-      if (error.message.includes("既にお気に入りに追加されています")) {
-        // すでにお気に入りの場合は何もしない
-        return
-      }
-      toast({
-        title: "エラー",
-        description: error.message,
-        variant: "destructive",
-        duration: 3000,
-      })
-    },
-  })
+  // Mutations - temporarily disabled
+  // const addFavoriteMutation = api.guest.addFavorite.useMutation({
+  //   onSuccess: () => {
+  //     refetchFavorites()
+  //     toast({
+  //       title: "お気に入りに追加しました",
+  //       duration: 2000,
+  //     })
+  //   },
+  //   onError: (error) => {
+  //     if (error.message.includes("既にお気に入りに追加されています")) {
+  //       // すでにお気に入りの場合は何もしない
+  //       return
+  //     }
+  //     toast({
+  //       title: "エラー",
+  //       description: error.message,
+  //       variant: "destructive",
+  //       duration: 3000,
+  //     })
+  //   },
+  // })
 
-  const removeFavoriteMutation = api.guest.removeFavorite.useMutation({
-    onSuccess: () => {
-      refetchFavorites()
+  // const removeFavoriteMutation = api.guest.removeFavorite.useMutation({
+  //   onSuccess: () => {
+  //     refetchFavorites()
+  //     toast({
+  //       title: "お気に入りから削除しました",
+  //       duration: 2000,
+  //     })
+  //   },
+  //   onError: (error) => {
+  //     toast({
+  //       title: "エラー",
+  //       description: error.message,
+  //       variant: "destructive",
+  //       duration: 3000,
+  //     })
+  //   },
+  // })
+  
+  // Temporary mock mutations
+  const addFavoriteMutation = {
+    mutate: () => {
       toast({
-        title: "お気に入りから削除しました",
+        title: "お気に入り機能は一時的に無効化されています",
         duration: 2000,
       })
     },
-    onError: (error) => {
+    isLoading: false
+  }
+  
+  const removeFavoriteMutation = {
+    mutate: () => {
       toast({
-        title: "エラー",
-        description: error.message,
-        variant: "destructive",
-        duration: 3000,
+        title: "お気に入り機能は一時的に無効化されています",
+        duration: 2000,
       })
     },
-  })
+    isLoading: false
+  }
 
   // Create favorites set from API data
   const favoriteIds = new Set(favoritesData?.map(fav => fav.castId) || [])
+  
+  // Handle favorites error - temporarily disabled
+  // useEffect(() => {
+  //   if (favoritesError) {
+  //     console.error('Favorites error:', favoritesError)
+  //     toast({
+  //       title: "エラー",
+  //       description: favoritesError.message,
+  //       variant: "destructive",
+  //       duration: 3000,
+  //     })
+  //   }
+  // }, [favoritesError, toast])
 
   // Get current tab data
   const getCurrentTabData = () => {
@@ -144,9 +194,11 @@ export default function HomeScreen() {
           isFetchingMore: false,
         }
       case "お気に入り":
+        // Temporarily disabled - redirect to オススメ
+        setActiveTab("オススメ")
         return {
-          data: favoritesData || [],
-          isLoading: isLoadingFavorites,
+          data: castUsersData || [],
+          isLoading: isLoadingCastUsers,
           hasMore: false,
           fetchMore: () => {},
           isFetchingMore: false,
@@ -341,18 +393,36 @@ export default function HomeScreen() {
     navigateToSearch()
   }
 
-  // Handle footer search button click - no action needed as it's just a tab indicator
+  // Handle footer search button click - navigate back to home or open search modal
   const handleFooterSearchClick = () => {
-    // フッターの「探す」ボタンは状態表示のみで、実際の検索モーダルは開かない
+    // If we're on a different screen (mypage or messages), navigate back to home
+    if (showMyPage || showMessageList) {
+      // Directly reset the state instead of relying on browser history
+      setShowMyPage(false)
+      setShowMessageList(false)
+      setShowCastDetail(false)
+      setSelectedCast(null)
+      // Reset to home state in browser history
+      if (typeof window !== 'undefined') {
+        window.history.replaceState({ screen: 'home' }, '', window.location.href)
+      }
+      // Add a small delay to ensure state updates are processed
+      setTimeout(() => {
+        console.log('Navigation back to home completed')
+      }, 100)
+    } else {
+      // If we're already on home screen, open the search modal
+      navigateToSearch()
+    }
   }
 
-  // Toggle favorite function
+  // Toggle favorite function - temporarily disabled
   const toggleFavorite = (castId: string) => {
-    if (favoriteIds.has(castId)) {
-      removeFavoriteMutation.mutate({ castId })
-    } else {
-      addFavoriteMutation.mutate({ castId })
-    }
+    // Temporarily disabled - show toast instead
+    toast({
+      title: "お気に入り機能は一時的に無効化されています",
+      duration: 2000,
+    })
   }
 
   // Show MyPage if selected
@@ -383,14 +453,15 @@ export default function HomeScreen() {
             >
               オススメ
             </button>
-            <button
+            {/* Temporarily disabled favorites tab */}
+            {/* <button
               onClick={() => setActiveTab("お気に入り")}
               className={`px-4 py-4 text-sm font-medium transition-colors focus:outline-none ${
                 activeTab === "お気に入り" ? "border-bottom-gold-pink-gradient text-gold-pink-gradient" : "border-b-2 border-transparent text-gray-600"
               }`}
             >
               お気に入り
-            </button>
+            </button> */}
             <button
               onClick={() => setActiveTab("足あと")}
               className={`px-4 py-4 text-sm font-medium transition-colors focus:outline-none ${
@@ -676,7 +747,7 @@ export default function HomeScreen() {
                             toggleFavorite(castProfile?.id)
                           }}
                           className="absolute top-2 right-2 md:hover:scale-110 transition-transform z-10"
-                          disabled={addFavoriteMutation.isLoading || removeFavoriteMutation.isLoading}
+                          disabled={false}
                         >
                           <Star
                             className={`w-5 h-5 drop-shadow ${favoriteIds.has(castProfile?.id) ? "text-yellow-400 fill-yellow-400" : "text-white fill-white"}`}

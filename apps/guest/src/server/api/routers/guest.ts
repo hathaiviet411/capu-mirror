@@ -7,6 +7,24 @@ import {
   protectedProcedure,
 } from "~/server/api/trpc";
 
+// Helper function to map tag types to Japanese titles
+function getTypeTitle(type: string): string {
+  const typeMap: Record<string, string> = {
+    PERSONALITY: "性格",
+    HOBBIES: "趣味",
+    SPORTS: "スポーツ・運動",
+    CREATIVE: "創作・芸術",
+    LIFESTYLE: "ライフスタイル",
+    COMMUNICATION: "コミュニケーション",
+    GENERAL: "その他",
+    SKILL: "スキル",
+    SPECIALTY: "専門分野",
+    EXPERIENCE: "経験",
+  };
+  
+  return typeMap[type] || "その他";
+}
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2024-06-20",
 });
@@ -1555,6 +1573,7 @@ export const guestRouter = createTRPCRouter({
         siblings: z.string().optional(),
         additionalImages: z.array(z.string()).optional(),
         image: z.string().optional(),
+        tags: z.array(z.number()).optional(),
       })
     }))
     .mutation(async ({ ctx, input }) => {
@@ -1604,6 +1623,48 @@ export const guestRouter = createTRPCRouter({
 
       return updatedUser;
     }),
+
+  getListTag: publicProcedure.query(async ({ ctx }) => {
+    // Get all active tags from the database
+    const tags = await ctx.db.tag.findMany({
+      where: {
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        sortOrder: true,
+        tag_id: true,
+      },
+      orderBy: [
+        { type: 'asc' },
+        { sortOrder: 'asc' },
+      ],
+    });
+
+    // Group tags by type
+    const groupedTags = tags.reduce((acc, tag) => {
+      const type = tag.type;
+      if (!acc[type]) {
+        acc[type] = {
+          type: type,
+          title: getTypeTitle(type),
+          tags: [],
+        };
+      }
+      acc[type].tags.push({
+        id: tag.tag_id,
+        name: tag.name,
+      });
+      return acc;
+    }, {} as Record<string, { type: string; title: string; tags: { id: number; name: string }[] }>);
+
+    // Convert to array format to match the expected structure
+    const result = Object.values(groupedTags);
+
+    return result;
+  }),
 
   // ============================================================
 });

@@ -1,14 +1,12 @@
 "use client"
 
-
 import Image from "next/image"
 import BasicInfoScreen from "@/components/basic-info-screen"
 import FieldEditScreen from "@/components/field-edit-screen"
 import ProfilePreviewScreen from "@/components/profile-preview-screen"
 import SimpleProfileTagModal from "@/components/simple-profile-tag-modal"
-
-import { useState, useRef, useEffect, useMemo } from "react"
-import { ArrowLeft, ChevronRight, Plus, Loader2, Save } from "lucide-react"
+import { useState, useRef, useEffect, useMemo, useCallback } from "react"
+import { ArrowLeft, ChevronRight, Plus } from "lucide-react"
 import { api } from "~/utils/api"
 import { useToast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -19,7 +17,7 @@ interface ProfileEditScreenProps {
 }
 
 export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
-  const { data: session, status } = useSession()
+  const { data: session } = useSession()
   const { toast } = useToast()
 
   const { data: userDetails, isLoading: isLoadingUser } = api.guest.getUserById.useQuery(
@@ -49,46 +47,6 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
   })
 
   const [images, setImages] = useState<string[]>([])
-  const [hasChanges, setHasChanges] = useState(false)
-
-  // Update form data when user details are loaded
-  useEffect(() => {
-    if (userDetails) {
-      console.log("====================================================================================");
-      console.log("userDetails", userDetails);
-      console.log("====================================================================================");
-
-      setFormData({
-        aliasName: userDetails.aliasName || "",
-        quote: userDetails.quote || "",
-        simpleProfile: "",
-        simpleProfileTags: userDetails.userTags?.map(tag => tag.name) || [],
-        selfIntroduction: userDetails.selfIntro || "",
-      })
-
-      setBasicInfo({
-        height: userDetails.height || "未選択",
-        residence: userDetails.residence || "未選択",
-        birthplace: userDetails.birthplace || "未選択",
-        education: userDetails.education || "未選択",
-        occupation: userDetails.occupation || "未選択",
-        drinkingLevel: userDetails.drinkingLevel || "未選択",
-        smokingLevel: userDetails.smokingLevel || "未選択",
-        cohabitant: userDetails.cohabitant || "未選択",
-        siblings: userDetails.siblings || "未選択",
-        birthDate: userDetails.birthDate
-          ? new Date(userDetails.birthDate).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })
-          : "未選択",
-      })
-
-      if (userDetails.additionalImages) {
-        setImages(userDetails.additionalImages)
-      } else {
-        setImages([])
-      }
-    }
-  }, [userDetails])
-
   const [showBasicInfo, setShowBasicInfo] = useState(false)
   const [showFieldEdit, setShowFieldEdit] = useState<string | null>(null)
   const [showPreview, setShowPreview] = useState(false)
@@ -109,7 +67,6 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
       })
       setIsMainImageLoading(false)
       setLoadingImageIndex(null)
-      // Refresh user data after successful update
       utils.guest.getUserById.invalidate({ userId: session?.user?.id || "" })
     },
     onError: (error) => {
@@ -123,8 +80,49 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
     },
   })
 
-  const handleMainImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("Main image change triggered", event.target.files)
+  const formattedBirthDate = useMemo(() => {
+    if (!userDetails?.birthDate) return "未選択"
+    return new Date(userDetails.birthDate).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })
+  }, [userDetails?.birthDate])
+
+  const fieldConfig = useMemo(() => ({
+    aliasName: { title: "ニックネーム", maxLength: 20, placeholder: "ニックネームを入力", multiline: false },
+    quote: { title: "今日のひとこと", maxLength: 50, placeholder: "今日のひとことを入力", multiline: true },
+    selfIntroduction: { title: "自己紹介", maxLength: 500, placeholder: "自己紹介を入力", multiline: true },
+  }), [])
+
+  useEffect(() => {
+    if (userDetails) {
+      setFormData({
+        aliasName: userDetails.aliasName || "",
+        quote: userDetails.quote || "",
+        simpleProfile: "",
+        simpleProfileTags: userDetails.userTags?.map(tag => tag.name).filter((name): name is string => name !== null && name !== undefined) || [],
+        selfIntroduction: userDetails.selfIntro || "",
+      })
+
+      setBasicInfo({
+        height: userDetails.height || "未選択",
+        residence: userDetails.residence || "未選択",
+        birthplace: userDetails.birthplace || "未選択",
+        education: userDetails.education || "未選択",
+        occupation: userDetails.occupation || "未選択",
+        drinkingLevel: userDetails.drinkingLevel || "未選択",
+        smokingLevel: userDetails.smokingLevel || "未選択",
+        cohabitant: userDetails.cohabitant || "未選択",
+        siblings: userDetails.siblings || "未選択",
+        birthDate: formattedBirthDate,
+      })
+
+      if (userDetails.additionalImages) {
+        setImages(userDetails.additionalImages)
+      } else {
+        setImages([])
+      }
+    }
+  }, [userDetails, formattedBirthDate])
+
+  const handleMainImageChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file && session?.user?.id) {
       setIsMainImageLoading(true)
@@ -140,13 +138,11 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
       }
       reader.readAsDataURL(file)
     }
-  }
+  }, [session?.user?.id, updateUserMutation])
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("handleFileUpload triggered", { imagesLength: images.length, file: event.target.files?.[0] })
+  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file && session?.user?.id) {
-      // Allow adding up to 5 additional images (index 0-4)
       if (images.length >= 5) {
         toast({
           title: "エラー",
@@ -156,13 +152,11 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
         return
       }
       
-      console.log("Starting upload for image", images.length)
-      setLoadingImageIndex(images.length) // Set loading for the new image position
+      setLoadingImageIndex(images.length)
       const reader = new FileReader()
       reader.onload = (e) => {
         const result = e.target?.result as string
         const newImages = [...images, result]
-        console.log("Calling API with", newImages.length, "images")
         updateUserMutation.mutate({
           userId: session.user.id,
           data: {
@@ -172,9 +166,9 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
       }
       reader.readAsDataURL(file)
     }
-  }
+  }, [images, session?.user?.id, toast, updateUserMutation])
 
-  const handleImageChange = (index: number) => {
+  const handleImageChange = useCallback((index: number) => {
     const input = document.createElement("input")
     input.type = "file"
     input.accept = "image/*"
@@ -186,11 +180,16 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
         reader.onload = (e) => {
           const result = e.target?.result as string
           const newImages = [...images]
-          newImages[index] = result
+          if (index < newImages.length) {
+            newImages[index] = result
+          } else {
+            newImages.push(result)
+          }
+          const filteredImages = newImages.filter(img => img !== undefined && img !== null)
           updateUserMutation.mutate({
             userId: session.user.id,
             data: {
-              additionalImages: newImages,
+              additionalImages: filteredImages,
             },
           })
         }
@@ -199,16 +198,97 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
     }
     input.click()
     setShowImageOptions(null)
-  }
+  }, [images, session?.user?.id, updateUserMutation])
 
-  const handleSimpleProfileTagsSave = (selectedTags: string[]) => {
+  const handleSimpleProfileTagsSave = useCallback((selectedTags: string[]) => {
     setFormData({ ...formData, simpleProfileTags: selectedTags })
-  }
+  }, [formData])
+
+  const handlePreviewClick = useCallback(() => {
+    setShowPreview(true)
+  }, [])
+
+  const handleBackFromPreview = useCallback(() => {
+    setShowPreview(false)
+  }, [])
+
+  const handleBackFromBasicInfo = useCallback(() => {
+    setShowBasicInfo(false)
+  }, [])
+
+  const handleBasicInfoSave = useCallback((updatedBasicInfo: typeof basicInfo) => {
+    setBasicInfo(updatedBasicInfo)
+    setShowBasicInfo(false)
+  }, [])
+
+  const handleBackFromFieldEdit = useCallback(() => {
+    setShowFieldEdit(null)
+  }, [])
+
+  const handleFieldEditSave = useCallback((value: string) => {
+    setFormData({ ...formData, [showFieldEdit!]: value })
+  }, [formData, showFieldEdit])
+
+  const handleFieldEditClick = useCallback((field: string) => {
+    setShowFieldEdit(field)
+  }, [])
+
+  const handleBasicInfoClick = useCallback(() => {
+    setShowBasicInfo(true)
+  }, [])
+
+  const handleSimpleProfileTagModalOpen = useCallback(() => {
+    setShowSimpleProfileTagModal(true)
+  }, [])
+
+  const handleSimpleProfileTagModalClose = useCallback(() => {
+    setShowSimpleProfileTagModal(false)
+  }, [])
+
+  const handleImageOptionsToggle = useCallback((index: number) => {
+    setShowImageOptions(showImageOptions === index ? null : index)
+  }, [showImageOptions])
+
+  const handleMainImageOptionsToggle = useCallback(() => {
+    setShowImageOptions(showImageOptions === -1 ? null : -1)
+  }, [showImageOptions])
+
+  const handleMainImageClick = useCallback(() => {
+    mainImageInputRef.current?.click()
+    setShowImageOptions(null)
+  }, [])
+
+  const handleAddImageClick = useCallback(() => {
+    fileInputRef.current?.click()
+  }, [])
+
+  const handleImageDelete = useCallback((index: number) => {
+    if (session?.user?.id) {
+      const newImages = images.filter((_, i) => i !== index)
+      updateUserMutation.mutate({
+        userId: session.user.id,
+        data: {
+          additionalImages: newImages,
+        },
+      })
+    }
+    setShowImageOptions(null)
+  }, [images, session?.user?.id, updateUserMutation])
+
+  const handleImageOptionsClose = useCallback(() => {
+    setShowImageOptions(null)
+  }, [])
+
+  const handleImageClick = useCallback((index: number) => {
+    setCurrentImageIndex(index)
+  }, [])
+
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
   if (showPreview) {
     return (
       <ProfilePreviewScreen
-        onBack={() => setShowPreview(false)}
+        onBack={handleBackFromPreview}
         formData={formData}
         basicInfo={{
           height: basicInfo.height,
@@ -230,32 +310,23 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
   if (showBasicInfo) {
     return (
       <BasicInfoScreen
-        onBack={() => setShowBasicInfo(false)}
+        onBack={handleBackFromBasicInfo}
         basicInfo={basicInfo}
-        onSave={(updatedBasicInfo) => {
-          setBasicInfo(updatedBasicInfo)
-          setShowBasicInfo(false)
-        }}
+        onSave={handleBasicInfoSave}
         userId={session?.user?.id || ""}
       />
     )
   }
 
   if (showFieldEdit) {
-    const fieldConfig = {
-      aliasName: { title: "ニックネーム", maxLength: 20, placeholder: "ニックネームを入力", multiline: false },
-      quote: { title: "今日のひとこと", maxLength: 50, placeholder: "今日のひとことを入力", multiline: true },
-      selfIntroduction: { title: "自己紹介", maxLength: 500, placeholder: "自己紹介を入力", multiline: true },
-    }
-
     const config = fieldConfig[showFieldEdit as keyof typeof fieldConfig]
 
     return (
       <FieldEditScreen
-        onBack={() => setShowFieldEdit(null)}
+        onBack={handleBackFromFieldEdit}
         title={config.title}
         value={formData[showFieldEdit as keyof typeof formData] as string}
-        onSave={(value) => setFormData({ ...formData, [showFieldEdit]: value })}
+        onSave={handleFieldEditSave}
         maxLength={config.maxLength}
         placeholder={config.placeholder}
         multiline={config.multiline}
@@ -272,10 +343,8 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
             <button onClick={onBack}>
               <ArrowLeft className="w-5 h-5 text-white" />
             </button>
-
             <h1 className="text-base font-medium text-white">プロフィール編集</h1>
           </div>
-
           <button className="text-white font-medium text-sm">
             プレビュー
           </button>
@@ -291,7 +360,6 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
               {[...Array(3)].map((_, index) => (
                 <Skeleton key={index} className="w-12 h-12 rounded-full" />
               ))}
-
               <Skeleton className="w-12 h-12 rounded-full" />
             </div>
           </div>
@@ -299,7 +367,6 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
           <div className="space-y-4">
             <div className="bg-white px-4 py-4">
               <Skeleton className="h-4 w-20 mb-3" />
-
               <div className="flex items-center justify-between py-2">
                 <Skeleton className="h-4 w-32" />
                 <Skeleton className="w-5 h-5 rounded" />
@@ -308,7 +375,6 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
 
             <div className="bg-white px-4 py-4">
               <Skeleton className="h-4 w-24 mb-3" />
-
               <div className="flex items-center justify-between py-2">
                 <Skeleton className="h-4 w-40" />
                 <Skeleton className="w-5 h-5 rounded" />
@@ -317,7 +383,6 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
 
             <div className="bg-white px-4 py-4">
               <Skeleton className="h-4 w-28 mb-3" />
-
               <div className="flex items-start justify-between py-2">
                 <Skeleton className="h-4 w-36" />
                 <Skeleton className="w-5 h-5 rounded mt-1" />
@@ -326,7 +391,6 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
 
             <div className="bg-white px-4 py-4">
               <Skeleton className="h-4 w-20 mb-3" />
-
               <div className="flex items-center justify-between py-2">
                 <Skeleton className="h-4 w-48" />
                 <Skeleton className="w-5 h-5 rounded" />
@@ -335,7 +399,6 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
 
             <div className="bg-white px-4 py-4">
               <Skeleton className="h-4 w-20 mb-3" />
-
               <div className="flex items-center justify-between py-2">
                 <Skeleton className="h-4 w-16" />
                 <Skeleton className="w-5 h-5 rounded" />
@@ -350,7 +413,6 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
   return (
     <>
       <div className="h-screen w-full md:max-w-sm mx-auto bg-gray-100 flex flex-col relative">
-        {/* Header */}
         <div className="bg-gold-pink-gradient px-4 py-4 h-16 flex items-center justify-between shrink-0 w-full z-10 shadow-lg">
           <div className="flex items-center gap-3">
             <button onClick={onBack}>
@@ -359,7 +421,7 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
             <h1 className="text-base font-medium text-white">プロフィール編集</h1>
           </div>
           <button
-            onClick={() => setShowPreview(true)}
+            onClick={handlePreviewClick}
             className="text-white font-medium text-sm"
           >
             プレビュー
@@ -384,7 +446,7 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
                   </div>
                 ) : (
                   <button
-                    onClick={() => setShowImageOptions(showImageOptions === -1 ? null : -1)}
+                    onClick={handleMainImageOptionsToggle}
                     className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
                   >
                     <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -407,7 +469,7 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
               {images.map((image, index) => (
                 <div key={index} className="relative">
                   <button
-                    onClick={() => setShowImageOptions(showImageOptions === index ? null : index)}
+                    onClick={() => handleImageOptionsToggle(index)}
                     disabled={loadingImageIndex === index}
                     className={`w-12 h-12 rounded-full bg-white overflow-hidden shadow-md relative group ${loadingImageIndex === index ? 'opacity-50' : ''}`}
                   >
@@ -441,24 +503,13 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
                           変更する
                         </button>
                         <button
-                          onClick={() => {
-                            if (session?.user?.id) {
-                              const newImages = images.filter((_, i) => i !== index)
-                              updateUserMutation.mutate({
-                                userId: session.user.id,
-                                data: {
-                                  additionalImages: newImages,
-                                },
-                              })
-                            }
-                            setShowImageOptions(null)
-                          }}
+                          onClick={() => handleImageDelete(index)}
                           className="w-full py-4 text-lg font-medium text-black border-b border-gray-200"
                         >
                           削除する
                         </button>
                         <button
-                          onClick={() => setShowImageOptions(null)}
+                          onClick={handleImageOptionsClose}
                           className="w-full py-4 text-lg font-medium text-gray-500"
                         >
                           キャンセル
@@ -469,22 +520,18 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
                 </div>
               ))}
 
-              {/* Main Image Options Modal */}
               {showImageOptions === -1 && (
                 <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
                   <div className="bg-white rounded-t-2xl w-full md:max-w-sm p-6 space-y-4">
                     <button
-                      onClick={() => {
-                        mainImageInputRef.current?.click()
-                        setShowImageOptions(null)
-                      }}
+                      onClick={handleMainImageClick}
                       disabled={isMainImageLoading}
                       className={`w-full py-4 text-lg font-medium text-black border-b border-gray-200 ${isMainImageLoading ? 'opacity-50' : ''}`}
                     >
                       変更する
                     </button>
                     <button
-                      onClick={() => setShowImageOptions(null)}
+                      onClick={handleImageOptionsClose}
                       className="w-full py-4 text-lg font-medium text-gray-500"
                     >
                       キャンセル
@@ -496,7 +543,7 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
               {images.length < 5 && (
                 <>
                   <button
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={handleAddImageClick}
                     disabled={isMainImageLoading || loadingImageIndex !== null}
                     className={`w-12 h-12 bg-gold-pink-gradient rounded-full flex items-center justify-center shadow-lg ${(isMainImageLoading || loadingImageIndex !== null) ? 'opacity-50' : ''}`}
                   >
@@ -512,7 +559,7 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
             <div className="bg-white px-4 py-4">
               <h3 className="text-sm font-medium text-black mb-3">ニックネーム</h3>
               <button
-                onClick={() => setShowFieldEdit("aliasName")}
+                onClick={() => handleFieldEditClick("aliasName")}
                 className="w-full flex items-center justify-between py-2"
               >
                 <span className="text-sm text-black">{formData.aliasName}</span>
@@ -523,7 +570,7 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
             <div className="bg-white px-4 py-4">
               <h3 className="text-sm font-medium text-black mb-3">今日のひとこと</h3>
               <button
-                onClick={() => setShowFieldEdit("quote")}
+                onClick={() => handleFieldEditClick("quote")}
                 className="w-full flex items-center justify-between py-2"
               >
                 <span className="text-sm text-black text-justify">{formData.quote}</span>
@@ -534,7 +581,7 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
             <div className="bg-white px-4 py-4">
               <h3 className="text-sm font-medium text-black mb-3">簡単プロフィール</h3>
               <button
-                onClick={() => setShowSimpleProfileTagModal(true)}
+                onClick={handleSimpleProfileTagModalOpen}
                 className="w-full flex items-start justify-between py-2"
               >
                 <div className="flex-1 text-left">
@@ -557,16 +604,14 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
                     )
                   }
                 </div>
-
                 <ChevronRight className="w-5 h-5 text-gray-400 mt-1" />
               </button>
             </div>
 
             <div className="bg-white px-4 py-4">
               <h3 className="text-sm font-medium text-black mb-3">自己紹介</h3>
-
               <button
-                onClick={() => setShowFieldEdit("selfIntroduction")}
+                onClick={() => handleFieldEditClick("selfIntroduction")}
                 className="w-full flex items-center justify-between py-2"
               >
                 <span className="text-sm text-black text-left flex-1">
@@ -578,15 +623,13 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
                     )
                   }
                 </span>
-
                 <ChevronRight className="w-5 h-5 text-gray-400" />
               </button>
             </div>
 
             <div className="bg-white px-4 py-4">
               <h3 className="text-sm font-medium text-black mb-3">基本情報</h3>
-
-              <button onClick={() => setShowBasicInfo(true)} className="w-full flex items-center justify-between py-2">
+              <button onClick={handleBasicInfoClick} className="w-full flex items-center justify-between py-2">
                 <span className="text-sm text-black">10/10</span>
                 <ChevronRight className="w-5 h-5 text-gray-400" />
               </button>
@@ -597,7 +640,7 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
 
       <SimpleProfileTagModal
         isOpen={showSimpleProfileTagModal}
-        onClose={() => setShowSimpleProfileTagModal(false)}
+        onClose={handleSimpleProfileTagModalClose}
         onSave={handleSimpleProfileTagsSave}
         initialTags={formData.simpleProfileTags}
       />

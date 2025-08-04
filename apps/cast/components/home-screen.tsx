@@ -15,6 +15,15 @@ import { useSession } from "next-auth/react"
 
 export default function HomeScreen() {
   const { data: session } = useSession()
+  
+  // Debug session state
+  useEffect(() => {
+    console.log('Session state:', { 
+      hasSession: !!session, 
+      userId: session?.user?.id,
+      userType: session?.user?.userType 
+    })
+  }, [session])
   const [showSearchModal, setShowSearchModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState({ home: true, favorites: true, footprints: true })
@@ -449,9 +458,27 @@ export default function HomeScreen() {
     navigateToSearch()
   }
 
-  // Handle footer search button click - no action needed as it's just a tab indicator
+  // Handle footer search button click - navigate back to home or open search modal
   const handleFooterSearchClick = () => {
-    // フッターの「探す」ボタンは状態表示のみで、実際の検索モーダルは開かない
+    // If we're on a different screen (mypage or messages), navigate back to home
+    if (showMyPage || showMessageList) {
+      // Directly reset the state instead of relying on browser history
+      setShowMyPage(false)
+      setShowMessageList(false)
+      setShowCastDetail(false)
+      setSelectedCast(null)
+      // Reset to home state in browser history
+      if (typeof window !== 'undefined') {
+        window.history.replaceState({ screen: 'home' }, '', window.location.href)
+      }
+      // Add a small delay to ensure state updates are processed
+      setTimeout(() => {
+        console.log('Navigation back to home completed')
+      }, 100)
+    } else {
+      // If we're already on home screen, open the search modal
+      navigateToSearch()
+    }
   }
 
   // Show MyPage if selected

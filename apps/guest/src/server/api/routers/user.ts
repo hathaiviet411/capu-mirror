@@ -1077,6 +1077,7 @@ export const userRouter = createTRPCRouter({
       select: {
         id: true,
         documentType: true,
+        documentUrls: true,
         status: true,
         submittedAt: true,
         reviewedAt: true,

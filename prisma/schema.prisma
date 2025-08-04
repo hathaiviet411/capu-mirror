@@ -307,17 +307,17 @@ model Category {
 
 model Tag {
   id           String        @id @default(cuid())
-  name         String        @unique
+  name         String?       @unique
   nameEn       String?
-  type         TagType       @default(GENERAL)
   color        String?
   description  String?
   usageCount   Int           @default(0)
   sortOrder    Int           @default(0)
   isActive     Boolean       @default(true)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt    DateTime?     @default(now())
+  updatedAt    DateTime?     @updatedAt
   tag_id       Int           @default(autoincrement()) @db.SmallInt
+  type         TagType?
   castProfiles CastProfile[] @relation("CastProfileToTag")
 
   @@map("tags")
@@ -496,14 +496,14 @@ model DeviceToken {
 }
 
 model Favorite {
-  id        String      @id @default(cuid())
-  guestId   String
-  castId    String
-  createdAt DateTime    @default(now())
-  cast      CastProfile @relation(fields: [castId], references: [id], onDelete: Cascade)
-  guest     User        @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  id             String      @id @default(cuid())
+  userId         String
+  favariteUserId String
+  createdAt      DateTime    @default(now())
+  cast_profiles  CastProfile @relation(fields: [favariteUserId], references: [id], onDelete: Cascade)
+  users          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([guestId, castId])
+  @@unique([userId, favariteUserId], map: "favorites_guestId_castId_key")
   @@map("favorites")
 }
 
@@ -968,11 +968,12 @@ enum MessageType {
 }
 
 enum TagType {
-  GENERAL
-  SKILL
-  SPECIALTY
   PERSONALITY
-  EXPERIENCE
+  HOBBIES
+  SPORTS_AND_EXERCISE
+  CREATIVE_AND_ARTISTIC
+  LIFESTYLE
+  COMMUNICATION
 }
 
 enum ConfigType {

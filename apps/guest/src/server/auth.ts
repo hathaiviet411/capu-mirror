@@ -233,6 +233,8 @@ export const authOptions: NextAuthOptions = {
     ...(env.LINE_CLIENT_ID && env.LINE_CLIENT_SECRET
       ? (() => {
         console.log("✅ LINE OAuth provider configured.");
+        console.log('env.LINE_CLIENT_ID :', env.LINE_CLIENT_ID);
+        console.log('env.LINE_CLIENT_SECRET :', env.LINE_CLIENT_SECRET);
         return [
           LineProvider({
             clientId: env.LINE_CLIENT_ID,

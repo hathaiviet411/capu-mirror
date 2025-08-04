@@ -26,6 +26,14 @@ const refundSchema = z.object({
   reason: z.enum(["duplicate", "fraudulent", "requested_by_customer"]).optional(),
 });
 
+const savePaymentMethodSchema = z.object({
+  cardNumber: z.string().min(13, "カード番号は13桁以上で入力してください").max(19, "カード番号は19桁以下で入力してください"),
+  expiryMonth: z.string().min(1, "有効期限（月）を選択してください"),
+  expiryYear: z.string().min(1, "有効期限（年）を選択してください"),
+  securityCode: z.string().min(3, "セキュリティコードは3桁以上で入力してください").max(4, "セキュリティコードは4桁以下で入力してください"),
+  cardholderName: z.string().min(2, "カード名義人は2文字以上で入力してください"),
+});
+
 export const paymentRouter = createTRPCRouter({
   // 決済処理作成
   createPaymentIntent: protectedProcedure
@@ -34,11 +42,7 @@ export const paymentRouter = createTRPCRouter({
       const booking = await ctx.db.booking.findUnique({
         where: { id: input.bookingId },
         include: {
-          cast: {
-            include: {
-              user: true,
-            },
-          },
+          cast: true,
           guest: true,
         },
       });
@@ -454,5 +458,141 @@ export const paymentRouter = createTRPCRouter({
       }
 
       return payment;
+    }),
+
+  // 支払い方法保存
+  savePaymentMethod: protectedProcedure
+    .input(savePaymentMethodSchema)
+    .mutation(async ({ ctx, input }) => {
+      try {
+        // TODO: Stripe実装時にPaymentMethod作成
+        // const paymentMethod = await stripe.paymentMethods.create({
+        //   type: 'card',
+        //   card: {
+        //     number: input.cardNumber,
+        //     exp_month: parseInt(input.expiryMonth),
+        //     exp_year: parseInt("20" + input.expiryYear),
+        //     cvc: input.securityCode,
+        //   },
+        //   billing_details: {
+        //     name: input.cardholderName,
+        //   },
+        // });
+
+        // データベースに支払い方法を保存
+        const paymentMethod = await ctx.db.paymentMethod.create({
+          data: {
+            userId: ctx.session.user.id,
+            stripeMethodId: `pm_mock_${Date.now()}`, // paymentMethod.id,
+            type: "CARD",
+            card: {
+              brand: "visa", // 実際のカードブランドを取得
+              last4: input.cardNumber.slice(-4),
+              expMonth: parseInt(input.expiryMonth),
+              expYear: parseInt("20" + input.expiryYear),
+            },
+            isDefault: true, // 最初のカードをデフォルトに設定
+          },
+        });
+
+        return {
+          success: true,
+          paymentMethodId: paymentMethod.id,
+          message: "支払い方法が正常に保存されました",
+        };
+      } catch (error) {
+        console.error("Payment method save error:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "支払い方法の保存に失敗しました",
+        });
+      }
+    }),
+
+  // ユーザーの支払い方法取得
+  getUserPaymentMethods: protectedProcedure
+    .query(async ({ ctx }) => {
+      try {
+        const paymentMethods = await ctx.db.paymentMethod.findMany({
+          where: {
+            userId: ctx.session.user.id,
+          },
+          orderBy: {
+            isDefault: "desc",
+          },
+        });
+
+        return paymentMethods.map(method => ({
+          id: method.id,
+          type: method.type,
+          card: method.card as {
+            brand: string;
+            last4: string;
+            expMonth: number;
+            expYear: number;
+          } | null,
+          isDefault: method.isDefault,
+          createdAt: method.createdAt,
+        }));
+      } catch (error) {
+        console.error("Get payment methods error:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "支払い方法の取得に失敗しました",
+        });
+      }
+    }),
+
+  // 支払い方法削除
+  deletePaymentMethod: protectedProcedure
+    .input(z.object({
+      paymentMethodId: z.string().min(1, "支払い方法IDが必要です"),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        // 支払い方法が存在し、ユーザーが所有しているかチェック
+        const paymentMethod = await ctx.db.paymentMethod.findFirst({
+          where: {
+            id: input.paymentMethodId,
+            userId: ctx.session.user.id,
+          },
+        });
+
+        if (!paymentMethod) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "支払い方法が見つかりません",
+          });
+        }
+
+        // デフォルトカードの場合は削除できない
+        if (paymentMethod.isDefault) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "デフォルトカードは削除できません",
+          });
+        }
+
+        // 支払い方法を削除
+        await ctx.db.paymentMethod.delete({
+          where: {
+            id: input.paymentMethodId,
+          },
+        });
+
+        return {
+          success: true,
+          message: "支払い方法を削除しました",
+        };
+      } catch (error) {
+        console.error("Delete payment method error:", error);
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "支払い方法の削除に失敗しました",
+        });
+      }
     }),
 });
