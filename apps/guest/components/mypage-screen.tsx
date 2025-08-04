@@ -12,14 +12,17 @@ import NotificationScreen from "@/components/notification-screen"
 import PointHistoryScreen from "@/components/point-history-screen"
 import NotificationIcon from "@/components/shared/notification-icon"
 import IdentityVerificationScreen from "@/components/id-verification"
-import IdentityVerificationCompleteScreen from "@/components/id-verify-complete"
+import IdentityVerificationDefaultScreen from "@/components/id-verification-default"
+import IdentityVerificationApprovedScreen from "@/components/id-verification-approved"
+import IdentityVerificationRejectExpiredScreen from "@/components/id-verification-reject-expired"
+import IdentityVerificationPendingUnderReviewScreen from "@/components/id-verify-pending-under-review"
 
 import { api } from "~/utils/api"
 import { useSession } from "next-auth/react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useState, useEffect, useMemo } from "react"
 import { useToast } from "@/components/ui/use-toast"
-import { Settings, ChevronRight, Loader2 } from "lucide-react"
+import { Settings, ChevronRight, Loader2, ArrowLeft } from "lucide-react"
 
 interface MyPageScreenProps {
   onBack: () => void
@@ -52,8 +55,8 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
   const [showMessageList, setShowMessageList] = useState(false)
   const [showPointHistory, setShowPointHistory] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
-  const [showIdentityComplete, setShowIdentityComplete] = useState(false)
   const [showIdentityVerification, setShowIdentityVerification] = useState(false)
+  const [forceDefaultScreen, setForceDefaultScreen] = useState(false)
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -72,7 +75,6 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
             setShowPaymentInfo(false)
             setShowHelp(false)
             setShowIdentityVerification(false)
-            setShowIdentityComplete(false)
             setShowNotifications(false)
             setShowMessageList(false)
             setShowSettings(false)
@@ -95,9 +97,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
           case 'mypage-identity-verification':
             setShowIdentityVerification(true)
             break
-          case 'mypage-identity-complete':
-            setShowIdentityComplete(true)
-            break
+
           case 'mypage-notifications':
             setShowNotifications(true)
             break
@@ -142,7 +142,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
     setShowPaymentInfo(false)
     setShowHelp(false)
     setShowIdentityVerification(false)
-    setShowIdentityComplete(false)
+    setForceDefaultScreen(false)
     setShowNotifications(false)
     setShowMessageList(false)
     setShowSettings(false)
@@ -237,7 +237,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
         age: null,
         occupation: "未設定",
         isVerified: false,
-        verificationStatus: verificationStatus?.status || "PENDING",
+        verificationStatus: verificationStatus?.status || null,
       }
     }
 
@@ -249,7 +249,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
         null,
       occupation: userDetails.occupation || "未設定",
       isVerified: userDetails.isVerified || false,
-      verificationStatus: verificationStatus?.status || "PENDING",
+      verificationStatus: verificationStatus?.status || null,
     }
   }, [userDetails, session, verificationStatus])
 
@@ -273,15 +273,15 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
   const getVerificationStatusText = () => {
     switch (userProfile.verificationStatus) {
       case "PENDING":
-        return "本人確認書類が未提出"
+        return "提出済み"
       case "UNDER_REVIEW":
-        return "本人確認書類を確認中"
+        return "審査中"
       case "APPROVED":
-        return "本人確認書類が承認されました"
+        return "承認済み"
       case "REJECTED":
-        return "本人確認書類が拒否されました"
+        return "拒否"
       case "EXPIRED":
-        return "本人確認書類が期限切れです"
+        return "期限切れ"
       default:
         return "本人確認書類が未提出"
     }
@@ -290,7 +290,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
   const getVerificationStatusColor = () => {
     switch (userProfile.verificationStatus) {
       case "PENDING":
-        return "bg-gold-pink-gradient"
+        return "bg-yellow-500"
       case "UNDER_REVIEW":
         return "bg-yellow-500"
       case "APPROVED":
@@ -298,9 +298,9 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
       case "REJECTED":
         return "bg-red-500"
       case "EXPIRED":
-        return "bg-orange-500"
-      default:
         return "bg-red-500"
+      default:
+        return "bg-gold-pink-gradient"
     }
   }
 
@@ -316,21 +316,59 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
     return <SettingsScreen onBack={backToMyPageMain} />
   }
 
-  if (showIdentityComplete) {
-    return <IdentityVerificationCompleteScreen onBack={backToMyPageMain} />
-  }
-
   if (showIdentityVerification) {
-    return (
-      <IdentityVerificationScreen
-        onBack={backToMyPageMain}
-        onSubmit={() => {
-          setShowIdentityVerification(false)
-          setShowIdentityComplete(true)
-          pushToHistory('mypage-identity-complete')
-        }}
-      />
-    )
+    // Route to the correct screen based on verification status
+    // Access gating: PENDING and UNDER_REVIEW prevent navigation to other screens
+    if (forceDefaultScreen) {
+      // Force default screen for resubmission
+      return (
+        <IdentityVerificationDefaultScreen
+          onBack={backToMyPageMain}
+          onSubmit={() => {
+            setShowIdentityVerification(false)
+            setForceDefaultScreen(false)
+            // Refresh the verification status
+            setTimeout(() => setShowIdentityVerification(true), 100)
+          }}
+        />
+      )
+    } else if (verificationStatus?.status === "UNDER_REVIEW" || verificationStatus?.status === "PENDING") {
+      return (
+        <IdentityVerificationPendingUnderReviewScreen
+          onBack={backToMyPageMain}
+        />
+      )
+    } else if (verificationStatus?.status === "APPROVED") {
+      return (
+        <IdentityVerificationApprovedScreen
+          onBack={backToMyPageMain}
+        />
+      )
+    } else if (verificationStatus?.status === "REJECTED" || verificationStatus?.status === "EXPIRED") {
+      return (
+        <IdentityVerificationRejectExpiredScreen
+          onBack={backToMyPageMain}
+          onResubmit={() => {
+            // Force navigation to default screen for resubmission
+            setForceDefaultScreen(true)
+            setShowIdentityVerification(false)
+            setTimeout(() => setShowIdentityVerification(true), 100)
+          }}
+        />
+      )
+    } else {
+      // PENDING or no record - show the default verification screen
+      return (
+        <IdentityVerificationDefaultScreen
+          onBack={backToMyPageMain}
+          onSubmit={() => {
+            setShowIdentityVerification(false)
+            // Refresh the verification status
+            setTimeout(() => setShowIdentityVerification(true), 100)
+          }}
+        />
+      )
+    }
   }
 
   if (showPointHistory) {
