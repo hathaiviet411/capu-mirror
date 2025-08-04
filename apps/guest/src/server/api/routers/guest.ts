@@ -340,10 +340,10 @@ export const guestRouter = createTRPCRouter({
 
       return ctx.db.favorite.findMany({
         where: {
-          guestId: input.guestId,
+          favoriteUserId: input.guestId,
         },
         include: {
-          cast: {
+          cast_profiles: {
             include: {
               user: {
                 select: {
@@ -384,9 +384,9 @@ export const guestRouter = createTRPCRouter({
 
     const existingFavorite = await ctx.db.favorite.findUnique({
       where: {
-        guestId_castId: {
-          guestId: ctx.session.user.id,
-          castId: input.castId,
+        userId_favoriteUserId: {
+          userId: ctx.session.user.id,
+          favoriteUserId: input.castId,
         },
       },
     });
@@ -400,11 +400,11 @@ export const guestRouter = createTRPCRouter({
 
     return ctx.db.favorite.create({
       data: {
-        guestId: ctx.session.user.id,
-        castId: input.castId,
+        userId: ctx.session.user.id,
+        favoriteUserId: input.castId,
       },
       include: {
-        cast: {
+        cast_profiles: {
           include: {
             user: {
               select: {
@@ -431,9 +431,9 @@ export const guestRouter = createTRPCRouter({
 
       const favorite = await ctx.db.favorite.findUnique({
         where: {
-          guestId_castId: {
-            guestId: ctx.session.user.id,
-            castId: input.castId,
+          userId_favoriteUserId: {
+            userId: ctx.session.user.id,
+            favoriteUserId: input.castId,
           },
         },
       });
@@ -447,9 +447,9 @@ export const guestRouter = createTRPCRouter({
 
       return ctx.db.favorite.delete({
         where: {
-          guestId_castId: {
-            guestId: ctx.session.user.id,
-            castId: input.castId,
+          userId_favoriteUserId: {
+            userId: ctx.session.user.id,
+            favoriteUserId: input.castId,
           },
         },
       });

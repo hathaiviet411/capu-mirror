@@ -498,12 +498,12 @@ model DeviceToken {
 model Favorite {
   id             String      @id @default(cuid())
   userId         String
-  favariteUserId String
+  favoriteUserId String
   createdAt      DateTime    @default(now())
-  cast_profiles  CastProfile @relation(fields: [favariteUserId], references: [id], onDelete: Cascade)
+  cast_profiles  CastProfile @relation(fields: [favoriteUserId], references: [id], onDelete: Cascade)
   users          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, favariteUserId], map: "favorites_guestId_castId_key")
+  @@unique([userId, favoriteUserId], map: "favorites_guestId_castId_key")
   @@map("favorites")
 }
 
