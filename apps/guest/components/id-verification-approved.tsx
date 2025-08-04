@@ -6,6 +6,7 @@ import Image from "next/image"
 import { api } from "~/utils/api"
 import { useSession } from "next-auth/react"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useCallback, useMemo } from "react"
 
 interface IdentityVerificationApprovedScreenProps {
   onBack: () => void
@@ -19,19 +20,47 @@ export default function IdentityVerificationApprovedScreen({ onBack }: IdentityV
     { enabled: !!session?.user?.id }
   )
 
+  const documentTypeMapping = useMemo(() => ({
+    "DRIVERS_LICENSE": "運転免許証",
+    "PASSPORT": "パスポート",
+    "NATIONAL_ID": "マイナンバーカード",
+    "RESIDENCE_CARD": "健康保険証"
+  }), [])
+
+  const hasDocuments = useMemo(() => 
+    verificationData?.documentUrls && verificationData.documentUrls.length > 0,
+    [verificationData?.documentUrls]
+  )
+
+  const documentTypeText = useMemo(() => {
+    if (!verificationData?.documentType) return "不明"
+    return documentTypeMapping[verificationData.documentType as keyof typeof documentTypeMapping] || "不明"
+  }, [verificationData?.documentType, documentTypeMapping])
+
+  const submittedDate = useMemo(() => {
+    if (!verificationData?.submittedAt) return "不明"
+    return new Date(verificationData.submittedAt).toLocaleDateString('ja-JP')
+  }, [verificationData?.submittedAt])
+
+  const reviewedDate = useMemo(() => {
+    if (!verificationData?.reviewedAt) return "不明"
+    return new Date(verificationData.reviewedAt).toLocaleDateString('ja-JP')
+  }, [verificationData?.reviewedAt])
+
+  const handleBackClick = useCallback(() => {
+    onBack()
+  }, [onBack])
+
   return (
     <div className="h-screen w-full md:max-w-sm mx-auto bg-gray-100 flex flex-col relative">
-      {/* Header */}
       <div className="bg-green-500 px-4 py-4 h-16 flex items-center gap-3 w-full z-10 shadow-lg flex-shrink-0">
-        <button onClick={onBack}>
+        <button onClick={handleBackClick}>
           <ArrowLeft className="w-5 h-5 text-white" />
         </button>
         <span className="text-base font-medium text-white">本人確認完了</span>
       </div>
 
-      {/* Main Content - Scrollable */}
       <div className="flex-1 overflow-y-auto bg-gray-100 p-4">
-        {/* Success Message */}
         <div className="bg-white rounded-lg p-6 mb-4 text-center">
           <div className="mb-4">
             <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
@@ -47,7 +76,6 @@ export default function IdentityVerificationApprovedScreen({ onBack }: IdentityV
           </div>
         </div>
 
-        {/* Submitted Documents */}
         <div className="bg-white rounded-lg p-4 mb-4">
           <h3 className="text-sm font-medium text-black mb-3">提出済み書類</h3>
           
@@ -57,7 +85,7 @@ export default function IdentityVerificationApprovedScreen({ onBack }: IdentityV
                 <Skeleton key={i} className="w-full h-32 rounded-lg" />
               ))}
             </div>
-          ) : verificationData?.documentUrls && verificationData.documentUrls.length > 0 ? (
+          ) : hasDocuments && verificationData ? (
             <div className="grid grid-cols-2 gap-2">
               {verificationData.documentUrls.map((url: string, index: number) => (
                 <div key={index} className="relative">
@@ -80,43 +108,26 @@ export default function IdentityVerificationApprovedScreen({ onBack }: IdentityV
           )}
         </div>
 
-        {/* Document Information */}
         {verificationData && (
           <div className="bg-white rounded-lg p-4 mb-4">
             <h3 className="text-sm font-medium text-black mb-3">書類情報</h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">書類の種類:</span>
-                <span className="text-black">
-                  {verificationData.documentType === "DRIVERS_LICENSE" && "運転免許証"}
-                  {verificationData.documentType === "PASSPORT" && "パスポート"}
-                  {verificationData.documentType === "NATIONAL_ID" && "マイナンバーカード"}
-                  {verificationData.documentType === "RESIDENCE_CARD" && "健康保険証"}
-                </span>
+                <span className="text-black">{documentTypeText}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">提出日:</span>
-                <span className="text-black">
-                  {verificationData.submittedAt ? 
-                    new Date(verificationData.submittedAt).toLocaleDateString('ja-JP') : 
-                    "不明"
-                  }
-                </span>
+                <span className="text-black">{submittedDate}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">承認日:</span>
-                <span className="text-black">
-                  {verificationData.reviewedAt ? 
-                    new Date(verificationData.reviewedAt).toLocaleDateString('ja-JP') : 
-                    "不明"
-                  }
-                </span>
+                <span className="text-black">{reviewedDate}</span>
               </div>
             </div>
           </div>
         )}
 
-        {/* Privacy Notice */}
         <div className="bg-blue-50 rounded-lg p-4 mb-4">
           <div className="flex items-start gap-2">
             <svg
@@ -141,8 +152,6 @@ export default function IdentityVerificationApprovedScreen({ onBack }: IdentityV
             </div>
           </div>
         </div>
-
-
       </div>
     </div>
   )

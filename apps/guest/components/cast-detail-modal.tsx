@@ -4,10 +4,9 @@ import { api } from "~/utils/api"
 import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { useToast } from "@/components/ui/use-toast"
 import { ArrowLeft, Star, MessageCircle, Heart, Loader2 } from "lucide-react"
-
 import Image from "next/image"
 
 interface CastDetailModalProps {
@@ -30,16 +29,31 @@ interface CastDetailModalProps {
 
 export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailModalProps) {
   const { toast } = useToast()
-
   const { data: session } = useSession()
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [showHeader, setShowHeader] = useState(false)
 
-  const castId = cast?.id
+  const castId = useMemo(() => cast?.id, [cast?.id])
+
+  const calculateAge = useCallback((birthDate: string | Date | null | undefined): number => {
+    if (!birthDate) return 0
+    
+    const birth = new Date(birthDate)
+    const today = new Date()
+    
+    let age = today.getFullYear() - birth.getFullYear()
+    const monthDiff = today.getMonth() - birth.getMonth()
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--
+    }
+    
+    return age
+  }, [])
 
   const { data: castDetail, isLoading: isLoadingDetail, error: detailError } = api.guest.getCastDetail.useQuery(
-    { castId: castId! },
+    { castId: castId || "" },
     { 
       enabled: isOpen && !!castId,
       staleTime: 1000 * 60 * 5,
@@ -52,7 +66,8 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
   )
 
   const isFavorite = useMemo(() => {
-    return favoritesData?.some(fav => fav.castId === castId) || false
+    if (!castId || !favoritesData) return false
+    return favoritesData.some(fav => fav.favoriteUserId === castId)
   }, [favoritesData, castId])
 
   const addFavoriteMutation = api.guest.addFavorite.useMutation({
@@ -104,7 +119,7 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
     },
   })
 
-  const handleFavoriteToggle = () => {
+  const handleFavoriteToggle = useCallback(() => {
     if (!castId) return
     
     if (isFavorite) {
@@ -112,45 +127,147 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
     } else {
       addFavoriteMutation.mutate({ castId })
     }
-  }
+  }, [castId, isFavorite, removeFavoriteMutation, addFavoriteMutation])
 
-  const handleLikeCast = () => {
+  const handleLikeCast = useCallback(() => {
     if (!castId) return
     likeCastMutation.mutate({ castId })
-  }
+  }, [castId, likeCastMutation])
 
-  const calculateAge = (birthDate: string | Date | null | undefined): number => {
-    if (!birthDate) return 0
-    
-    const birth = new Date(birthDate)
-    const today = new Date()
-    
-    let age = today.getFullYear() - birth.getFullYear()
-    const monthDiff = today.getMonth() - birth.getMonth()
-    
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--
+  const handleCloseClick = useCallback(() => {
+    onClose()
+  }, [onClose])
+
+  const handleImageClick = useCallback((index: number) => {
+    setCurrentImageIndex(index)
+  }, [])
+
+  const handleReloadClick = useCallback(() => {
+    window.location.reload()
+  }, [])
+
+  const handleScroll = useCallback((e: Event) => {
+    const target = e.target as HTMLElement
+    if (target.scrollTop > 300) {
+      setShowHeader(true)
+    } else {
+      setShowHeader(false)
     }
-    
-    return age
-  }
+  }, [])
+
+  const castTags = useMemo(() => 
+    (castDetail as any)?.userTags?.map((tag: any) => tag.name) || [],
+    [castDetail]
+  )
+
+  const castInformation = useMemo(() => 
+    (castDetail as any)?.user,
+    [castDetail]
+  )
+
+  const castName = useMemo(() => 
+    castInformation?.name || "Unknown",
+    [castInformation?.name]
+  )
+
+  const castAliasName = useMemo(() => 
+    castInformation?.aliasName || "",
+    [castInformation?.aliasName]
+  )
+
+  const castAge = useMemo(() => 
+    calculateAge(castInformation?.birthDate) || "",
+    [castInformation?.birthDate]
+  )
+
+  const castQuote = useMemo(() => 
+    castInformation?.quote || "",
+    [castInformation?.quote]
+  )
+
+  const castAvatar = useMemo(() => 
+    castInformation?.image || "/placeholder-user.jpg",
+    [castInformation?.image]
+  )
+
+  const castHourlyRate = useMemo(() => 
+    castInformation?.hourlyRate || "",
+    [castInformation?.hourlyRate]
+  )
+
+  const castAdditionalImages = useMemo(() => 
+    castInformation?.additionalImages || [],
+    [castInformation?.additionalImages]
+  )
+
+  const castSelfIntro = useMemo(() => 
+    castInformation?.selfIntro || "",
+    [castInformation?.selfIntro]
+  )
+
+  const castImages = useMemo(() => 
+    [castAvatar, ...castAdditionalImages].filter(Boolean),
+    [castAvatar, castAdditionalImages]
+  )
+
+  const castHeight = useMemo(() => 
+    castInformation?.height || "",
+    [castInformation?.height]
+  )
+
+  const castWeight = useMemo(() => 
+    castInformation?.weight || "",
+    [castInformation?.weight]
+  )
+
+  const castResidence = useMemo(() => 
+    castInformation?.residence || "",
+    [castInformation?.residence]
+  )
+
+  const castEducation = useMemo(() => 
+    castInformation?.education || "",
+    [castInformation?.education]
+  )
+
+  const castOccupation = useMemo(() => 
+    castInformation?.occupation || "",
+    [castInformation?.occupation]
+  )
+
+  const castDrinkingLevel = useMemo(() => 
+    castInformation?.drinkingLevel || "",
+    [castInformation?.drinkingLevel]
+  )
+
+  const castSmokingLevel = useMemo(() => 
+    castInformation?.smokingLevel || "",
+    [castInformation?.smokingLevel]
+  )
+
+  const castSiblings = useMemo(() => 
+    castInformation?.siblings || "",
+    [castInformation?.siblings]
+  )
+
+  const averageRating = useMemo(() => {
+    const reviews = (castDetail as any)?.reviews
+    if (!reviews || reviews.length === 0) return 0
+    return reviews.reduce((sum: number, review: any) => sum + review.rating, 0) / reviews.length
+  }, [castDetail])
+
+  const reviewCount = useMemo(() => 
+    (castDetail as any)?.reviews?.length || 0,
+    [castDetail]
+  )
 
   useEffect(() => {
-    const handleScroll = (e: Event) => {
-      const target = e.target as HTMLElement
-      if (target.scrollTop > 300) {
-        setShowHeader(true)
-      } else {
-        setShowHeader(false)
-      }
-    }
-
     const scrollContainer = document.getElementById("cast-detail-scroll")
     if (scrollContainer && isOpen) {
       scrollContainer.addEventListener("scroll", handleScroll)
       return () => scrollContainer.removeEventListener("scroll", handleScroll)
     }
-  }, [isOpen])
+  }, [isOpen, handleScroll])
 
   if (!isOpen || !cast) return null
 
@@ -258,7 +375,7 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
     return (
       <div className="fixed inset-0 z-50 bg-gray-100 w-full md:max-w-sm mx-auto flex flex-col">
         <div className="bg-gold-pink-gradient px-4 py-4 h-16 flex items-center gap-3">
-          <button onClick={onClose}>
+          <button onClick={handleCloseClick}>
             <ArrowLeft className="w-5 h-5 text-white" />
           </button>
           <span className="text-base font-medium text-white">エラー</span>
@@ -284,12 +401,12 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
           </p>
           
           <div className="flex gap-3">
-            <Button onClick={onClose} variant="outline" className="flex-1" >
+            <Button onClick={handleCloseClick} variant="outline" className="flex-1" >
               <span>閉じる</span>
             </Button>
             
             <Button 
-              onClick={() => window.location.reload()} 
+              onClick={handleReloadClick} 
               className="flex-1 bg-gold-pink-gradient hover:bg-gold-pink-gradient-dark text-white"
             >
               <span>再読み込み</span>
@@ -299,38 +416,6 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
       </div>
     )
   }
-  const castTags = (castDetail as any)?.userTags?.map((tag: any) => tag.name) || []
-  console.log("====================================================================================");
-  console.log("castTags", castTags);
-  console.log("====================================================================================");
-
-  const castInformation = (castDetail as any)?.user
-  console.log("====================================================================================");
-  console.log("castInformation", castInformation);
-  console.log("====================================================================================");
-
-  const castName = castInformation?.name || "Unknown"
-  const castAliasName = castInformation?.aliasName || ""
-  const castAge = calculateAge(castInformation?.birthDate) || ""
-  const castQuote = castInformation?.quote || ""
-  const castAvatar = castInformation?.image || "/placeholder-user.jpg"
-  const castHourlyRate = castInformation?.hourlyRate || ""
-  const castAdditionalImages = castInformation?.additionalImages || []
-  const castSelfIntro = castInformation?.selfIntro || ""
-  const castImages = [castAvatar, ...castAdditionalImages].filter(Boolean)
-
-  const castHeight = castInformation?.height || ""
-  const castWeight = castInformation?.weight || ""
-  const castResidence = castInformation?.residence || ""
-  const castEducation = castInformation?.education || ""
-  const castOccupation = castInformation?.occupation || ""
-  const castDrinkingLevel = castInformation?.drinkingLevel || ""
-  const castCigaretteLevel = castInformation?.cigaretteLevel || ""
-  const castSiblings = castInformation?.siblings || ""
-  
-  const averageRating = (castDetail as any)?.reviews?.length > 0 
-    ? (castDetail as any).reviews.reduce((sum: number, review: any) => sum + review.rating, 0) / (castDetail as any).reviews.length 
-    : 0
 
   return (
     <div className="fixed inset-0 z-50 bg-gray-100 w-full md:max-w-sm mx-auto flex flex-col">
@@ -344,7 +429,7 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
           />
 
           <button
-            onClick={onClose}
+            onClick={handleCloseClick}
             className="absolute top-4 left-4 w-10 h-10 bg-black/50 rounded-full flex items-center justify-center z-10"
           >
             <ArrowLeft className="w-5 h-5 text-white" />
@@ -375,7 +460,7 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
               castImages.map((image, index) => (
                 <button
                   key={index}
-                  onClick={() => setCurrentImageIndex(index)}
+                  onClick={() => handleImageClick(index)}
                   className={`
                     w-16 h-16 rounded-lg overflow-hidden border-2 
                     ${currentImageIndex === index? "border-gold-pink-gradient": "border-gray-200"}`
@@ -412,7 +497,7 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
                 <div className="flex items-center gap-1 mt-2">
                   <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
                   <span className="text-sm text-gray-600">{averageRating.toFixed(1)}</span>
-                  <span className="text-sm text-gray-500">({(castDetail as any)?.reviews?.length}件)</span>
+                  <span className="text-sm text-gray-500">({reviewCount}件)</span>
                 </div>
               )
             }
@@ -489,7 +574,7 @@ export default function CastDetailModal({ isOpen, onClose, cast }: CastDetailMod
 
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">タバコ：</span>
-              <span className="text-sm font-medium">{castCigaretteLevel}</span>
+              <span className="text-sm font-medium">{castSmokingLevel}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">

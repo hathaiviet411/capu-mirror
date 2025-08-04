@@ -66,6 +66,7 @@ model User {
   birthplace             String?
   smokingLevel           String?
   cohabitant             String?
+  favoriteUsers          String[]
   accounts               Account[]
   sessions               Session[]
   activityLogs           ActivityLog[]
@@ -522,6 +523,7 @@ model File {
   uploadedAt   DateTime?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
+  fileUrl_R2   String?
   user         User         @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
 
   @@map("files")

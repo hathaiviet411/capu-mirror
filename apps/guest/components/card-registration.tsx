@@ -2,7 +2,7 @@
 
 import { ArrowLeft, Check, CreditCard, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { api } from "~/utils/api"
 import { useToast } from "@/components/ui/use-toast"
 import { useSession } from "next-auth/react"
@@ -36,13 +36,11 @@ export default function CreditCardRegistrationScreen({ onBack, selectedCardData 
   const [showSuccessPopup, setShowSuccessPopup] = useState(false)
   const [isCardNumberFocused, setIsCardNumberFocused] = useState(false)
 
-  // Get existing payment methods
   const { data: existingPaymentMethods, isLoading: isLoadingPaymentMethods } = api.payment.getUserPaymentMethods.useQuery(
     undefined,
     { enabled: !!session?.user?.id }
   )
 
-  // API mutation for saving payment method
   const savePaymentMethodMutation = api.payment.savePaymentMethod.useMutation({
     onSuccess: () => {
       setShowSuccessPopup(true)
@@ -60,31 +58,42 @@ export default function CreditCardRegistrationScreen({ onBack, selectedCardData 
     },
   })
 
-  const formatCardNumber = (value: string) => {
-    // Remove all non-digits
-    const digits = value.replace(/\D/g, "")
-    // Add spaces every 4 digits
-    return digits.replace(/(\d{4})(?=\d)/g, "$1 ").trim()
-  }
+  const cardType = useMemo(() => {
+    const digits = formData.cardNumber.replace(/\D/g, "")
+    if (digits.startsWith("4")) return "Visa"
+    if (digits.startsWith("5")) return "Mastercard"
+    if (digits.startsWith("34") || digits.startsWith("37")) return "American Express"
+    if (digits.startsWith("6")) return "Discover"
+    return ""
+  }, [formData.cardNumber])
 
-  const maskCardNumber = (cardNumber: string) => {
-    const digits = cardNumber.replace(/\D/g, "")
-    if (digits.length < 8) return cardNumber
+  const maskedCardNumber = useMemo(() => {
+    const digits = formData.cardNumber.replace(/\D/g, "")
+    if (digits.length < 8) return formData.cardNumber
     
     const first4 = digits.slice(0, 4)
     const last4 = digits.slice(-4)
     return `${first4} **** **** ${last4}`
-  }
+  }, [formData.cardNumber])
 
-  const validateCardNumber = (cardNumber: string) => {
+  const displayCardNumber = useMemo(() => {
+    return isCardNumberFocused ? formData.cardNumber : maskedCardNumber
+  }, [isCardNumberFocused, formData.cardNumber, maskedCardNumber])
+
+  const formatCardNumber = useCallback((value: string) => {
+    const digits = value.replace(/\D/g, "")
+    return digits.replace(/(\d{4})(?=\d)/g, "$1 ").trim()
+  }, [])
+
+  const validateCardNumber = useCallback((cardNumber: string) => {
     const digits = cardNumber.replace(/\D/g, "")
     if (digits.length < 13 || digits.length > 19) {
       return "カード番号は13桁から19桁で入力してください"
     }
     return ""
-  }
+  }, [])
 
-  const validateExpiryDate = (month: string, year: string) => {
+  const validateExpiryDate = useCallback((month: string, year: string) => {
     if (!month || !year) {
       return "有効期限を選択してください"
     }
@@ -101,62 +110,60 @@ export default function CreditCardRegistrationScreen({ onBack, selectedCardData 
     }
     
     return ""
-  }
+  }, [])
 
-  const validateSecurityCode = (code: string) => {
+  const validateSecurityCode = useCallback((code: string) => {
     if (code.length < 3 || code.length > 4) {
       return "セキュリティコードは3桁または4桁で入力してください"
     }
     return ""
-  }
+  }, [])
 
-  const validateCardholderName = (name: string) => {
+  const validateCardholderName = useCallback((name: string) => {
     if (name.trim().length < 2) {
       return "カード名義人は2文字以上で入力してください"
     }
     return ""
-  }
+  }, [])
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleBackClick = useCallback(() => {
+    onBack()
+  }, [onBack])
+
+  const handleInputChange = useCallback((field: string, value: string) => {
     let processedValue = value
     
-    // Format card number with spaces
     if (field === "cardNumber") {
       processedValue = formatCardNumber(value)
     }
     
     setFormData({ ...formData, [field]: processedValue })
     
-    // Clear error when user starts typing
     if (errors[field]) {
       setErrors({ ...errors, [field]: "" })
     }
-  }
+  }, [formData, errors, formatCardNumber])
 
-  const validateForm = () => {
+  const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {}
     
-    // Validate card number
     const cardNumberError = validateCardNumber(formData.cardNumber)
     if (cardNumberError) newErrors.cardNumber = cardNumberError
     
-    // Validate expiry date
     const expiryError = validateExpiryDate(formData.expiryMonth, formData.expiryYear)
     if (expiryError) newErrors.expiry = expiryError
     
-    // Validate security code
     const securityCodeError = validateSecurityCode(formData.securityCode)
     if (securityCodeError) newErrors.securityCode = securityCodeError
     
-    // Validate cardholder name
     const nameError = validateCardholderName(formData.cardholderName)
     if (nameError) newErrors.cardholderName = nameError
     
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
-  }
+  }, [formData, validateCardNumber, validateExpiryDate, validateSecurityCode, validateCardholderName])
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!validateForm()) {
       toast({
         title: "入力エラー",
@@ -181,23 +188,18 @@ export default function CreditCardRegistrationScreen({ onBack, selectedCardData 
     } finally {
       setIsSubmitting(false)
     }
-  }
+  }, [validateForm, toast, savePaymentMethodMutation, formData])
 
-  const getCardType = (cardNumber: string) => {
-    const digits = cardNumber.replace(/\D/g, "")
-    if (digits.startsWith("4")) return "Visa"
-    if (digits.startsWith("5")) return "Mastercard"
-    if (digits.startsWith("34") || digits.startsWith("37")) return "American Express"
-    if (digits.startsWith("6")) return "Discover"
-    return ""
-  }
+  const handleCardNumberFocus = useCallback(() => {
+    setIsCardNumberFocused(true)
+  }, [])
 
-  const cardType = getCardType(formData.cardNumber)
+  const handleCardNumberBlur = useCallback(() => {
+    setIsCardNumberFocused(false)
+  }, [])
 
-  // Load existing payment method data
   useEffect(() => {
     if (selectedCardData) {
-      // Use selected card data from payment info screen (editing existing card)
       setFormData({
         cardNumber: selectedCardData.cardNumber,
         expiryMonth: selectedCardData.expiryMonth,
@@ -206,7 +208,6 @@ export default function CreditCardRegistrationScreen({ onBack, selectedCardData 
         cardholderName: selectedCardData.cardholderName,
       })
     } else {
-      // Clear form for new card registration
       setFormData({
         cardNumber: "",
         expiryMonth: "",
@@ -219,9 +220,8 @@ export default function CreditCardRegistrationScreen({ onBack, selectedCardData 
 
   return (
     <div className="min-h-screen w-full md:max-w-sm mx-auto bg-gray-100 flex flex-col relative">
-      {/* Header */}
       <div className="bg-gold-pink-gradient px-4 py-4 h-16 flex items-center gap-3 border-b shadow-lg">
-        <button onClick={onBack}>
+        <button onClick={handleBackClick}>
           <ArrowLeft className="w-5 h-5 text-white" />
         </button>
         <h1 className="text-base font-medium text-white">
@@ -234,9 +234,7 @@ export default function CreditCardRegistrationScreen({ onBack, selectedCardData 
         </h1>
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 mt-4 bg-gray-100 p-4">
-        {/* Existing Payment Methods */}
         {existingPaymentMethods && existingPaymentMethods.length > 0 && (
           <div className="bg-white rounded-lg p-4 mb-4">
             <h3 className="text-sm font-medium text-black mb-3">登録済みのカード</h3>
@@ -265,17 +263,16 @@ export default function CreditCardRegistrationScreen({ onBack, selectedCardData 
         )}
 
         <div className="bg-white rounded-lg p-4 space-y-6">
-          {/* Card Number */}
           <div>
             <label className="block text-sm font-medium text-black mb-2">カード番号</label>
             <div className="relative">
               <input
                 type="text"
                 placeholder="1234 5678 9012 3456"
-                value={isCardNumberFocused ? formData.cardNumber : maskCardNumber(formData.cardNumber)}
+                value={displayCardNumber}
                 onChange={(e) => handleInputChange("cardNumber", e.target.value)}
-                onFocus={() => setIsCardNumberFocused(true)}
-                onBlur={() => setIsCardNumberFocused(false)}
+                onFocus={handleCardNumberFocus}
+                onBlur={handleCardNumberBlur}
                 className={`w-full p-3 pr-12 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-pink-400 ${
                   errors.cardNumber ? "border-red-500" : "border-gray-300"
                 }`}
@@ -298,7 +295,6 @@ export default function CreditCardRegistrationScreen({ onBack, selectedCardData 
             )}
           </div>
 
-          {/* Expiry Date */}
           <div>
             <label className="block text-sm font-medium text-black mb-2">有効期限</label>
             <div className="flex gap-3">
@@ -342,7 +338,6 @@ export default function CreditCardRegistrationScreen({ onBack, selectedCardData 
             )}
           </div>
 
-          {/* Security Code */}
           <div>
             <label className="block text-sm font-medium text-black mb-2">セキュリティコード</label>
             <input
@@ -364,7 +359,6 @@ export default function CreditCardRegistrationScreen({ onBack, selectedCardData 
             <p className="text-xs text-gray-500 mt-1">カード裏面の3桁または4桁の番号</p>
           </div>
 
-          {/* Cardholder Name */}
           <div>
             <label className="block text-sm font-medium text-black mb-2">カード名義人</label>
             <input
@@ -385,7 +379,6 @@ export default function CreditCardRegistrationScreen({ onBack, selectedCardData 
             <p className="text-xs text-gray-500 mt-1">カードに記載されている通りに入力してください</p>
           </div>
 
-          {/* Security Notice */}
           <div className="bg-blue-50 p-4 rounded-lg">
             <div className="flex items-start gap-2">
               <svg
@@ -411,7 +404,6 @@ export default function CreditCardRegistrationScreen({ onBack, selectedCardData 
           </div>
         </div>
 
-        {/* Save Button */}
         <div className="mt-6">
           <Button
             onClick={handleSave}
@@ -430,7 +422,6 @@ export default function CreditCardRegistrationScreen({ onBack, selectedCardData 
         </div>
       </div>
 
-      {/* Success Popup */}
       {showSuccessPopup && (
         <div className="fixed inset-0 z-60 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white rounded-lg p-6 mx-4 max-w-sm w-full shadow-xl">

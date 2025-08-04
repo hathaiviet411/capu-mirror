@@ -13,7 +13,6 @@ export interface SearchFilters {
   tagIds?: string[]
   minRate?: number
   maxRate?: number
-  isVerified?: boolean
   ageRange?: { min?: number; max?: number }
   heightRange?: { min?: number; max?: number }
 }
@@ -27,7 +26,6 @@ interface SearchModalProps {
 
 export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountChange }: SearchModalProps) {
   const [activeTab, setActiveTab] = useState("pato")
-  const [selectedClasses, setSelectedClasses] = useState<string[]>([])
 
   const [residenceId, setResidenceId] = useState("")
   const [residenceName, setResidenceName] = useState("")
@@ -51,7 +49,6 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
     if (birthplaceId) count++
     if (ageRange.min || ageRange.max) count++
     if (heightRange.min || heightRange.max) count++
-    if (selectedClasses.length > 0) count++
     if (selectedTagIds.length > 0) count++
     if (freeWord.trim()) count++
     
@@ -62,16 +59,9 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
   useEffect(() => {
     const count = calculateFilterCount()
     onFilterCountChange?.(count)
-  }, [residenceId, birthplaceId, ageRange, heightRange, selectedClasses, selectedTagIds, freeWord, onFilterCountChange])
-
-  const toggleClass = (className: string) => {
-    setSelectedClasses((prev) =>
-      prev.includes(className) ? prev.filter((c) => c !== className) : [...prev, className],
-    )
-  }
+  }, [residenceId, birthplaceId, ageRange, heightRange, selectedTagIds, freeWord, onFilterCountChange])
 
   const handleClear = () => {
-    setSelectedClasses([])
     setResidenceId("")
     setResidenceName("")
     setBirthplaceId("")
@@ -93,9 +83,6 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
     if (heightRange.min || heightRange.max) {
       conditions.push(`身長:${heightRange.min || "150"}-${heightRange.max || "200"}cm`)
     }
-    if (selectedClasses.length > 0) {
-      conditions.push(`クラス:${selectedClasses.join(",")}`)
-    }
     if (selectedTagNames.length > 0) {
       conditions.push(`タグ:${selectedTagNames.slice(0, 2).join(",")}${selectedTagNames.length > 2 ? "..." : ""}`)
     }
@@ -108,7 +95,6 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
       query: freeWord || undefined,
       areaId: residenceId || undefined,
       tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
-      isVerified: selectedClasses.includes("VIP") ? true : undefined,
       ageRange: (ageRange.min || ageRange.max) ? {
         min: ageRange.min ? parseInt(ageRange.min) : undefined,
         max: ageRange.max ? parseInt(ageRange.max) : undefined,
@@ -221,7 +207,7 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
                   {selectedTagNames && selectedTagNames.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {selectedTagNames.slice(0, 3).map((tag) => (
-                        <span key={tag} className="bg-pink-100 text-pink-800 text-xs px-2 py-1 rounded">
+                        <span key={tag} className="px-2 py-1 text-xs bg-gold-pink-gradient text-white rounded-md">
                           {tag}
                         </span>
                       ))}
@@ -234,29 +220,6 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
                 <ChevronDown className="w-4 h-4 text-gray-400 ml-2" />
               </div>
             </button>
-          </div>
-
-          {/* Cast Class */}
-          <div className="mb-6">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">キャストクラス</h3>
-            <div className="flex flex-wrap gap-2 mb-4">
-              {["VIP"].map((className) => (
-                <button
-                  key={className}
-                  onClick={() => toggleClass(className)}
-                  className={`px-4 py-2 text-sm rounded-full ${
-                    selectedClasses.includes(className)
-                      ? "bg-gold-pink-gradient text-white"
-                      : "bg-gray-100 text-gray-600"
-                  }`}
-                >
-                  {className}
-                </button>
-              ))}
-            </div>
-            <div className="space-y-2 text-xs text-gray-600">
-              <p>「VIP」… 厳選キャストの中でも更に10%しかいない特別なキャスト</p>
-            </div>
           </div>
 
           {/* Free Word */}
@@ -300,36 +263,33 @@ export default function SearchModal({ isOpen, onClose, onSearch, onFilterCountCh
       <TagSelectionModal
         isOpen={showTagModal}
         onClose={() => setShowTagModal(false)}
-        onSave={(tagIds: string[], tagNames: string[]) => {
-          setSelectedTagIds(tagIds)
-          setSelectedTagNames(tagNames)
+        onSave={(selectedTags: string[]) => {
+          setSelectedTagIds(selectedTags)
+          setSelectedTagNames(selectedTags)
         }}
-        initialTagIds={selectedTagIds}
-        initialTagNames={selectedTagNames}
+        initialTags={selectedTagNames}
       />
 
       {/* Area Selection Modals */}
       <AreaSelectionModal
         isOpen={showResidenceModal}
         onClose={() => setShowResidenceModal(false)}
-        onSave={(areaId: string, areaName: string) => {
-          setResidenceId(areaId)
-          setResidenceName(areaName)
+        onSave={(selectedArea: string) => {
+          setResidenceId(selectedArea)
+          setResidenceName(selectedArea)
         }}
         title="居住地を選択"
-        initialAreaId={residenceId}
-        initialAreaName={residenceName}
+        initialArea={residenceName}
       />
       <AreaSelectionModal
         isOpen={showBirthplaceModal}
         onClose={() => setShowBirthplaceModal(false)}
-        onSave={(areaId: string, areaName: string) => {
-          setBirthplaceId(areaId)
-          setBirthplaceName(areaName)
+        onSave={(selectedArea: string) => {
+          setBirthplaceId(selectedArea)
+          setBirthplaceName(selectedArea)
         }}
         title="出身地を選択"
-        initialAreaId={birthplaceId}
-        initialAreaName={birthplaceName}
+        initialArea={birthplaceName}
       />
     </>
   )

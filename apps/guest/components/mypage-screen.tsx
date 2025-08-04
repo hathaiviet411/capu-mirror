@@ -20,7 +20,7 @@ import IdentityVerificationPendingUnderReviewScreen from "@/components/id-verify
 import { api } from "~/utils/api"
 import { useSession } from "next-auth/react"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { useToast } from "@/components/ui/use-toast"
 import { Settings, ChevronRight, Loader2, ArrowLeft } from "lucide-react"
 
@@ -58,174 +58,10 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
   const [showIdentityVerification, setShowIdentityVerification] = useState(false)
   const [forceDefaultScreen, setForceDefaultScreen] = useState(false)
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.history.pushState({ screen: 'mypage-main' }, '', window.location.href)
-    }
-
-    const handlePopState = (event: PopStateEvent) => {
-      const state = event.state
-
-      if (state) {
-        switch (state.screen) {
-          case 'mypage-main':
-            setShowProfileEdit(false)
-            setShowJoinedCasts(false)
-            setShowPointHistory(false)
-            setShowPaymentInfo(false)
-            setShowHelp(false)
-            setShowIdentityVerification(false)
-            setShowNotifications(false)
-            setShowMessageList(false)
-            setShowSettings(false)
-            break
-          case 'mypage-profile-edit':
-            setShowProfileEdit(true)
-            break
-          case 'mypage-joined-casts':
-            setShowJoinedCasts(true)
-            break
-          case 'mypage-point-history':
-            setShowPointHistory(true)
-            break
-          case 'mypage-payment-info':
-            setShowPaymentInfo(true)
-            break
-          case 'mypage-help':
-            setShowHelp(true)
-            break
-          case 'mypage-identity-verification':
-            setShowIdentityVerification(true)
-            break
-
-          case 'mypage-notifications':
-            setShowNotifications(true)
-            break
-          case 'mypage-messages':
-            setShowMessageList(true)
-            break
-          case 'mypage-settings':
-            setShowSettings(true)
-            break
-          default:
-            // マイページから戻る場合は親のonBackを呼ぶ
-            if (state.screen === 'home' || state.screen === 'mypage') {
-              onBack()
-            }
-        }
-      } else {
-        // ブラウザの戻るボタンが押された場合
-        onBack()
-      }
-    }
-
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [onBack])
-
-  const pushToHistory = (screen: string, data?: any) => {
-    if (typeof window !== 'undefined') {
-      window.history.pushState({ screen, ...data }, '', window.location.href)
-    }
-  }
-
-  const goBack = () => {
-    if (typeof window !== 'undefined') {
-      window.history.back()
-    }
-  }
-
-  const backToMyPageMain = () => {
-    setShowProfileEdit(false)
-    setShowJoinedCasts(false)
-    setShowPointHistory(false)
-    setShowPaymentInfo(false)
-    setShowHelp(false)
-    setShowIdentityVerification(false)
-    setForceDefaultScreen(false)
-    setShowNotifications(false)
-    setShowMessageList(false)
-    setShowSettings(false)
-    pushToHistory('mypage-main')
-  }
-
-  const navigateToProfileEdit = () => {
-    setShowProfileEdit(true)
-    pushToHistory('mypage-profile-edit')
-  }
-
-  const navigateToJoinedCasts = () => {
-    setShowJoinedCasts(true)
-    pushToHistory('mypage-joined-casts')
-  }
-
-  const navigateToPointHistory = () => {
-    setShowPointHistory(true)
-    pushToHistory('mypage-point-history')
-  }
-
-  const navigateToPaymentInfo = () => {
-    setShowPaymentInfo(true)
-    pushToHistory('mypage-payment-info')
-  }
-
-  const navigateToHelp = () => {
-    setShowHelp(true)
-    pushToHistory('mypage-help')
-  }
-
-  const navigateToIdentityVerification = () => {
-    setShowIdentityVerification(true)
-    pushToHistory('mypage-identity-verification')
-  }
-
-  const navigateToNotifications = () => {
-    setShowNotifications(true)
-    pushToHistory('mypage-notifications')
-  }
-
-  const navigateToMessages = () => {
-    setShowMessageList(true)
-    pushToHistory('mypage-messages')
-  }
-
-  const navigateToSettings = () => {
-    setShowSettings(true)
-    pushToHistory('mypage-settings')
-  }
-
-  // API queries - temporarily disabled
-  // const {
-  //   data: bookingsData,
-  //   isLoading: isLoadingBookings,
-  //   error: bookingsError,
-  // } = api.booking.getUserBookings.useQuery(undefined, {
-  //   enabled: !!session?.user?.id,
-  //   staleTime: 1000 * 60 * 5,
-  //   retry: 1,
-  // })
-
-  // Temporary mock data
   const bookingsData: any[] = []
   const isLoadingBookings = false
   const bookingsError = null
 
-  // const {
-  //   data: notificationsData,
-  //   isLoading: isLoadingNotifications,
-  // } = api.user.getNotifications.useQuery(
-  //   {
-  //     limit: 1,
-  //     offset: 0,
-  //     isRead: false,
-  //   },
-  //   {
-  //     enabled: status === "authenticated",
-  //     staleTime: 1000 * 60 * 2,
-  //   }
-  // )
-
-  // Temporary mock data for notifications
   const notificationsData: any[] = []
   const isLoadingNotifications = false
 
@@ -268,9 +104,9 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
     })
   }, [bookingsData])
 
-  const hasUnreadNotifications = (notificationsData?.length || 0) > 0
+  const hasUnreadNotifications = useMemo(() => (notificationsData?.length || 0) > 0, [notificationsData])
 
-  const getVerificationStatusText = () => {
+  const getVerificationStatusText = useCallback(() => {
     switch (userProfile.verificationStatus) {
       case "PENDING":
         return "提出済み"
@@ -285,9 +121,9 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
       default:
         return "本人確認書類が未提出"
     }
-  }
+  }, [userProfile.verificationStatus])
 
-  const getVerificationStatusColor = () => {
+  const getVerificationStatusColor = useCallback(() => {
     switch (userProfile.verificationStatus) {
       case "PENDING":
         return "bg-yellow-500"
@@ -302,7 +138,172 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
       default:
         return "bg-gold-pink-gradient"
     }
-  }
+  }, [userProfile.verificationStatus])
+
+  const handlePopState = useCallback((event: PopStateEvent) => {
+    const state = event.state
+
+    if (state) {
+      switch (state.screen) {
+        case 'mypage-main':
+          setShowProfileEdit(false)
+          setShowJoinedCasts(false)
+          setShowPointHistory(false)
+          setShowPaymentInfo(false)
+          setShowHelp(false)
+          setShowIdentityVerification(false)
+          setShowNotifications(false)
+          setShowMessageList(false)
+          setShowSettings(false)
+          break
+        case 'mypage-profile-edit':
+          setShowProfileEdit(true)
+          break
+        case 'mypage-joined-casts':
+          setShowJoinedCasts(true)
+          break
+        case 'mypage-point-history':
+          setShowPointHistory(true)
+          break
+        case 'mypage-payment-info':
+          setShowPaymentInfo(true)
+          break
+        case 'mypage-help':
+          setShowHelp(true)
+          break
+        case 'mypage-identity-verification':
+          setShowIdentityVerification(true)
+          break
+        case 'mypage-notifications':
+          setShowNotifications(true)
+          break
+        case 'mypage-messages':
+          setShowMessageList(true)
+          break
+        case 'mypage-settings':
+          setShowSettings(true)
+          break
+        default:
+          if (state.screen === 'home' || state.screen === 'mypage') {
+            onBack()
+          }
+      }
+    } else {
+      onBack()
+    }
+  }, [onBack])
+
+  const pushToHistory = useCallback((screen: string, data?: any) => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ screen, ...data }, '', window.location.href)
+    }
+  }, [])
+
+  const goBack = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.history.back()
+    }
+  }, [])
+
+  const backToMyPageMain = useCallback(() => {
+    setShowProfileEdit(false)
+    setShowJoinedCasts(false)
+    setShowPointHistory(false)
+    setShowPaymentInfo(false)
+    setShowHelp(false)
+    setShowIdentityVerification(false)
+    setForceDefaultScreen(false)
+    setShowNotifications(false)
+    setShowMessageList(false)
+    setShowSettings(false)
+    pushToHistory('mypage-main')
+  }, [pushToHistory])
+
+  const navigateToProfileEdit = useCallback(() => {
+    setShowProfileEdit(true)
+    pushToHistory('mypage-profile-edit')
+  }, [pushToHistory])
+
+  const navigateToJoinedCasts = useCallback(() => {
+    setShowJoinedCasts(true)
+    pushToHistory('mypage-joined-casts')
+  }, [pushToHistory])
+
+  const navigateToPointHistory = useCallback(() => {
+    setShowPointHistory(true)
+    pushToHistory('mypage-point-history')
+  }, [pushToHistory])
+
+  const navigateToPaymentInfo = useCallback(() => {
+    setShowPaymentInfo(true)
+    pushToHistory('mypage-payment-info')
+  }, [pushToHistory])
+
+  const navigateToHelp = useCallback(() => {
+    setShowHelp(true)
+    pushToHistory('mypage-help')
+  }, [pushToHistory])
+
+  const navigateToIdentityVerification = useCallback(() => {
+    setShowIdentityVerification(true)
+    pushToHistory('mypage-identity-verification')
+  }, [pushToHistory])
+
+  const navigateToNotifications = useCallback(() => {
+    setShowNotifications(true)
+    pushToHistory('mypage-notifications')
+  }, [pushToHistory])
+
+  const navigateToMessages = useCallback(() => {
+    setShowMessageList(true)
+    pushToHistory('mypage-messages')
+  }, [pushToHistory])
+
+  const navigateToSettings = useCallback(() => {
+    setShowSettings(true)
+    pushToHistory('mypage-settings')
+  }, [pushToHistory])
+
+  const handleSettingsClick = useCallback(() => {
+    navigateToSettings()
+  }, [navigateToSettings])
+
+  const handleProfileEditClick = useCallback(() => {
+    navigateToProfileEdit()
+  }, [navigateToProfileEdit])
+
+  const handleJoinedCastsClick = useCallback(() => {
+    navigateToJoinedCasts()
+  }, [navigateToJoinedCasts])
+
+  const handlePointHistoryClick = useCallback(() => {
+    navigateToPointHistory()
+  }, [navigateToPointHistory])
+
+  const handlePaymentInfoClick = useCallback(() => {
+    navigateToPaymentInfo()
+  }, [navigateToPaymentInfo])
+
+  const handleIdentityVerificationClick = useCallback(() => {
+    navigateToIdentityVerification()
+  }, [navigateToIdentityVerification])
+
+  const handleHelpClick = useCallback(() => {
+    navigateToHelp()
+  }, [navigateToHelp])
+
+  const handleMessageClick = useCallback(() => {
+    navigateToMessages()
+  }, [navigateToMessages])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ screen: 'mypage-main' }, '', window.location.href)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [handlePopState])
 
   if (showMessageList) {
     return <MessageListScreen onBack={goBack} onNavigateToMyPage={() => setShowMessageList(false)} onNavigateToHome={onBack} />
@@ -317,17 +318,13 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
   }
 
   if (showIdentityVerification) {
-    // Route to the correct screen based on verification status
-    // Access gating: PENDING and UNDER_REVIEW prevent navigation to other screens
     if (forceDefaultScreen) {
-      // Force default screen for resubmission
       return (
         <IdentityVerificationDefaultScreen
           onBack={backToMyPageMain}
           onSubmit={() => {
             setShowIdentityVerification(false)
             setForceDefaultScreen(false)
-            // Refresh the verification status
             setTimeout(() => setShowIdentityVerification(true), 100)
           }}
         />
@@ -349,7 +346,6 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
         <IdentityVerificationRejectExpiredScreen
           onBack={backToMyPageMain}
           onResubmit={() => {
-            // Force navigation to default screen for resubmission
             setForceDefaultScreen(true)
             setShowIdentityVerification(false)
             setTimeout(() => setShowIdentityVerification(true), 100)
@@ -357,13 +353,11 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
         />
       )
     } else {
-      // PENDING or no record - show the default verification screen
       return (
         <IdentityVerificationDefaultScreen
           onBack={backToMyPageMain}
           onSubmit={() => {
             setShowIdentityVerification(false)
-            // Refresh the verification status
             setTimeout(() => setShowIdentityVerification(true), 100)
           }}
         />
@@ -405,7 +399,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
             )
           }
 
-          <button className="p-1 hover:bg-white/20 transition-colors rounded-full" onClick={navigateToSettings}>
+          <button className="p-1 hover:bg-white/20 transition-colors rounded-full" onClick={handleSettingsClick}>
             <Settings className="w-6 h-6 text-white" />
           </button>
         </div>
@@ -427,7 +421,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
             <>
               <div className="relative inline-block mb-4">
                 <button
-                  onClick={navigateToProfileEdit}
+                  onClick={handleProfileEditClick}
                   className="w-32 h-32 rounded-full bg-gray-200 overflow-hidden mx-auto hover:opacity-90 transition-opacity"
                 >
                   <Image
@@ -440,7 +434,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
                 </button>
 
                 <button
-                  onClick={navigateToProfileEdit}
+                  onClick={handleProfileEditClick}
                   className="absolute bottom-2 right-2 w-8 h-8 bg-gold-pink-gradient rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
                 >
                   <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -476,7 +470,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
         <div className="h-4 bg-gray-100"></div>
 
         <div className="bg-white p-4">
-          <button onClick={navigateToJoinedCasts} className="w-full flex items-center justify-between mb-4 hover:bg-gray-50 transition-colors rounded-lg p-2 -m-2">
+          <button onClick={handleJoinedCastsClick} className="w-full flex items-center justify-between mb-4 hover:bg-gray-50 transition-colors rounded-lg p-2 -m-2">
             <span className="text-sm font-medium text-black">合流したキャスト</span>
 
             <div className="flex items-center gap-2">
@@ -564,7 +558,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
 
         <div className="bg-white">
           <button
-            onClick={navigateToPointHistory}
+            onClick={handlePointHistoryClick}
             className="w-full flex items-center justify-between p-4 border-b border-gray-100"
           >
             <div className="flex items-center gap-3">
@@ -584,7 +578,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
           </button>
 
           <button
-            onClick={navigateToPaymentInfo}
+            onClick={handlePaymentInfoClick}
             className="w-full flex items-center justify-between p-4 border-b border-gray-100"
           >
             <div className="flex items-center gap-3">
@@ -615,7 +609,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
           </button>
 
           <button
-            onClick={navigateToIdentityVerification}
+            onClick={handleIdentityVerificationClick}
             className="w-full flex items-center justify-between p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors"
           >
             <div className="flex items-center gap-3">
@@ -642,7 +636,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
             <ChevronRight className="w-5 h-5 text-gray-400" />
           </button>
 
-          <button onClick={navigateToHelp} className="w-full flex items-center justify-between p-4">
+          <button onClick={handleHelpClick} className="w-full flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
               <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -668,7 +662,7 @@ export default function MyPageScreen({ onBack }: MyPageScreenProps) {
         activeButton="profile"
         onSearchClick={onBack}
         onProfileClick={() => { }}
-        onMessageClick={navigateToMessages}
+        onMessageClick={handleMessageClick}
       />
     </div>
   )

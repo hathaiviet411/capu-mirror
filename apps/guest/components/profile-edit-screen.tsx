@@ -11,6 +11,7 @@ import { api } from "~/utils/api"
 import { useToast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useSession } from "next-auth/react"
+import { generateR2Url } from "~/utils/fileUpload"
 
 interface ProfileEditScreenProps {
   onBack: () => void
@@ -24,6 +25,9 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
     { userId: session?.user?.id || "" },
     { enabled: !!session?.user?.id }
   )
+
+  const getUploadUrlMutation = api.file.getUploadUrl.useMutation()
+  const confirmUploadMutation = api.file.confirmUpload.useMutation()
 
   const [formData, setFormData] = useState({
     aliasName: "",
@@ -122,23 +126,69 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
     }
   }, [userDetails, formattedBirthDate])
 
+  const uploadFileToR2 = useCallback(async (file: File): Promise<string> => {
+    try {
+      // Get upload URL
+      const uploadUrlResult = await getUploadUrlMutation.mutateAsync({
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        category: "PROFILE",
+        isPublic: true,
+      })
+
+      // Upload file to R2
+      const uploadResponse = await fetch(uploadUrlResult.uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: {
+          "Content-Type": file.type,
+        },
+      })
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed: ${uploadResponse.statusText}`)
+      }
+
+      // Confirm upload
+      await confirmUploadMutation.mutateAsync({
+        fileId: uploadUrlResult.fileId,
+        fileKey: uploadUrlResult.fileKey,
+      })
+
+      // Return the public URL
+      return generateR2Url(uploadUrlResult.fileKey)
+    } catch (error) {
+      console.error("File upload failed:", error)
+      throw new Error("ファイルのアップロードに失敗しました")
+    }
+  }, [getUploadUrlMutation, confirmUploadMutation])
+
   const handleMainImageChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file && session?.user?.id) {
       setIsMainImageLoading(true)
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const result = e.target?.result as string
-        updateUserMutation.mutate({
-          userId: session.user.id,
-          data: {
-            image: result,
-          },
+      uploadFileToR2(file)
+        .then((url: string) => {
+          updateUserMutation.mutate({
+            userId: session.user.id,
+            data: {
+              image: url,
+            },
+          })
         })
-      }
-      reader.readAsDataURL(file)
+        .catch((error: Error) => {
+          toast({
+            title: "エラー",
+            description: error.message,
+            variant: "destructive",
+          })
+        })
+        .finally(() => {
+          setIsMainImageLoading(false)
+        })
     }
-  }, [session?.user?.id, updateUserMutation])
+  }, [session?.user?.id, updateUserMutation, toast, uploadFileToR2])
 
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -153,20 +203,28 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
       }
       
       setLoadingImageIndex(images.length)
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const result = e.target?.result as string
-        const newImages = [...images, result]
-        updateUserMutation.mutate({
-          userId: session.user.id,
-          data: {
-            additionalImages: newImages,
-          },
+      uploadFileToR2(file)
+        .then((url: string) => {
+          const newImages = [...images, url]
+          updateUserMutation.mutate({
+            userId: session.user.id,
+            data: {
+              additionalImages: newImages,
+            },
+          })
         })
-      }
-      reader.readAsDataURL(file)
+        .catch((error: Error) => {
+          toast({
+            title: "エラー",
+            description: error.message,
+            variant: "destructive",
+          })
+        })
+        .finally(() => {
+          setLoadingImageIndex(null)
+        })
     }
-  }, [images, session?.user?.id, toast, updateUserMutation])
+  }, [images, session?.user?.id, toast, updateUserMutation, uploadFileToR2])
 
   const handleImageChange = useCallback((index: number) => {
     const input = document.createElement("input")
@@ -176,29 +234,37 @@ export default function ProfileEditScreen({ onBack }: ProfileEditScreenProps) {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (file && session?.user?.id) {
         setLoadingImageIndex(index)
-        const reader = new FileReader()
-        reader.onload = (e) => {
-          const result = e.target?.result as string
-          const newImages = [...images]
-          if (index < newImages.length) {
-            newImages[index] = result
-          } else {
-            newImages.push(result)
-          }
-          const filteredImages = newImages.filter(img => img !== undefined && img !== null)
-          updateUserMutation.mutate({
-            userId: session.user.id,
-            data: {
-              additionalImages: filteredImages,
-            },
+        uploadFileToR2(file)
+          .then((url: string) => {
+            const newImages = [...images]
+            if (index < newImages.length) {
+              newImages[index] = url
+            } else {
+              newImages.push(url)
+            }
+            const filteredImages = newImages.filter(img => img !== undefined && img !== null)
+            updateUserMutation.mutate({
+              userId: session.user.id,
+              data: {
+                additionalImages: filteredImages,
+              },
+            })
           })
-        }
-        reader.readAsDataURL(file)
+          .catch((error: Error) => {
+            toast({
+              title: "エラー",
+              description: error.message,
+              variant: "destructive",
+            })
+          })
+          .finally(() => {
+            setLoadingImageIndex(null)
+          })
       }
     }
     input.click()
     setShowImageOptions(null)
-  }, [images, session?.user?.id, updateUserMutation])
+  }, [images, session?.user?.id, updateUserMutation, toast, uploadFileToR2])
 
   const handleSimpleProfileTagsSave = useCallback((selectedTags: string[]) => {
     setFormData({ ...formData, simpleProfileTags: selectedTags })

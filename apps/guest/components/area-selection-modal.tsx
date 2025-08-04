@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { X } from "lucide-react"
 
@@ -21,12 +21,7 @@ export default function AreaSelectionModal({
 }: AreaSelectionModalProps) {
   const [selectedArea, setSelectedArea] = useState(initialArea)
 
-  const handleSave = () => {
-    onSave(selectedArea)
-    onClose()
-  }
-
-  const areas = [
+  const areas = useMemo(() => [
     "北海道",
     "青森県",
     "岩手県",
@@ -75,34 +70,41 @@ export default function AreaSelectionModal({
     "鹿児島県",
     "沖縄県",
     "海外",
-  ]
+  ], [])
+
+  const handleSave = useCallback(() => {
+    onSave(selectedArea)
+    onClose()
+  }, [onSave, selectedArea, onClose])
+
+  const handleCloseClick = useCallback(() => {
+    onSave(selectedArea)
+    onClose()
+  }, [onSave, selectedArea, onClose])
+
+  const handleAreaSelect = useCallback((area: string) => {
+    setSelectedArea(area)
+    onSave(area)
+    onClose()
+  }, [onSave, onClose])
 
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-50 bg-white w-full md:max-w-sm mx-auto flex flex-col">
-      {/* Header */}
       <div className="bg-gold-pink-gradient px-4 py-4 flex items-center gap-3 border-b shadow-lg">
-        <button onClick={() => {
-          onSave(selectedArea)
-          onClose()
-        }}>
+        <button onClick={handleCloseClick}>
           <X className="w-5 h-5 text-white" />
         </button>
         <span className="text-base font-medium text-white">{title}</span>
       </div>
 
-      {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto p-4 pb-20">
         <div className="space-y-2">
           {areas.map((area) => (
             <button
               key={area}
-              onClick={() => {
-                setSelectedArea(area)
-                onSave(area)
-                onClose()
-              }}
+              onClick={() => handleAreaSelect(area)}
               className={`w-full text-left px-4 py-3 rounded-lg ${
                 selectedArea === area
                   ? "bg-gold-pink-gradient text-white"
@@ -114,8 +116,6 @@ export default function AreaSelectionModal({
           ))}
         </div>
       </div>
-
-
     </div>
   )
 }

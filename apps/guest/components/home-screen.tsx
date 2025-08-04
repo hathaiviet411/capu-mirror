@@ -1,17 +1,14 @@
 "use client"
 
 import type React from "react"
-
 import SearchModal, { type SearchFilters } from "@/components/search-modal"
-
 import { api } from "~/utils/api"
 import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Star, Search, Heart } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/use-toast"
-import { useState, useCallback, useEffect } from "react"
-
+import { useState, useCallback, useEffect, useMemo } from "react"
 import Image from "next/image"
 import Footer from "@/components/shared/footer"
 import MyPageScreen from "@/components/mypage-screen"
@@ -22,14 +19,6 @@ export default function HomeScreen() {
   const { toast } = useToast()
   const { data: session } = useSession()
   
-  // Debug session state
-  useEffect(() => {
-    console.log('Session state:', { 
-      hasSession: !!session, 
-      userId: session?.user?.id,
-      userType: session?.user?.userType 
-    })
-  }, [session])
   const [showSearchModal, setShowSearchModal] = useState(false)
   const [hasMore, setHasMore] = useState({ home: true, favorites: true, footprints: true })
   const [page, setPage] = useState({ home: 0, favorites: 0, footprints: 0 })
@@ -37,15 +26,10 @@ export default function HomeScreen() {
   const [searchText, setSearchText] = useState("検索してみる")
   const [showMyPage, setShowMyPage] = useState(false)
   const [showMessageList, setShowMessageList] = useState(false)
-
   const [showCastDetail, setShowCastDetail] = useState(false)
   const [selectedCast, setSelectedCast] = useState<any>(null)
   const [filterCount, setFilterCount] = useState(0)
 
-  // API Queries - removed problematic getMyProfile call
-  // Use session data instead
-
-  // Get list of female cast users
   const {
     data: castUsersData,
     isLoading: isLoadingCastUsers,
@@ -57,37 +41,16 @@ export default function HomeScreen() {
     },
     {
       enabled: activeTab === "オススメ",
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: 1000 * 60 * 5,
       retry: 1,
     }
   )
 
-  // Favorites - temporarily disabled
-  // const {
-  //   data: favoritesData,
-  //   isLoading: isLoadingFavorites,
-  //   refetch: refetchFavorites,
-  //   error: favoritesError,
-  // } = api.guest.getFavorites.useQuery(
-  //   {
-  //     guestId: session?.user?.id || "",
-  //     limit: 100,
-  //     offset: 0,
-  //   },
-  //   {
-  //     enabled: !!session?.user?.id,
-  //     staleTime: 1000 * 60 * 5, // 5 minutes
-  //     retry: 1,
-  //   }
-  // )
-  
-  // Temporary mock data for favorites
-  const favoritesData: any[] = []
-  const isLoadingFavorites = false
-  const refetchFavorites = () => {}
-  const favoritesError = null
+  const favoritesData: any[] = useMemo(() => [], [])
+  const isLoadingFavorites = useMemo(() => false, [])
+  const refetchFavorites = useCallback(() => {}, [])
+  const favoritesError = useMemo(() => null, [])
 
-  // Footprints - temporarily disabled
   const {
     data: footprintsData,
     isLoading: isLoadingFootprints,
@@ -99,54 +62,12 @@ export default function HomeScreen() {
     },
     {
       enabled: activeTab === "足あと",
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: 1000 * 60 * 5,
       retry: 1,
     }
   )
 
-  // Mutations - temporarily disabled
-  // const addFavoriteMutation = api.guest.addFavorite.useMutation({
-  //   onSuccess: () => {
-  //     refetchFavorites()
-  //     toast({
-  //       title: "お気に入りに追加しました",
-  //       duration: 2000,
-  //     })
-  //   },
-  //   onError: (error) => {
-  //     if (error.message.includes("既にお気に入りに追加されています")) {
-  //       // すでにお気に入りの場合は何もしない
-  //       return
-  //     }
-  //     toast({
-  //       title: "エラー",
-  //       description: error.message,
-  //       variant: "destructive",
-  //       duration: 3000,
-  //     })
-  //   },
-  // })
-
-  // const removeFavoriteMutation = api.guest.removeFavorite.useMutation({
-  //   onSuccess: () => {
-  //     refetchFavorites()
-  //     toast({
-  //       title: "お気に入りから削除しました",
-  //       duration: 2000,
-  //     })
-  //   },
-  //   onError: (error) => {
-  //     toast({
-  //       title: "エラー",
-  //       description: error.message,
-  //       variant: "destructive",
-  //       duration: 3000,
-  //     })
-  //   },
-  // })
-  
-  // Temporary mock mutations
-  const addFavoriteMutation = {
+  const addFavoriteMutation = useMemo(() => ({
     mutate: () => {
       toast({
         title: "お気に入り機能は一時的に無効化されています",
@@ -154,9 +75,9 @@ export default function HomeScreen() {
       })
     },
     isLoading: false
-  }
+  }), [toast])
   
-  const removeFavoriteMutation = {
+  const removeFavoriteMutation = useMemo(() => ({
     mutate: () => {
       toast({
         title: "お気に入り機能は一時的に無効化されています",
@@ -164,26 +85,14 @@ export default function HomeScreen() {
       })
     },
     isLoading: false
-  }
+  }), [toast])
 
-  // Create favorites set from API data
-  const favoriteIds = new Set(favoritesData?.map(fav => fav.castId) || [])
-  
-  // Handle favorites error - temporarily disabled
-  // useEffect(() => {
-  //   if (favoritesError) {
-  //     console.error('Favorites error:', favoritesError)
-  //     toast({
-  //       title: "エラー",
-  //       description: favoritesError.message,
-  //       variant: "destructive",
-  //       duration: 3000,
-  //     })
-  //   }
-  // }, [favoritesError, toast])
+  const favoriteIds = useMemo(() => 
+    new Set(favoritesData?.map(fav => fav.castId) || []), 
+    [favoritesData]
+  )
 
-  // Get current tab data
-  const getCurrentTabData = () => {
+  const getCurrentTabData = useCallback(() => {
     switch (activeTab) {
       case "オススメ":
         return {
@@ -194,7 +103,6 @@ export default function HomeScreen() {
           isFetchingMore: false,
         }
       case "お気に入り":
-        // Temporarily disabled - redirect to オススメ
         setActiveTab("オススメ")
         return {
           data: castUsersData || [],
@@ -220,111 +128,62 @@ export default function HomeScreen() {
           isFetchingMore: false,
         }
     }
-  }
+  }, [activeTab, castUsersData, isLoadingCastUsers, footprintsData, isLoadingFootprints])
 
-  const currentTabData = getCurrentTabData()
+  const currentTabData = useMemo(() => getCurrentTabData(), [getCurrentTabData])
 
-  // ブラウザ履歴を使った画面遷移管理
-  useEffect(() => {
-    // 初期状態をブラウザ履歴に追加
-    if (typeof window !== 'undefined') {
-      window.history.replaceState({ screen: 'home' }, '', window.location.href)
-    }
-
-    const handlePopState = (event: PopStateEvent) => {
-      const state = event.state
-
-      if (state) {
-        switch (state.screen) {
-          case 'home':
-            setShowSearchModal(false)
-            setShowMyPage(false)
-            setShowMessageList(false)
-            setShowCastDetail(false)
-            setSelectedCast(null)
-            break
-          case 'search':
-            setShowSearchModal(true)
-            break
-          case 'mypage':
-            setShowMyPage(true)
-            break
-          case 'messages':
-            setShowMessageList(true)
-            break
-          case 'cast-detail':
-            setShowCastDetail(true)
-            break
-          default:
-            // ホームから戻る場合は親のonBackを呼ぶ
-            if (state.screen === 'home' || state.screen === 'mypage') {
-              goBack()
-            }
-        }
-      } else {
-        // ブラウザの戻るボタンが押された場合
-        goBack()
-      }
-    }
-
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [])
-
-  // 画面遷移時にブラウザ履歴を追加する関数
-  const pushToHistory = (screen: string, data?: any) => {
+  const pushToHistory = useCallback((screen: string, data?: any) => {
     if (typeof window !== 'undefined') {
       window.history.pushState({ screen, data }, '', window.location.href)
     }
-  }
+  }, [])
 
-  const navigateToMyPage = () => {
+  const navigateToMyPage = useCallback(() => {
     setShowMyPage(true)
     pushToHistory('mypage')
-  }
+  }, [pushToHistory])
 
-  const navigateToMessages = () => {
+  const navigateToMessages = useCallback(() => {
     setShowMessageList(true)
     pushToHistory('messages')
-  }
+  }, [pushToHistory])
 
-  const navigateToSearch = () => {
+  const navigateToSearch = useCallback(() => {
     setShowSearchModal(true)
     pushToHistory('search')
-  }
+  }, [pushToHistory])
 
-  const navigateToCastDetail = (cast: any) => {
+  const navigateToCastDetail = useCallback((cast: any) => {
     setSelectedCast(cast)
     setShowCastDetail(true)
     pushToHistory('cast-detail', cast)
-  }
+  }, [pushToHistory])
 
-  const goBack = () => {
+  const goBack = useCallback(() => {
     if (typeof window !== 'undefined') {
       window.history.back()
     }
-  }
+  }, [])
 
-  const handleFilterCountChange = (count: number) => {
+  const handleFilterCountChange = useCallback((count: number) => {
     setFilterCount(count)
-  }
+  }, [])
 
-  const handleCastClick = (cast: any) => {
+  const handleCastClick = useCallback((cast: any) => {
     navigateToCastDetail(cast)
-  }
+  }, [navigateToCastDetail])
 
-  const calculateAverageRating = (reviews: any[]) => {
+  const calculateAverageRating = useCallback((reviews: any[]) => {
     if (!reviews || reviews.length === 0) return 0
     const sum = reviews.reduce((acc, review) => acc + review.rating, 0)
     return Math.round((sum / reviews.length) * 10) / 10
-  }
+  }, [])
 
-  const formatPrice = (hourlyRate: number) => {
+  const formatPrice = useCallback((hourlyRate: number) => {
     return `${hourlyRate.toLocaleString()}P / 30分`
-  }
+  }, [])
 
-  // Get data for current tab
-  const getTabData = () => {
+  const getTabData = useCallback(() => {
     switch (activeTab) {
       case "オススメ":
         return {
@@ -359,111 +218,136 @@ export default function HomeScreen() {
           isFetchingMore: false,
         }
     }
-  }
+  }, [activeTab, castUsersData, isLoadingCastUsers, favoritesData, isLoadingFavorites, footprintsData, isLoadingFootprints])
 
-  const tabData = getTabData()
+  const tabData = useMemo(() => getTabData(), [getTabData])
 
-  // Scroll handler
   const handleScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
       const { scrollTop, scrollHeight, clientHeight } = e.currentTarget
 
-      // Load more when user is 200px from bottom
       if (scrollHeight - scrollTop <= clientHeight + 200) {
-        // For now, we don't have pagination implemented
         console.log("Load more triggered but not implemented yet")
       }
     },
     [],
   )
 
-  // Get displayed casts based on active tab
-  const displayedCasts = activeTab === "お気に入り" ? (favoritesData || []) : (castUsersData || [])
+  const displayedCasts = useMemo(() => 
+    activeTab === "お気に入り" ? (favoritesData || []) : (castUsersData || []),
+    [activeTab, favoritesData, castUsersData]
+  )
 
-  // Handle search functionality
   const handleSearchSubmit = useCallback((searchText: string, filters: SearchFilters) => {
     setSearchText(searchText)
-    // TODO: Implement actual search functionality with the filters
-    // For now, we'll just update the search text display
     console.log("Search submitted:", { searchText, filters })
   }, [])
 
-  // Handle search button click - always open search modal for filtering
-  const handleSearchClick = () => {
+  const handleSearchClick = useCallback(() => {
     navigateToSearch()
-  }
+  }, [navigateToSearch])
 
-  // Handle footer search button click - navigate back to home or open search modal
-  const handleFooterSearchClick = () => {
-    // If we're on a different screen (mypage or messages), navigate back to home
+  const handleFooterSearchClick = useCallback(() => {
     if (showMyPage || showMessageList) {
-      // Directly reset the state instead of relying on browser history
       setShowMyPage(false)
       setShowMessageList(false)
       setShowCastDetail(false)
       setSelectedCast(null)
-      // Reset to home state in browser history
       if (typeof window !== 'undefined') {
         window.history.replaceState({ screen: 'home' }, '', window.location.href)
       }
-      // Add a small delay to ensure state updates are processed
       setTimeout(() => {
         console.log('Navigation back to home completed')
       }, 100)
     } else {
-      // If we're already on home screen, open the search modal
       navigateToSearch()
     }
-  }
+  }, [showMyPage, showMessageList, navigateToSearch])
 
-  // Toggle favorite function - temporarily disabled
-  const toggleFavorite = (castId: string) => {
-    // Temporarily disabled - show toast instead
+  const toggleFavorite = useCallback((castId: string) => {
     toast({
       title: "お気に入り機能は一時的に無効化されています",
       duration: 2000,
     })
-  }
+  }, [toast])
 
-  // Show MyPage if selected
+  const handleTabClick = useCallback((tab: string) => {
+    setActiveTab(tab)
+  }, [])
+
+  const handleFavoriteClick = useCallback((e: React.MouseEvent, castProfile: any) => {
+    e.stopPropagation()
+    toggleFavorite(castProfile?.id)
+  }, [toggleFavorite])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({ screen: 'home' }, '', window.location.href)
+    }
+
+    const handlePopState = (event: PopStateEvent) => {
+      const state = event.state
+
+      if (state) {
+        switch (state.screen) {
+          case 'home':
+            setShowSearchModal(false)
+            setShowMyPage(false)
+            setShowMessageList(false)
+            setShowCastDetail(false)
+            setSelectedCast(null)
+            break
+          case 'search':
+            setShowSearchModal(true)
+            break
+          case 'mypage':
+            setShowMyPage(true)
+            break
+          case 'messages':
+            setShowMessageList(true)
+            break
+          case 'cast-detail':
+            setShowCastDetail(true)
+            break
+          default:
+            if (state.screen === 'home' || state.screen === 'mypage') {
+              goBack()
+            }
+        }
+      } else {
+        goBack()
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [goBack])
+
   if (showMyPage) {
     return <MyPageScreen onBack={goBack} />
   }
 
-  // Show MessageList if selected
   if (showMessageList) {
     return <MessageListScreen onBack={goBack} onNavigateToMyPage={navigateToMyPage} onNavigateToHome={goBack} />
   }
 
   return (
     <div className="h-full w-full bg-gray-100 flex flex-col relative">
-      {/* Tab Navigation + Search icon */}
       <div className="bg-white sticky top-0 z-10 shadow-sm">
         <div className="flex items-center justify-between border-b border-gray-200 px-4">
-          {/* Left spacer */}
           <div className="w-10"></div>
           
-          {/* Tabs - Center */}
           <div className="flex">
             <button
-              onClick={() => setActiveTab("オススメ")}
+              onClick={() => handleTabClick("オススメ")}
               className={`px-4 py-4 text-sm font-medium transition-colors focus:outline-none ${
                 activeTab === "オススメ" ? "border-bottom-gold-pink-gradient text-gold-pink-gradient" : "border-b-2 border-transparent text-gray-600"
               }`}
             >
               オススメ
             </button>
-            {/* Temporarily disabled favorites tab */}
-            {/* <button
-              onClick={() => setActiveTab("お気に入り")}
-              className={`px-4 py-4 text-sm font-medium transition-colors focus:outline-none ${
-                activeTab === "お気に入り" ? "border-bottom-gold-pink-gradient text-gold-pink-gradient" : "border-b-2 border-transparent text-gray-600"
-              }`}
-            >
-              お気に入り
-            </button> */}
             <button
-              onClick={() => setActiveTab("足あと")}
+              onClick={() => handleTabClick("足あと")}
               className={`px-4 py-4 text-sm font-medium transition-colors focus:outline-none ${
                 activeTab === "足あと" ? "border-bottom-gold-pink-gradient text-gold-pink-gradient" : "border-b-2 border-transparent text-gray-600"
               }`}
@@ -472,7 +356,6 @@ export default function HomeScreen() {
             </button>
           </div>
           
-          {/* Search icon - Right */}
           <button onClick={handleSearchClick} className="p-3 relative">
             <Search className="w-6 h-6 text-gray-700" />
             {filterCount > 0 && (
@@ -484,15 +367,11 @@ export default function HomeScreen() {
         </div>
       </div>
 
-      {/* Main Content - Scrollable */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden relative z-0 content-with-safe-footer bg-gray-100" onScroll={handleScroll}>
         {activeTab === "足あと" ? (
-          /* Footprint List */
           <div>
-            {/* Top Spacer */}
             <div className="h-4 bg-gray-100"></div>
             
-            {/* Loading skeleton */}
             {isLoadingFootprints && tabData.data.length === 0 ? (
               <div className="bg-white">
                 {[...Array(3)].map((_, index) => (
@@ -517,7 +396,6 @@ export default function HomeScreen() {
                 <p className="text-gray-600">まだ足あとがついていません</p>
               </div>
             ) : (
-              /* Footprint Items */
               <div className="bg-white">
                 {tabData.data.map((footprint: any, index: number) => {
                   const viewer = footprint.viewer
@@ -536,7 +414,6 @@ export default function HomeScreen() {
                     <div key={`footprint-${footprint.id}-${index}`}>
                       <div className="p-4">
                         <div className="flex items-start gap-3">
-                          {/* Profile Image */}
                           <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
                             <Image
                               src={avatar || "/placeholder-user.jpg"}
@@ -547,12 +424,9 @@ export default function HomeScreen() {
                             />
                           </div>
 
-                          {/* Content */}
                           <div className="flex-1">
-                            {/* Timestamp */}
                             <p className="text-xs text-gray-500 mb-2">{timestamp} • 足あとがつきました</p>
 
-                            {/* Name and Class */}
                             <div className="flex items-center gap-2 mb-2">
                               <div className="flex items-center gap-1">
                                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -567,12 +441,10 @@ export default function HomeScreen() {
                               )}
                             </div>
 
-                            {/* Message */}
                             {viewer.userType === "CAST" && profile?.bio && (
                               <p className="text-xs text-gray-700 leading-relaxed mb-3 line-clamp-3">{profile.bio}</p>
                             )}
 
-                            {/* Message Button */}
                             <Button 
                               onClick={() => viewer.userType === "CAST" && handleCastClick(profile)}
                               className="w-full h-10 bg-gold-pink-gradient hover:bg-gold-pink-gradient-dark text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2"
@@ -596,7 +468,6 @@ export default function HomeScreen() {
                           </div>
                         </div>
                       </div>
-                      {/* Divider between items */}
                       {index < tabData.data.length - 1 && <div className="h-px bg-gray-200 mx-4"></div>}
                     </div>
                   )
@@ -604,7 +475,6 @@ export default function HomeScreen() {
               </div>
             )}
 
-            {/* Loading Section */}
             {tabData.isFetchingMore && (
               <>
                 <div className="h-2 bg-gray-100"></div>
@@ -614,7 +484,6 @@ export default function HomeScreen() {
               </>
             )}
 
-            {/* Load More Button */}
             {tabData.hasMore && !tabData.isFetchingMore && (
               <>
                 <div className="h-2 bg-gray-100"></div>
@@ -629,7 +498,6 @@ export default function HomeScreen() {
               </>
             )}
 
-            {/* End of data Section */}
             {!tabData.hasMore && tabData.data.length > 0 && (
               <>
                 <div className="h-2 bg-gray-100"></div>
@@ -639,16 +507,12 @@ export default function HomeScreen() {
               </>
             )}
 
-            {/* Final Gray Spacer */}
             <div className="h-4 bg-gray-100"></div>
           </div>
         ) : (
-          /* Cast Masonry Grid Section */
           <div>
-            {/* Top Spacer */}
             <div className="h-4 bg-gray-100"></div>
             
-            {/* Loading skeleton */}
             {(isLoadingCastUsers || isLoadingFavorites) && displayedCasts.length === 0 ? (
               <div className="bg-white px-2 pb-4 pt-2">
                 <div className="grid grid-cols-2 gap-2">
@@ -671,20 +535,16 @@ export default function HomeScreen() {
                 </p>
               </div>
             ) : (
-              /* Cast Masonry Grid Section */
               <div className="bg-white px-2 pb-4 pt-2">
                 <div className="grid grid-cols-2 gap-2">
                   {displayedCasts.map((cast: any, index: number) => {
-                    // Handle different data structures for favorites vs recommended
                     let castProfile, avatar, userImage
                     
                     if (activeTab === "お気に入り") {
-                      // Favorites structure: { cast: { ... }, user: { ... } }
                       castProfile = cast.cast
                       userImage = cast.cast?.user?.image
                       avatar = castProfile?.avatar || userImage || "/placeholder-user.jpg"
                     } else {
-                      // Recommended structure: { castProfile: { ... }, image: ... }
                       castProfile = cast.castProfile
                       userImage = cast.image
                       avatar = castProfile?.avatar || userImage || "/placeholder-user.jpg"
@@ -700,7 +560,6 @@ export default function HomeScreen() {
                         onClick={() => handleCastClick(castProfile)}
                         className="relative mb-2 cursor-pointer group"
                       >
-                        {/* Cast Image */}
                         <Image
                           src={avatar}
                           alt="Cast member"
@@ -709,21 +568,16 @@ export default function HomeScreen() {
                           className="w-full h-72 object-cover rounded-lg bg-gray-200"
                         />
 
-                        {/* Hover dark overlay - Desktop only */}
                         <div className="absolute inset-0 bg-black/0 md:group-hover:bg-black/40 transition-colors rounded-lg" />
 
-                        {/* Caption & Meta */}
                         <div className="mt-1 px-1">
-                          {/* Name as title */}
                           <p className="text-sm font-semibold text-gray-900 leading-tight truncate">
                             {castProfile?.displayName}
                           </p>
-                          {/* Bio (limited to 2 lines) */}
                           <p className="text-xs text-gray-600 line-clamp-2">
                             {castProfile?.bio || "プロフィールメッセージなし"}
                           </p>
 
-                          {/* Price Row */}
                           <div className="flex items-center justify-between mt-1">
                             <div className="flex items-center gap-1">
                               {averageRating > 0 && (
@@ -740,12 +594,8 @@ export default function HomeScreen() {
                           </div>
                         </div>
 
-                        {/* Favourite Star */}
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            toggleFavorite(castProfile?.id)
-                          }}
+                          onClick={(e) => handleFavoriteClick(e, castProfile)}
                           className="absolute top-2 right-2 md:hover:scale-110 transition-transform z-10"
                           disabled={false}
                         >
@@ -764,7 +614,6 @@ export default function HomeScreen() {
               </div>
             )}
 
-            {/* Loading Section */}
             {tabData.isFetchingMore && (
               <>
                 <div className="h-2 bg-gray-100"></div>
@@ -774,7 +623,6 @@ export default function HomeScreen() {
               </>
             )}
 
-            {/* End of data Section */}
             {!tabData.hasMore && activeTab === "オススメ" && displayedCasts.length > 0 && (
               <>
                 <div className="h-2 bg-gray-100"></div>
@@ -784,13 +632,11 @@ export default function HomeScreen() {
               </>
             )}
 
-            {/* Final Gray Spacer */}
             <div className="h-4 bg-gray-100"></div>
           </div>
         )}
       </div>
 
-      {/* Bottom Navigation - Fixed */}
       <Footer
         onSearchClick={handleFooterSearchClick}
         onMessageClick={navigateToMessages}
@@ -799,7 +645,6 @@ export default function HomeScreen() {
         activeButton="search"
       />
 
-      {/* Search Modal */}
       <SearchModal 
         isOpen={showSearchModal} 
         onClose={goBack} 
@@ -807,7 +652,6 @@ export default function HomeScreen() {
         onFilterCountChange={handleFilterCountChange}
       />
 
-      {/* Cast Detail Modal */}
       {selectedCast && (
         <CastDetailModal isOpen={showCastDetail} onClose={goBack} cast={selectedCast} />
       )}

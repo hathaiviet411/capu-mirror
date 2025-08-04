@@ -2,7 +2,7 @@
 
 import { ArrowLeft, ChevronDown, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useState } from "react"
+import { useState, useCallback, useMemo } from "react"
 import { api } from "~/utils/api"
 import { useToast } from "@/components/ui/use-toast"
 
@@ -34,6 +34,11 @@ interface SelectionModalProps {
 }
 
 function SelectionModal({ isOpen, onClose, title, options, selectedValue, onSelect }: SelectionModalProps) {
+  const handleOptionSelect = useCallback((option: string) => {
+    onSelect(option)
+    onClose()
+  }, [onSelect, onClose])
+
   if (!isOpen) return null
 
   return (
@@ -52,10 +57,7 @@ function SelectionModal({ isOpen, onClose, title, options, selectedValue, onSele
             options.map((option) => (
               <button
                 key={option}
-                onClick={() => {
-                  onSelect(option)
-                  onClose()
-                }}
+                onClick={() => handleOptionSelect(option)}
                 className={`
                   w-full text-left px-4 py-3 rounded-lg
                   ${selectedValue === option ? "bg-gold-pink-gradient text-white" : "bg-gray-100 text-gray-600"}
@@ -67,8 +69,6 @@ function SelectionModal({ isOpen, onClose, title, options, selectedValue, onSele
           }
         </div>
       </div>
-
-
     </div>
   )
 }
@@ -99,7 +99,7 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
     },
   })
 
-  const fieldOptions = {
+  const fieldOptions = useMemo(() => ({
     height: Array.from({ length: 51 }, (_, i) => `${150 + i}`),
     residence: [
       "北海道",
@@ -206,55 +206,67 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
     smokingLevel: ["吸わない", "ときどき吸う", "よく吸う"],
     cohabitant: ["一人暮らし", "家族と同居", "友人・知人と同居", "恋人と同居", "その他"],
     siblings: ["一人っ子", "長女", "次女", "三女以降"],
-  }
+  }), [])
 
-  const handleSave = () => {
+  const updateData = useMemo(() => ({
+    height: basicInfo.height,
+    residence: basicInfo.residence,
+    education: basicInfo.education,
+    occupation: basicInfo.occupation,
+    drinkingLevel: basicInfo.drinkingLevel,
+    siblings: basicInfo.siblings,
+    birthplace: basicInfo.birthplace,
+    cohabitant: basicInfo.cohabitant,
+    smokingLevel: basicInfo.smokingLevel,
+  }), [basicInfo])
+
+  const fieldTitles = useMemo(() => ({
+    height: "身長",
+    residence: "居住地", 
+    birthplace: "出身地",
+    education: "学歴",
+    occupation: "お仕事",
+    drinkingLevel: "お酒",
+    smokingLevel: "タバコ",
+    cohabitant: "同居人",
+    siblings: "兄弟姉妹",
+  }), [])
+
+  const handleBackClick = useCallback(() => {
+    onBack()
+  }, [onBack])
+
+  const handleSave = useCallback(() => {
     setIsSaving(true)
     
-    const updateData = {
-      height: basicInfo.height,
-      residence: basicInfo.residence,
-      education: basicInfo.education,
-      occupation: basicInfo.occupation,
-      drinkingLevel: basicInfo.drinkingLevel,
-      siblings: basicInfo.siblings,
-      birthplace: basicInfo.birthplace,
-      cohabitant: basicInfo.cohabitant,
-      smokingLevel: basicInfo.smokingLevel,
-    }
-
     updateUserMutation.mutate({
       userId: userId,
       data: updateData
     })
-  }
+  }, [updateUserMutation, userId, updateData])
 
-  const handleFieldSelect = (field: string, value: string) => {
+  const handleFieldSelect = useCallback((field: string, value: string) => {
     setBasicInfo({ ...basicInfo, [field]: value })
-  }
+  }, [basicInfo])
 
-  const getFieldTitle = (field: string): string => {
-    const fieldTitles: Record<string, string> = {
-      height: "身長",
-      residence: "居住地", 
-      birthplace: "出身地",
-      education: "学歴",
-      occupation: "お仕事",
-      drinkingLevel: "お酒",
-      smokingLevel: "タバコ",
-      cohabitant: "同居人",
-      siblings: "兄弟姉妹",
-    }
-    
-    return fieldTitles[field] || ""
-  }
+  const getFieldTitle = useCallback((field: string): string => {
+    return fieldTitles[field as keyof typeof fieldTitles] || ""
+  }, [fieldTitles])
+
+  const handleModalOpen = useCallback((field: string) => {
+    setActiveModal(field)
+  }, [])
+
+  const handleModalClose = useCallback(() => {
+    setActiveModal(null)
+  }, [])
 
   return (
     <>
       <div className="min-h-screen w-full md:max-w-sm mx-auto bg-gray-100 flex flex-col relative">
         <div className="bg-gold-pink-gradient px-4 py-4 h-16 flex items-center justify-between fixed top-0 left-1/2 transform -translate-x-1/2 w-full md:max-w-sm z-10 shadow-lg">
           <div className="flex items-center gap-3">
-            <button onClick={onBack}>
+            <button onClick={handleBackClick}>
               <ArrowLeft className="w-5 h-5 text-white" />
             </button>
             <h1 className="text-base font-medium text-white">基本情報</h1>
@@ -271,7 +283,7 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
         <div className="flex-1 overflow-y-auto mt-[64px] bg-gray-100 pb-8">
           <div className="bg-white">
             <button
-              onClick={() => setActiveModal("height")}
+              onClick={() => handleModalOpen("height")}
               className="w-full flex items-center justify-between p-4 border-b border-gray-100"
             >
               <span className="text-sm text-black">身長</span>
@@ -293,7 +305,7 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
             </button>
 
             <button
-              onClick={() => setActiveModal("residence")}
+              onClick={() => handleModalOpen("residence")}
               className="w-full flex items-center justify-between p-4 border-b border-gray-100"
             >
               <span className="text-sm text-black">居住地</span>
@@ -315,7 +327,7 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
             </button>
 
             <button
-              onClick={() => setActiveModal("birthplace")}
+              onClick={() => handleModalOpen("birthplace")}
               className="w-full flex items-center justify-between p-4 border-b border-gray-100"
             >
               <span className="text-sm text-black">出身地</span>
@@ -337,7 +349,7 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
             </button>
 
             <button
-              onClick={() => setActiveModal("education")}
+              onClick={() => handleModalOpen("education")}
               className="w-full flex items-center justify-between p-4 border-b border-gray-100"
             >
               <span className="text-sm text-black">学歴</span>
@@ -359,7 +371,7 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
             </button>
 
             <button
-              onClick={() => setActiveModal("occupation")}
+              onClick={() => handleModalOpen("occupation")}
               className="w-full flex items-center justify-between p-4 border-b border-gray-100"
             >
               <span className="text-sm text-black">お仕事</span>
@@ -381,7 +393,7 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
             </button>
 
             <button
-              onClick={() => setActiveModal("drinkingLevel")}
+              onClick={() => handleModalOpen("drinkingLevel")}
               className="w-full flex items-center justify-between p-4 border-b border-gray-100"
             >
               <span className="text-sm text-black">お酒</span>
@@ -403,7 +415,7 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
             </button>
 
             <button
-              onClick={() => setActiveModal("smokingLevel")}
+              onClick={() => handleModalOpen("smokingLevel")}
               className="w-full flex items-center justify-between p-4 border-b border-gray-100"
             >
               <span className="text-sm text-black">タバコ</span>
@@ -425,7 +437,7 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
             </button>
 
             <button
-              onClick={() => setActiveModal("cohabitant")}
+              onClick={() => handleModalOpen("cohabitant")}
               className="w-full flex items-center justify-between p-4 border-b border-gray-100"
             >
               <span className="text-sm text-black">同居人</span>
@@ -447,7 +459,7 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
             </button>
 
             <button
-              onClick={() => setActiveModal("siblings")}
+              onClick={() => handleModalOpen("siblings")}
               className="w-full flex items-center justify-between p-4 border-b border-gray-100"
             >
               <span className="text-sm text-black">兄弟姉妹</span>
@@ -488,7 +500,7 @@ export default function BasicInfoScreen({ onBack, basicInfo: initialBasicInfo, o
           <SelectionModal
             key={field}
             isOpen={activeModal === field}
-            onClose={() => setActiveModal(null)}
+            onClose={handleModalClose}
             title={getFieldTitle(field)}
             options={options}
             selectedValue={basicInfo[field as keyof typeof basicInfo]}

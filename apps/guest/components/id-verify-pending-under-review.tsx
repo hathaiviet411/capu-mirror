@@ -1,6 +1,7 @@
 "use client"
 
 import { ArrowLeft } from "lucide-react"
+import { useCallback, useMemo } from "react"
 import { api } from "~/utils/api"
 import { useSession } from "next-auth/react"
 
@@ -16,10 +17,10 @@ export default function IdentityVerificationPendingUnderReviewScreen({ onBack }:
     { enabled: !!session?.user?.id }
   )
 
-  const isPending = verificationData?.status === "PENDING"
-  const isUnderReview = verificationData?.status === "UNDER_REVIEW"
+  const isPending = useMemo(() => verificationData?.status === "PENDING", [verificationData?.status])
+  const isUnderReview = useMemo(() => verificationData?.status === "UNDER_REVIEW", [verificationData?.status])
 
-  const getStatusText = () => {
+  const getStatusText = useCallback(() => {
     if (isPending) {
       return {
         title: "提出完了",
@@ -41,23 +42,24 @@ export default function IdentityVerificationPendingUnderReviewScreen({ onBack }:
       description: "しばらくお待ちください",
       status: "処理中"
     }
-  }
+  }, [isPending, isUnderReview])
 
-  const statusInfo = getStatusText()
+  const statusInfo = useMemo(() => getStatusText(), [getStatusText])
+
+  const handleBackClick = useCallback(() => {
+    onBack()
+  }, [onBack])
 
   return (
     <div className="min-h-screen w-full md:max-w-sm mx-auto bg-gray-100 flex flex-col relative">
-      {/* Header */}
       <div className="bg-yellow-500 px-4 py-4 h-16 flex items-center gap-3 fixed top-0 left-1/2 transform -translate-x-1/2 w-full md:max-w-sm z-10 shadow-lg">
-        <button onClick={onBack}>
+        <button onClick={handleBackClick}>
           <ArrowLeft className="w-5 h-5 text-white" />
         </button>
         <h1 className="text-base font-medium text-white">{statusInfo.status}</h1>
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 overflow-y-auto mt-[64px] bg-gray-100 flex flex-col items-center justify-center p-4">
-        {/* Icon */}
         <div className="mb-8">
           <svg className="w-24 h-24 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -71,7 +73,6 @@ export default function IdentityVerificationPendingUnderReviewScreen({ onBack }:
           </svg>
         </div>
 
-        {/* Main Message */}
         <div className="text-center mb-8">
           <h2 className="text-lg font-medium text-black mb-2">{statusInfo.title}</h2>
           <h3 className="text-lg font-medium text-black mb-6">{statusInfo.subtitle}</h3>
@@ -98,9 +99,7 @@ export default function IdentityVerificationPendingUnderReviewScreen({ onBack }:
           </div>
         </div>
 
-        {/* Privacy Notice */}
         <div className="w-full md:max-w-sm border-2 border-yellow-500 rounded-lg p-4 relative">
-          {/* Lock Icon */}
           <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gray-100 px-2">
             <svg className="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
