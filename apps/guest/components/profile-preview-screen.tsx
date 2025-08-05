@@ -2,7 +2,7 @@
 
 import { ArrowLeft } from "lucide-react"
 import Image from "next/image"
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect } from "react"
 
 interface ProfilePreviewScreenProps {
   onBack: () => void
@@ -32,9 +32,27 @@ export default function ProfilePreviewScreen({ onBack, formData, basicInfo, imag
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [showHeader, setShowHeader] = useState(false)
 
-  const calculateAge = useCallback((birthDate: string | null | undefined): string => {
-    if (!birthDate) return ''
+  useEffect(() => {
+    const handleScroll = (e: Event) => {
+      const target = e.target as HTMLElement
+      if (target.scrollTop > 300) {
+        setShowHeader(true)
+      } else {
+        setShowHeader(false)
+      }
+    }
+
+    const scrollContainer = document.getElementById("profile-preview-scroll")
+    if (scrollContainer) {
+      scrollContainer.addEventListener("scroll", handleScroll)
+      return () => scrollContainer.removeEventListener("scroll", handleScroll)
+    }
+  }, [])
+
+  const calculateAge = (birthDate: string) => {
+    console.log('birthDate :', birthDate);
     
+    // Handle formatted Japanese date string (e.g., "2000年11月4日")
     if (birthDate.includes('年')) {
       const match = birthDate.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/)
       if (match) {
@@ -45,54 +63,26 @@ export default function ProfilePreviewScreen({ onBack, formData, basicInfo, imag
         const monthDiff = today.getMonth() - birthDateObj.getMonth()
         
         if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDateObj.getDate())) {
-          return (age - 1).toString()
+          return age - 1
         }
-
-        if (isNaN(age)) {
-          return ''
-        }
-        return age.toString()
+        return age
       }
     }
     
+    // Handle raw date string from database
     const today = new Date()
     const birthDateObj = new Date(birthDate)
     const age = today.getFullYear() - birthDateObj.getFullYear()
     const monthDiff = today.getMonth() - birthDateObj.getMonth()
     
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDateObj.getDate())) {
-      return (age - 1).toString()
+      return age - 1
     }
 
-    if (isNaN(age)) {
-      return ''
-    }
+    return age
+  }
 
-    return age.toString()
-  }, [])
-
-  const age = useMemo(() => calculateAge(basicInfo.birthDate), [calculateAge, basicInfo.birthDate])
-
-  const handleScroll = useCallback((e: Event) => {
-    const target = e.target as HTMLElement
-    if (target.scrollTop > 300) {
-      setShowHeader(true)
-    } else {
-      setShowHeader(false)
-    }
-  }, [])
-
-  const handleImageClick = useCallback((index: number) => {
-    setCurrentImageIndex(index)
-  }, [])
-
-  useEffect(() => {
-    const scrollContainer = document.getElementById("profile-preview-scroll")
-    if (scrollContainer) {
-      scrollContainer.addEventListener("scroll", handleScroll)
-      return () => scrollContainer.removeEventListener("scroll", handleScroll)
-    }
-  }, [handleScroll])
+  const age = calculateAge(basicInfo.birthDate)
 
   return (
     <div className="h-screen w-full md:max-w-sm mx-auto bg-gray-100 flex flex-col relative">
@@ -129,7 +119,7 @@ export default function ProfilePreviewScreen({ onBack, formData, basicInfo, imag
             {images.map((image, index) => (
               <button
                 key={index}
-                onClick={() => handleImageClick(index)}
+                onClick={() => setCurrentImageIndex(index)}
                 className={`w-16 h-16 rounded-lg overflow-hidden border-2 ${
                   currentImageIndex === index ? "border-gold-pink-gradient" : "border-gray-200"
                 }`}
@@ -151,7 +141,7 @@ export default function ProfilePreviewScreen({ onBack, formData, basicInfo, imag
               <span className="text-xs text-green-600">オンライン中</span>
             </div>
             <h1 className="text-base font-medium mb-1">
-              {formData.aliasName} {age ? `${age}歳` : ''}
+              {formData.aliasName} {age}歳
             </h1>
             <p className="text-sm text-gray-700">
               {basicInfo.occupation} / {formData.quote}
